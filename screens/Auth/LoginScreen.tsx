@@ -5,7 +5,9 @@ import AuthHeader from '../../components/Auth/AuthHeader';
 import AuthInput from '../../components/Auth/AuthInput';
 import AuthButton from '../../components/Auth/AuthButton';
 import SocialButton from '../../components/Auth/SocialButton';
-import { loginUser } from '../../services/auth';
+import { loginUser, logoutUser } from '../../services/auth';
+import { getUser } from '../../services/FirebaseUserService';
+import { Alert } from 'react-native';
 
 const LoginScreen = ({ navigation }: { navigation: any }) => {
   const [email, setEmail] = useState('');
@@ -22,9 +24,19 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
     }
     try {
       const userCredential = await loginUser(email.trim(), password);
-      console.log('User signed in!', userCredential.user?.uid);
-      setError('');
-      // TODO: Navigate to main app screen
+      const user = await getUser(userCredential.user.uid);
+
+      if (user && user.status === 'approved') {
+        console.log('User signed in!', userCredential.user?.uid);
+        setError('');
+        // TODO: Navigate to main app screen
+      } else {
+        await logoutUser();
+        Alert.alert(
+          'Login Failed',
+          'Your account has not been approved yet. Please wait for an administrator to approve your account.'
+        );
+      }
     } catch (err: any) {
       switch (err?.code) {
         case 'auth/user-not-found':

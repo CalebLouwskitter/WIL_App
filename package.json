@@ -9,19 +9,19 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "^2.1.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.4.5",
     "@react-navigation/stack": "^7.4.5",
-    "expo": "~53.0.20",
-    "expo-linear-gradient": "^14.1.5",
-    "expo-location": "~18.1.6",
-    "expo-media-library": "^17.1.7",
-    "expo-sharing": "^13.1.5",
-    "expo-status-bar": "~2.2.3",
+    "expo": "~54.0.0",
+    "expo-linear-gradient": "~15.0.7",
+    "expo-location": "~19.0.7",
+    "expo-media-library": "~18.2.0",
+    "expo-sharing": "~14.0.7",
+    "expo-status-bar": "~3.0.8",
     "firebase": "11.9.0",
     "haversine": "^1.1.1",
-    "react": "19.0.0",
-    "react-native": "0.79.5",
+    "react": "19.1.0",
+    "react-native": "0.81.4",
     "react-native-dotenv": "^3.4.11",
     "react-native-gifted-charts": "^1.4.63",
     "react-native-linear-gradient": "^2.8.3",
@@ -31,10 +31,12 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
-    "@types/react": "~19.0.10",
+    "@types/react": "~19.1.13",
     "@types/react-native": "^0.72.8",
     "@types/react-native-vector-icons": "^6.4.18",
-    "typescript": "~5.8.3"
+    "babel-preset-expo": "^54.0.2",
+    "dotenv": "^17.2.2",
+    "typescript": "~5.9.2"
   },
   "private": true
 }

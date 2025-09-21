@@ -10,7 +10,7 @@ import { getRides } from '../../services/RideStorage';
 import type { RideData } from '../../hooks/useRideTracker';
 import { useColorScheme } from 'react-native';
 import { Colors } from '../../constants/colors';
-import { FIREBASE_ENABLED, auth } from '../../services/FirebaseAuthService';
+import { FIREBASE_ENABLED, auth } from '../../services/firebase';
 
 type ProfileScreenNavigationProp = StackNavigationProp<ProfileStackParamList, 'ProfileMain'>;
 
@@ -161,6 +161,17 @@ export default function ProfileScreen() {
       >
         <Icon name="list" size={18} color="#2D2D2D" />
         <Text style={styles.myHorsesTxt}>My Horses</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.myHorsesBtn}
+        activeOpacity={0.85}
+        onPress={() => {
+          /* TODO: Navigate to Admin Panel */
+        }}
+      >
+        <Icon name="shield" size={18} color="#2D2D2D" />
+        <Text style={styles.myHorsesTxt}>Admin Panel</Text>
       </TouchableOpacity>
 
       <View style={styles.historyContainer}>

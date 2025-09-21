@@ -4,7 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import AppNavigator from './navigation/AppNavigator';
 import AuthNavigator from './navigation/AuthNavigator';
 import useFirebaseAuth from './hooks/useFirebaseAuth';
-import { FIREBASE_ENABLED } from './services/FirebaseAuthService';
+import { FIREBASE_ENABLED } from './services/firebase';
 
 export default function App() {
   const { user, initializing, isAuthenticated } = useFirebaseAuth();

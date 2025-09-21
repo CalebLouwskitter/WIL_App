@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FIREBASE_ENABLED, auth, app } from './FirebaseAuthService';
+import { FIREBASE_ENABLED, auth, app } from './firebase';
 import { COLLECTIONS, Converters, newHorse, listDocs, type HorseDTO } from './Data';
 // Direct Firestore imports for nested subcollection usage
 import { getFirestore, collection, doc, setDoc, getDocs, query, orderBy as fsOrderBy, where as fsWhere, deleteDoc } from 'firebase/firestore';

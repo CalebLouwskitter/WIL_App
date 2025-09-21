@@ -2,7 +2,7 @@
 // If Firebase isn't enabled (missing env vars) the exported "firestore" will be undefined.
 // This also attempts a React Native friendly fallback with long polling.
 
-import { FIREBASE_ENABLED, app } from './FirebaseAuthService';
+import { FIREBASE_ENABLED, app } from './firebase';
 import type { Firestore } from 'firebase/firestore';
 import { initializeFirestore } from 'firebase/firestore';
 

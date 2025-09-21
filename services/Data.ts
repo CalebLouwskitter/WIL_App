@@ -1,6 +1,6 @@
 // Centralized app data models & (optional) Firestore converters.
 // Keep this file framework-light so types can also be imported in non-Firebase contexts.
-// NOTE: Only use converters if FIREBASE_ENABLED is true (see FirebaseAuthService).
+// NOTE: Only use converters if FIREBASE_ENABLED is true (see firebase).
 
 import {
 	getFirestore,
@@ -21,7 +21,7 @@ import {
 	type DocumentReference,
 	type Query,
 } from 'firebase/firestore';
-import { FIREBASE_ENABLED, auth, app } from './FirebaseAuthService';
+import { FIREBASE_ENABLED, auth, app } from './firebase';
 import { User } from 'firebase/auth';
 
 // ---------- Firestore Helpers ---------- //
@@ -396,6 +396,16 @@ export const sightingConverter: FirestoreDataConverter<SightingDTO> = {
 			id: snapshot.id,
 		} as SightingDTO;
 	},
+};
+
+export const Converters = {
+	userProfile: userProfileConverter,
+	ride: rideConverter,
+	horse: horseConverter,
+	achievement: achievementConverter,
+	sosAlert: sosAlertConverter,
+	notificationPref: notificationPrefConverter,
+	sighting: sightingConverter,
 };
 
 // ---------- Collection name helpers ---------- //

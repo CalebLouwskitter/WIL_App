@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FIREBASE_ENABLED, auth } from '../services/FirebaseAuthService';
+import { FIREBASE_ENABLED, auth } from '../services/firebase';
 
 export function useFirebaseAuth() {
 	const [initializing, setInitializing] = useState(!!FIREBASE_ENABLED);
@@ -10,7 +10,7 @@ export function useFirebaseAuth() {
 			setInitializing(false);
 			return;
 		}
-		const unsub = auth.onAuthStateChanged((u) => {
+		const unsub = auth.onAuthStateChanged((u: any) => {
 			setUser(u);
 			setInitializing(false);
 		});
