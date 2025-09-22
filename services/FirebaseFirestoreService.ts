@@ -4,27 +4,30 @@
 
 import { FIREBASE_ENABLED, app } from './firebase';
 import type { Firestore } from 'firebase/firestore';
-import { initializeFirestore } from 'firebase/firestore';
+import { initializeFirestore, getFirestore } from 'firebase/firestore';
 
 let db: Firestore | undefined;
 
 try {
-  if (FIREBASE_ENABLED && app) {
-    // For Expo Go on SDK 53, long polling is the most reliable path
-    db = initializeFirestore(app as any, {
-      experimentalForceLongPolling: true,
-      useFetchStreams: false,
-    } as any);
-    if (__DEV__) {
-      // eslint-disable-next-line no-console
-      console.log('[Firebase] Firestore initialized with long polling');
+  if (!FIREBASE_ENABLED || !app) {
+    if (__DEV__) console.warn('[Firebase] Firestore disabled: Firebase not enabled or app missing');
+    db = undefined;
+  } else {
+    try {
+      // Prefer RN-friendly long polling in Expo
+      db = initializeFirestore(app as any, {
+        experimentalForceLongPolling: true,
+        useFetchStreams: false,
+      } as any);
+      if (__DEV__) console.log('[Firebase] Firestore initialized (long polling)');
+    } catch (e) {
+      if (__DEV__) console.warn('[Firebase] initializeFirestore failed, falling back to getFirestore:', e);
+      db = getFirestore(app as any);
+      if (__DEV__) console.log('[Firebase] Firestore initialized (fallback getFirestore)');
     }
   }
 } catch (e) {
-  if (__DEV__) {
-    // eslint-disable-next-line no-console
-    console.warn('[Firebase] Firestore initialization failed:', e);
-  }
+  if (__DEV__) console.warn('[Firebase] Firestore initialization error:', e);
   db = undefined;
 }
 

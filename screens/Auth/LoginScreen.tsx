@@ -30,12 +30,21 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
         console.log('User signed in!', userCredential.user?.uid);
         setError('');
         // TODO: Navigate to main app screen
-      } else {
+      } else if (user?.status === 'pending') {
         await logoutUser();
         Alert.alert(
-          'Login Failed',
-          'Your account has not been approved yet. Please wait for an administrator to approve your account.'
+          'Access Pending',
+          'Your account is pending approval. You will be able to access the app once an administrator approves your account.'
         );
+      } else if (user?.status === 'disapproved') {
+        await logoutUser();
+        Alert.alert(
+          'Access Denied',
+          'Your account access was denied. If you believe this is a mistake, please contact support.'
+        );
+      } else {
+        await logoutUser();
+        Alert.alert('Login Failed', 'Unable to verify account status. Please try again later.');
       }
     } catch (err: any) {
       switch (err?.code) {

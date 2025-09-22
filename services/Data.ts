@@ -49,13 +49,26 @@ export async function getOrCreateUserProfile(user: User): Promise<UserProfile> {
 	const userSnap = await getDoc(userRef);
 
 	if (userSnap.exists()) {
-		return userSnap.data();
+		const data = userSnap.data();
+		if (!data.role || !data.status) {
+			const patched: UserProfile = {
+				...data,
+				role: data.role ?? 'member',
+				status: data.status ?? 'approved',
+				updatedAt: Date.now(),
+			};
+			await setDoc(userRef, patched);
+			return patched;
+		}
+		return data;
 	} else {
 		const newUserProfile: UserProfile = {
 			uid: user.uid,
 			email: user.email || undefined,
 			displayName: user.displayName || undefined,
 			photoURL: user.photoURL || undefined,
+			role: 'member',
+			status: 'pending',
 			createdAt: Date.now(),
 			updatedAt: Date.now(),
 			totalRides: 0,
@@ -80,6 +93,9 @@ export interface UserProfile {
 	displayName?: string;
 	email?: string;
 	photoURL?: string;
+	// Role Based Access Control
+	role?: 'admin' | 'member';
+	status?: 'pending' | 'approved' | 'disapproved';
 	createdAt: TimestampMs;
 	updatedAt: TimestampMs;
 	// Aggregate ride stats (denormalized for fast profile display)
@@ -188,6 +204,8 @@ export function newUserProfile(partial: Partial<UserProfile> & { uid: string }):
 		displayName: '',
 		email: '',
 		photoURL: undefined,
+		role: 'member',
+		status: 'pending',
 		totalRides: 0,
 		totalDistanceM: 0,
 		totalDurationMs: 0,
@@ -294,6 +312,8 @@ export const userProfileConverter: FirestoreDataConverter<UserProfile> = {
 			displayName: data.displayName,
 			email: data.email,
 			photoURL: data.photoURL,
+			role: (data.role as 'admin' | 'member') ?? 'member',
+			status: (data.status as 'pending' | 'approved' | 'disapproved') ?? 'pending',
 			createdAt: data.createdAt,
 			updatedAt: data.updatedAt,
 			totalRides: data.totalRides || 0,

@@ -1,10 +1,11 @@
+import ProfileStack from './ProfileStack'; 
 import React, { ReactNode } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
 
 //Icons import
-import { Ionicons } from '@expo/vector-icons';
-import ProfileStack from './ProfileStack'; // <-- import at top
+import Ionicons from 'react-native-vector-icons/Ionicons';// <-- fixed import
+
 
 // Screens
 import DashboardScreen from '../screens/Dashboard/DashboardScreen';

@@ -50,7 +50,7 @@ try {
     firestoreInstance = getFirestore(appInstance);
   } else if (__DEV__) {
     // Only spam in dev
-    console.warn('[Firebase] Missing env keys -> Firebase disabled:', missingKeys.join(', '));
+    console.warn('[Firebase] Missing Firebase config -> Firebase disabled. Missing:', missingKeys.join(', '));
   }
 } catch (e) {
   console.warn('[Firebase] Initialization failed, Firebase disabled.', e);
