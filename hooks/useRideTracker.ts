@@ -5,6 +5,8 @@ import haversine from 'haversine';
 import { primaryPreviewRoutes } from '../constants/trails';
 import { getActiveHorse } from '../services/HorseStorage';
 
+
+
 export type RidePoint = {
   latitude: number;
   longitude: number;
@@ -26,17 +28,23 @@ export type RideData = {
 export default function useRideTracker() {
   const [rideData, setRideData] = useState<RideData | null>(null);
   const watchSub = useRef<LocationSubscription | null>(null);
+
+
+
   // Noise filter thresholds
-  const MIN_STEP_METERS = 3; // ignore sub-3m jitter
-  const MAX_STEP_METERS = 60; // ignore sudden jumps >60m between samples
-  const MAX_SPEED_MPS = 15; // ~54 km/h cap for cycling
-  const SMOOTH_ALPHA = 0.3; // smoothing factor for small moves
+  const MIN_STEP_METERS = 3; 
+  const MAX_STEP_METERS = 60;
+  const MAX_SPEED_MPS = 15;
+  const SMOOTH_ALPHA = 0.3;
 
   const startRide = useCallback(async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') throw new Error('Location permission denied');
 
     const startTime = Date.now();
+
+
+
     // Capture the active horse at the start of the ride
     const activeHorse = await getActiveHorse();
     const path: RidePoint[] = [];
@@ -57,6 +65,8 @@ export default function useRideTracker() {
           timestamp: Date.now(),
         };
 
+
+
         // Apply simple noise filtering and smoothing
         let usePoint = point;
         if (path.length > 0) {
@@ -65,14 +75,22 @@ export default function useRideTracker() {
           const d = haversine(prev, point, { unit: 'meter' });
           const speed = d / dt;
 
+
+
           // Ignore tiny jitter
           if (d < MIN_STEP_METERS) {
             return; // skip update
           }
+          
+          
+          
           // Ignore unrealistic jumps
           if (d > MAX_STEP_METERS || speed > MAX_SPEED_MPS) {
             return; // likely GPS glitch
           }
+          
+          
+          
           // Light exponential smoothing for small moves (<20m)
           if (d < 20) {
             usePoint = {
@@ -89,12 +107,17 @@ export default function useRideTracker() {
         }
         path.push(usePoint);
 
+
+
+
         // Compute overlap contribution for this newest segment
         const segmentDistances: Record<string, number> = {};
         if (path.length > 1) {
           const segStart = path[path.length - 2];
           const segEnd = usePoint;
           primaryPreviewRoutes.forEach((route) => {
+
+
             // naive proximity check to any waypoint (threshold 25m)
             const near = route.routeWaypoints.some((w) => {
               const d1 = haversine(w, segStart, { unit: 'meter' });
@@ -107,6 +130,8 @@ export default function useRideTracker() {
             }
           });
         }
+
+
 
         setRideData((prev) => {
           const merged: Record<string, number> = { ...(prev?.routeDistances || {}) };

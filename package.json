@@ -12,7 +12,6 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.4.5",
     "@react-navigation/stack": "^7.4.5",
-    "expo": "~54.0.0",
     "expo-linear-gradient": "~15.0.7",
     "expo-location": "~19.0.7",
     "expo-media-library": "~18.2.0",
@@ -27,6 +26,7 @@
     "react-native-linear-gradient": "^2.8.3",
     "react-native-maps": "1.20.1",
     "react-native-vector-icons": "^10.3.0",
+    "vector-icons": "^0.1.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
@@ -36,6 +36,7 @@
     "@types/react-native-vector-icons": "^6.4.18",
     "babel-preset-expo": "^54.0.2",
     "dotenv": "^17.2.2",
+    "expo": "^54.0.9",
     "typescript": "~5.9.2"
   },
   "private": true
