@@ -10,7 +10,8 @@ import { getRides } from '../../services/RideStorage';
 import type { RideData } from '../../hooks/useRideTracker';
 import { useColorScheme } from 'react-native';
 import { Colors } from '../../constants/colors';
-import { FIREBASE_ENABLED, auth } from '../../services/FirebaseAuthService';
+import { FIREBASE_ENABLED, auth } from '../../services/firebase';
+import { useCurrentUser } from '../../hooks/useCurrentUser';
 
 type ProfileScreenNavigationProp = StackNavigationProp<ProfileStackParamList, 'ProfileMain'>;
 
@@ -38,6 +39,7 @@ export default function ProfileScreen() {
     ? auth?.currentUser?.displayName
     : 'Rider';
   const email = FIREBASE_ENABLED && auth?.currentUser?.email ? auth?.currentUser?.email : '—';
+  const { profile } = useCurrentUser();
 
   useEffect(() => {
     (async () => {
@@ -162,6 +164,17 @@ export default function ProfileScreen() {
         <Icon name="list" size={18} color="#2D2D2D" />
         <Text style={styles.myHorsesTxt}>My Horses</Text>
       </TouchableOpacity>
+
+      {profile?.role === 'admin' && (
+        <TouchableOpacity
+          style={styles.myHorsesBtn}
+          activeOpacity={0.85}
+          onPress={() => handleNavigate('AdminManagement')}
+        >
+          <Icon name="shield" size={18} color="#2D2D2D" />
+          <Text style={styles.myHorsesTxt}>Admin Panel</Text>
+        </TouchableOpacity>
+      )}
 
       <View style={styles.historyContainer}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>

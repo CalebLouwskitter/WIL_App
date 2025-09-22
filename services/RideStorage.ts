@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { RideData } from '../hooks/useRideTracker';
-import { FIREBASE_ENABLED, auth } from './FirebaseAuthService';
+import { FIREBASE_ENABLED, auth } from './firebase';
 import { saveRideAndUpdateAggregates, newRide, ridePointToDTO, ridePointFromDTO, listDocs, Converters, COLLECTIONS, type RideDTO } from './Data';
 
 const STORAGE_KEY = 'rides';

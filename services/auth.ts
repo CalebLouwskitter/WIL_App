@@ -1,6 +1,6 @@
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, type Auth } from "firebase/auth";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, type Auth, signOut } from "firebase/auth";
 import { auth } from "./firebase";
-import { FIREBASE_ENABLED } from "./FirebaseAuthService";
+import { FIREBASE_ENABLED } from "./firebase";
 import { getOrCreateUserProfile } from "./Data";
 
 export const loginUser = async (email: string, password: string) => {
@@ -20,4 +20,11 @@ export const registerUser = async (email: string, password: string) => {
     await getOrCreateUserProfile(userCredential.user); // Create user profile in Firestore
   }
   return userCredential;
+};
+
+export const logoutUser = async () => {
+  if (!FIREBASE_ENABLED || !auth) {
+    throw new Error("Firebase not configured.");
+  }
+  return await signOut(auth as Auth);
 };

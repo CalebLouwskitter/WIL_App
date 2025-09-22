@@ -7,6 +7,7 @@ import PersonalStatsScreen from '../screens/Profile/PersonalStatsScreen';
 import SettingsScreen from '../screens/Profile/SettingsScreen';
 import CreateHorseScreen from '../screens/Profile/CreateHorseScreen';
 import HorsesListScreen from '../screens/Profile/HorsesListScreen';
+import AdminManagementScreen from '../screens/Profile/AdminManagementScreen';
 
 const Stack = createStackNavigator();
 
@@ -18,6 +19,7 @@ const ProfileStack = () => {
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="CreateHorse" component={CreateHorseScreen} />
       <Stack.Screen name="HorsesList" component={HorsesListScreen} />
+      <Stack.Screen name="AdminManagement" component={AdminManagementScreen} />
       {/* Add more profile screens as needed */}
     </Stack.Navigator>
   );
@@ -28,6 +30,7 @@ export type ProfileStackParamList = {
   AchievementsScreen: undefined;      // no params or define params if any
   CreateHorse: undefined;
   HorsesList: undefined;
+  AdminManagement: undefined;
 };
 
 export default ProfileStack;
