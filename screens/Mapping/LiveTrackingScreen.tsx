@@ -41,10 +41,13 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   };
 
   const handleStop = async () => {
-    const finalRide = stopRide();
-    if (finalRide) await saveRide(finalRide);
-    setIsRiding(false);
-  };
+  const finalRide = stopRide();
+  if (finalRide) {
+    await saveRide(finalRide);
+    navigation.navigate('RideReviewScreen', { ride: finalRide });
+  }
+  setIsRiding(false);
+};
 
   return (
     <View style={styles.container}>

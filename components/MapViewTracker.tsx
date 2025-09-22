@@ -69,9 +69,12 @@ export default function MapViewTracker({ path }: Props) {
         { duration: 600 }
       );
     } catch (_e) {
+  
       // no-op; animateCamera may not be supported on some providers
     }
   }, [region?.latitude, region?.longitude, heading]);
+
+
 
   // If no path yet, acquire current location once for initial region (tight delta)
   // so the user starts fully zoomed into their nearby area.
@@ -105,6 +108,7 @@ export default function MapViewTracker({ path }: Props) {
     <MapView
       style={{ flex: 1 }}
       provider={PROVIDER_DEFAULT}
+
       // Hybrid map type shows roads + satellite for a more detailed view
       mapType="hybrid"
       initialRegion={region || WORLD_REGION}
@@ -113,6 +117,7 @@ export default function MapViewTracker({ path }: Props) {
       showsMyLocationButton
       showsCompass
       followsUserLocation
+      
       // Show buildings and POIs to reinforce the "3D nearby objects" feel
       showsBuildings
       showsIndoors
