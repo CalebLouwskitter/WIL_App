@@ -44,7 +44,12 @@ export default function TrailPreviews() {
   const styles = useMemo(() => createStyles(palette), [palette]);
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+    <ScrollView 
+      horizontal 
+      showsHorizontalScrollIndicator={false} 
+      contentContainerStyle={styles.scroll}
+      style={styles.scrollView}
+    >
       {primaryPreviewRoutes.map((r) => (
         <TrailCard key={r.id} {...r} palette={palette} styles={styles} />
       ))}
@@ -54,6 +59,9 @@ export default function TrailPreviews() {
 
 const createStyles = (palette: typeof Colors.light) =>
   StyleSheet.create({
+    scrollView: {
+      backgroundColor: 'transparent',
+    },
     scroll: {
       paddingHorizontal: 16,
     },

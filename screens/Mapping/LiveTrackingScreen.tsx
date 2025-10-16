@@ -301,6 +301,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingVertical: 10,
+    backgroundColor: 'transparent',
   },
   bottomGradient: {
     position: 'absolute',
