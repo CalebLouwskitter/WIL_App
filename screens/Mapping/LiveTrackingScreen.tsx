@@ -1,19 +1,48 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, ScrollView, StyleSheet, Text, Platform } from 'react-native';
+import { View, TouchableOpacity, ScrollView, StyleSheet, Text, Platform, useColorScheme } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import useRideTracker from '../../hooks/useRideTracker';
 import { saveRide } from '../../services/RideStorage';
 import MapViewTracker from '../../components/MapViewTracker';
 import RideStatsCard from '../../components/RideStatsCard';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import TrailPreviews from '../../components/TrailPreviews';
 import { getActiveHorse } from '../../services/HorseStorage';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors } from '@/constants/colors';
 
 const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const { rideData, startRide, stopRide } = useRideTracker();
   const [isRiding, setIsRiding] = useState(false);
   const [activeHorseName, setActiveHorseName] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
+  const colorScheme = useColorScheme();
+  const palette = Colors[colorScheme ?? 'light'];
+
+  const rideActions = [
+    {
+      key: 'free',
+      label: 'Free Ride',
+      color: palette.rideFree,
+      icon: 'navigation' as const,
+      onPress: () => handleStart(),
+    },
+    {
+      key: 'horse',
+      label: 'Select Horse',
+      color: palette.rideSelect,
+      icon: 'award' as const,
+      onPress: () => navigation.navigate('SelectHorse'),
+    },
+    {
+      key: 'recent',
+      label: 'Recent',
+      color: palette.rideRecent,
+      icon: 'clock' as const,
+      onPress: () => navigation.navigate('Analytics'),
+    },
+  ];
 
   useFocusEffect(
     React.useCallback(() => {
@@ -57,70 +86,135 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
 
       {/* Top overlay */}
       <LinearGradient
-        colors={["rgba(0,0,0,0.6)", "rgba(0,0,0,0.0)"]}
+        colors={[palette.gradientPrimaryStart + 'D9', 'transparent']}
         style={styles.topGradient}
         pointerEvents="none"
       />
       <View style={styles.header} pointerEvents="box-none">
         <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.iconButton}>
-          <Ionicons name="settings-outline" size={28} color="white" />
+          <Feather name="settings" size={28} color="white" />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.iconButton}>
-          <Ionicons name="notifications-outline" size={28} color="white" />
+          <Feather name="bell" size={28} color="white" />
         </TouchableOpacity>
       </View>
 
       {/* Bottom overlay / controls */}
       <LinearGradient
-        colors={["rgba(0,0,0,0.0)", "rgba(0,0,0,0.65)"]}
+        colors={['transparent', palette.mapOverlay]}
         style={styles.bottomGradient}
         pointerEvents="none"
       />
   {isRiding ? (
-        <View style={styles.rideActiveContainer} pointerEvents="box-none">
-          <ScrollView contentContainerStyle={styles.info}>
+        <>
+          <View
+            style={[
+              styles.rideActiveContainer,
+              {
+                bottom: insets.bottom + 210,
+                backgroundColor: palette.mapOverlay,
+              },
+            ]}
+            pointerEvents="box-none"
+          >
             {rideData && (
-              <RideStatsCard
-                title="Current Ride"
-                distance={rideData.totalDistance}
-                elevation={rideData.elevationGain}
-                durationMs={rideData.duration}
-              />
+              <View
+                style={[
+                  styles.statsCardWrap,
+                  {
+                    backgroundColor: palette.cardElevated,
+                    shadowColor: palette.shadowStrong,
+                  },
+                ]}
+              >
+                <RideStatsCard
+                  title="Current Ride"
+                  distance={rideData.totalDistance}
+                  elevation={rideData.elevationGain}
+                  durationMs={rideData.duration}
+                />
+              </View>
             )}
-          </ScrollView>
-          <TouchableOpacity style={[styles.button, styles.stopButton]} onPress={handleStop}>
-            <Text style={styles.buttonText}>Stop Ride</Text>
+            <TouchableOpacity
+              style={[styles.button, styles.stopButton, { backgroundColor: palette.rideStop }]}
+              onPress={handleStop}
+            >
+              <Text style={styles.buttonText}>Stop Ride</Text>
+            </TouchableOpacity>
+          </View>
+          {/* Floating obstacle report button */}
+          <TouchableOpacity
+            style={[
+              styles.reportObstacleButton,
+              {
+                bottom: insets.bottom + 340,
+                backgroundColor: palette.caution,
+                shadowColor: palette.shadowStrong,
+              },
+            ]}
+            onPress={() => navigation.navigate('MarkObstacle', {
+              location: rideData?.path && rideData.path.length > 0
+                ? {
+                    latitude: rideData.path[rideData.path.length - 1].latitude,
+                    longitude: rideData.path[rideData.path.length - 1].longitude,
+                  }
+                : undefined
+            })}
+          >
+            <Feather name="alert-triangle" size={28} color="white" />
           </TouchableOpacity>
-        </View>
+        </>
       ) : (
         <>
-          <View style={styles.previewContainer} pointerEvents="box-none">
+          <View
+            style={[
+              styles.previewContainer,
+              { bottom: insets.bottom + 320 },
+            ]}
+            pointerEvents="box-none"
+          >
             <TrailPreviews />
           </View>
-          <View style={styles.footer} pointerEvents="box-none">
-            <TouchableOpacity style={[styles.button, styles.freeRideButton]} onPress={handleStart}>
-              <Text style={styles.buttonText}>Free Ride</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.selectHorseButton]}
-              onPress={() => navigation.navigate('SelectHorse')}
-            >
-              <Text style={styles.buttonText}>Select Horse</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.recentButton]}
-              onPress={() => navigation.navigate('Analytics')}
-            >
-              <Text style={styles.buttonText}>Recent</Text>
-            </TouchableOpacity>
+          <View
+            style={[
+              styles.actionRow,
+              { bottom: insets.bottom + 240 },
+            ]}
+            pointerEvents="box-none"
+          >
+            {rideActions.map((action) => (
+              <TouchableOpacity
+                key={action.key}
+                style={[styles.actionButton, { backgroundColor: action.color }]}
+                onPress={action.onPress}
+                activeOpacity={0.85}
+              >
+                <Feather name={action.icon} size={22} color={palette.onPrimary} style={styles.actionIcon} />
+                <Text style={[styles.actionLabel, { color: palette.onPrimary }]}>{action.label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
           {activeHorseName ? (
-            <View style={styles.activeHorseBar}>
+            <View
+              style={[
+                styles.activeHorseBar,
+                {
+                  bottom: insets.bottom + 170,
+                  backgroundColor: palette.mapOverlay,
+                },
+              ]}
+            >
               <Text style={styles.activeHorseText}>Active horse: {activeHorseName}</Text>
             </View>
           ) : (
             <TouchableOpacity
-              style={styles.activeHorseBar}
+              style={[
+                styles.activeHorseBar,
+                {
+                  bottom: insets.bottom + 170,
+                  backgroundColor: palette.mapOverlay,
+                },
+              ]}
               onPress={() => navigation.navigate('SelectHorse')}
               activeOpacity={0.8}
             >
@@ -162,7 +256,6 @@ const styles = StyleSheet.create({
   },
   previewContainer: {
     position: 'absolute',
-    bottom: Platform.select({ ios: 260, android: 230, default: 230 }),
     left: 0,
     right: 0,
     paddingVertical: 10,
@@ -176,7 +269,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     position: 'absolute',
-    bottom: Platform.select({ ios: 160, android: 140, default: 140 }),
     left: 0,
     right: 0,
     flexDirection: 'row',
@@ -192,17 +284,6 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 10,
   },
-  freeRideButton: {
-    // Figma: pink
-    backgroundColor: '#FF7DA4',
-  },
-  selectHorseButton: {
-    backgroundColor: '#89C2FF',
-  },
-  recentButton: {
-    // Figma: amber
-    backgroundColor: '#F2B270',
-  },
   buttonText: {
     color: '#fff',
     fontSize: 18,
@@ -210,25 +291,57 @@ const styles = StyleSheet.create({
   },
   rideActiveContainer: {
     position: 'absolute',
-  bottom: Platform.select({ ios: 90, android: 70, default: 70 }),
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     paddingBottom: 30,
+    paddingHorizontal: 20,
+    gap: 18,
   },
-  info: {
+  statsCardWrap: {
+    borderRadius: 24,
     padding: 12,
+    shadowOpacity: 0.16,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 18,
+    elevation: 8,
   },
   stopButton: {
-    backgroundColor: '#e53935',
     marginHorizontal: 20,
+    marginTop: 8,
+  },
+  actionRow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    paddingHorizontal: 24,
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    borderRadius: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOpacity: 0.18,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  actionIcon: {
+    marginBottom: 6,
+  },
+  actionLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   activeHorseBar: {
     position: 'absolute',
-    bottom: Platform.select({ ios: 120, android: 100, default: 100 }),
     left: 20,
     right: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 12,
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -237,6 +350,19 @@ const styles = StyleSheet.create({
   activeHorseText: {
     color: '#fff',
     fontWeight: '600',
+  },
+  reportObstacleButton: {
+    position: 'absolute',
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
   },
 });
 

@@ -193,6 +193,29 @@ export interface SightingDTO {
 	updatedAt: TimestampMs;
 }
 
+// ---------- Obstacles (users/{uid}/obstacles) ---------- //
+
+export type ObstacleType = 'pothole' | 'debris' | 'animal' | 'tree' | 'water' | 'other';
+export type ObstacleSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type ObstacleStatus = 'active' | 'resolved' | 'verified' | 'disputed';
+
+export interface ObstacleDTO {
+	id: UUID;
+	userId: string;
+	type: ObstacleType;
+	severity: ObstacleSeverity;
+	status: ObstacleStatus;
+	title: string;
+	description?: string;
+	location: { latitude: number; longitude: number };
+	photoUrl?: string;
+	reportedAt: TimestampMs;
+	resolvedAt?: TimestampMs;
+	verifiedBy?: string[]; // array of user IDs who verified this obstacle
+	createdAt: TimestampMs;
+	updatedAt: TimestampMs;
+}
+
 // ---------- Utility Creators ---------- //
 
 const now = () => Date.now();
@@ -290,6 +313,22 @@ export function newSighting(partial: Partial<SightingDTO> & { id: UUID; animalNa
 		updatedAt: ts,
 		...partial,
 	} as SightingDTO;
+}
+
+export function newObstacle(partial: Partial<ObstacleDTO> & { id: UUID; type: ObstacleType; title: string; location: { latitude: number; longitude: number } }): ObstacleDTO {
+	const ts = now();
+	return {
+		userId: currentUid() || 'local',
+		severity: 'medium',
+		status: 'active',
+		description: undefined,
+		photoUrl: undefined,
+		reportedAt: ts,
+		verifiedBy: [],
+		createdAt: ts,
+		updatedAt: ts,
+		...partial,
+	} as ObstacleDTO;
 }
 
 // ---------- Firestore Converters ---------- //
@@ -418,6 +457,21 @@ export const sightingConverter: FirestoreDataConverter<SightingDTO> = {
 	},
 };
 
+export const obstacleConverter: FirestoreDataConverter<ObstacleDTO> = {
+	toFirestore: (obstacle: ObstacleDTO) => {
+		const data = { ...obstacle };
+		delete (data as any).id;
+		return data;
+	},
+	fromFirestore: (snapshot: QueryDocumentSnapshot, options: SnapshotOptions): ObstacleDTO => {
+		const data = snapshot.data(options);
+		return {
+			...data,
+			id: snapshot.id,
+		} as ObstacleDTO;
+	},
+};
+
 export const Converters = {
 	userProfile: userProfileConverter,
 	ride: rideConverter,
@@ -426,6 +480,7 @@ export const Converters = {
 	sosAlert: sosAlertConverter,
 	notificationPref: notificationPrefConverter,
 	sighting: sightingConverter,
+	obstacle: obstacleConverter,
 };
 
 // ---------- Collection name helpers ---------- //
@@ -437,6 +492,7 @@ export const COLLECTIONS = {
 	achievements: 'achievements',
 	sosAlerts: 'sos_alerts',
 	notificationPrefs: 'notification_prefs',
+	obstacles: 'obstacles',
 };
 
 // ---------- Type Guards ---------- //

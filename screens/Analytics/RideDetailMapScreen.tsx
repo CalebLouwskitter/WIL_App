@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import MapView, { Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { getRides } from '../../services/RideStorage';
@@ -54,7 +55,7 @@ const RideDetailMapScreen = () => {
       </MapView>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => nav.goBack()} style={styles.backBtn}>
-          <Text style={styles.backTxt}>Back</Text>
+          <Feather name="arrow-left" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.title}>
           Ride on {new Date(ride.startTime).toLocaleString()}
@@ -70,8 +71,7 @@ const styles = StyleSheet.create({
   map: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { position: 'absolute', top: 40, left: 16, right: 16, alignItems: 'center' },
-  backBtn: { position: 'absolute', left: 0, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8 },
-  backTxt: { color: '#fff' },
+  backBtn: { position: 'absolute', left: 0, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   title: { color: '#fff', fontWeight: '600' },
 });
 

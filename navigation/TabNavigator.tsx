@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
 
 //Icons import
-import Ionicons from 'react-native-vector-icons/Ionicons';// <-- fixed import
+import { Feather } from '@expo/vector-icons';
 
 
 // Screens
@@ -45,7 +45,7 @@ const TabNavigator = () => {
         component={DashboardScreen}
         options={{
           tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons name="home-outline" color={color} size={24} />
+            <Feather name="home" color={color} size={24} />
           ),
           tabBarLabel: 'Dashboard',
         }}
@@ -55,7 +55,7 @@ const TabNavigator = () => {
         component={MappingStack}
         options={{
           tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons name="map-outline" color={color} size={24} />
+            <Feather name="map" color={color} size={24} />
           ),
           tabBarLabel: 'Map',
         }}
@@ -78,7 +78,7 @@ const TabNavigator = () => {
         component={RideStatsScreen}
         options={{
           tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons name="stats-chart" color={color} size={24} />
+            <Feather name="bar-chart-2" color={color} size={24} />
           ),
           tabBarLabel: 'Analytics',
         }}
@@ -89,7 +89,7 @@ const TabNavigator = () => {
         component={ProfileStack}
         options={{
           tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons name="person-outline" color={color} size={24} />
+            <Feather name="user" color={color} size={24} />
           ),
           tabBarLabel: 'Profile',
         }}
@@ -100,17 +100,18 @@ const TabNavigator = () => {
 
 const styles = StyleSheet.create({
   tabBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    marginBottom:0,
-    right: 0,
     backgroundColor: '#FFFFFF',
-    height: 110,
+    height: 80,
     paddingHorizontal: 8,
-    paddingBottom:1,
+    paddingBottom: 8,
     paddingTop: 8,
-    borderTopWidth: 0,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   label: {
     fontSize: 12,

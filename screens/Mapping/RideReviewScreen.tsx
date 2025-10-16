@@ -20,9 +20,10 @@ import RideStatsCard from '@/components/RideStatsCard';
 import type { RideData } from '@/hooks/useRideTracker';
 import { StackScreenProps } from '@react-navigation/stack';
 import type { MappingStackParamList } from '@/navigation/MappingStack';
-import firestore from '@react-native-firebase/firestore';
-import storage from '@react-native-firebase/storage';
-import auth from '@react-native-firebase/auth';
+import { collection, doc, writeBatch, serverTimestamp, updateDoc, setDoc } from 'firebase/firestore';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { app, auth as firebaseAuth, firestore as db } from '@/services/firebase';
+import { getStorage } from 'firebase/storage';
 
 // Type definitions for geolocation
 interface GeolocationPosition {
@@ -122,7 +123,7 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
   
   const mapRef = useRef<MapView | null>(null);
   const { rideData, rideId } = route.params ?? {};
-  const currentUser = auth().currentUser;
+  const currentUser = firebaseAuth?.currentUser;
 
   const stats = useMemo(() => {
     if (!rideData) return { distance: 0, elevation: 0, duration: 0 };
@@ -357,13 +358,16 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
       }
 
       const filename = `sightings/${currentUser?.uid}/${Date.now()}_photo.jpg`;
-      const reference = storage().ref(filename);
+      const storage = getStorage(app);
+      const reference = storageRef(storage, filename);
       
-      // Upload file
-      await reference.putFile(photoUri);
+      // Fetch the file and upload as blob
+      const response = await fetch(photoUri);
+      const blob = await response.blob();
+      await uploadBytes(reference, blob);
       
       // Get download URL
-      const downloadUrl = await reference.getDownloadURL();
+      const downloadUrl = await getDownloadURL(reference);
       return downloadUrl;
     } catch (error) {
       console.error('Error uploading photo:', error);
@@ -374,8 +378,12 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
   const saveToFirebase = async (payload: any) => {
     try {
       setIsSubmitting(true);
-      const batch = firestore().batch();
-      const timestamp = firestore.FieldValue.serverTimestamp();
+      if (!db) {
+        console.warn('Firestore not initialized');
+        return false;
+      }
+      const batch = writeBatch(db);
+      const timestamp = serverTimestamp();
 
       // Save wildlife sighting if exists
       if (payload.sighting) {
@@ -384,11 +392,9 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
           photoUrl = await uploadPhotoToFirebase(payload.sighting.photo_uri);
         }
 
-        const sightingRef = firestore()
-          .collection('wildlife_sightings')
-          .doc();
+        const sightingRef = doc(collection(db, 'wildlife_sightings'));
         
-        batch.set(sightingRef, {
+        setDoc(sightingRef, {
           ...payload.sighting,
           photo_url: photoUrl,
           photo_uri: undefined, // Remove local URI
@@ -401,11 +407,9 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
 
       // Save trail report if exists
       if (payload.report) {
-        const reportRef = firestore()
-          .collection('trail_reports')
-          .doc();
+        const reportRef = doc(collection(db, 'trail_reports'));
         
-        batch.set(reportRef, {
+        setDoc(reportRef, {
           ...payload.report,
           user_id: currentUser?.uid,
           user_email: currentUser?.email,
@@ -417,11 +421,9 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
 
       // Update ride document if rideId exists
       if (rideId) {
-        const rideRef = firestore()
-          .collection('rides')
-          .doc(rideId);
+        const rideRef = doc(db, 'rides', rideId);
         
-        batch.update(rideRef, {
+        updateDoc(rideRef, {
           has_sighting: !!payload.sighting,
           has_report: !!payload.report,
           updated_at: timestamp,

@@ -1,6 +1,6 @@
 import React, { memo, useState, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import MapView, { PROVIDER_DEFAULT } from 'react-native-maps';
 import { DEFAULT_REGION } from '../../services/MapsService';
 
@@ -55,7 +55,7 @@ const UserMapView: React.FC = () => {
           accessibilityLabel="Settings"
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="settings-sharp" size={20} color="#fff" />
+          <Feather name="settings" size={20} color="#fff" />
         </TouchableOpacity>
 
         <View style={styles.rightIcons}>
@@ -68,7 +68,7 @@ const UserMapView: React.FC = () => {
             accessibilityLabel="Notifications"
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="notifications-outline" size={20} color="#fff" />
+            <Feather name="bell" size={20} color="#fff" />
             <View style={styles.dot} />
           </TouchableOpacity>
         </View>
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     right: 16,
-    bottom: 120,
+    bottom: 200,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },

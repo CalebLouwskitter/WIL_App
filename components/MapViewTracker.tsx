@@ -3,6 +3,8 @@ import MapView, { Marker, Polyline, PROVIDER_DEFAULT, Region } from 'react-nativ
 import * as Location from 'expo-location';
 import type { RidePoint } from '../hooks/useRideTracker';
 import { primaryPreviewRoutes } from '../constants/trails';
+import ObstacleView from '../screens/Mapping/ObstacleView';
+import { getObstaclesInArea, verifyObstacle, type Obstacle } from '../services/ObstacleService';
 
 // Renders the main MapView with three responsibilities:
 // 1) Draw static preview routes (A–C).
@@ -22,6 +24,7 @@ export default function MapViewTracker({ path }: Props) {
   const [region, setRegion] = useState<Region | null>(null);
   const mapRef = useRef<MapView | null>(null);
   const [heading, setHeading] = useState<number>(0);
+  const [obstacles, setObstacles] = useState<Obstacle[]>([]);
 
   // When the path grows, recenter on the most recent point with a tight delta
   // (gives a max-zoomed-in feel so nearby objects are visible).
@@ -101,8 +104,45 @@ export default function MapViewTracker({ path }: Props) {
     };
   }, [region]);
 
+  // Load obstacles in the current area
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!region) return;
+      try {
+        const nearbyObstacles = await getObstaclesInArea(
+          { latitude: region.latitude, longitude: region.longitude },
+          10, // 10km radius
+          { status: 'active' }
+        );
+        if (!cancelled) {
+          setObstacles(nearbyObstacles);
+        }
+      } catch (error) {
+        console.warn('Failed to load obstacles:', error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [region?.latitude, region?.longitude]);
+
   const start = path && path[0];
   const end = path && path[path.length - 1];
+
+  const handleVerifyObstacle = async (obstacle: Obstacle) => {
+    try {
+      await verifyObstacle(obstacle.id);
+      // Refresh obstacles to show updated verification count
+      setObstacles(prev => prev.map(o => 
+        o.id === obstacle.id 
+          ? { ...o, verifiedBy: [...(o.verifiedBy || []), 'current-user'] }
+          : o
+      ));
+    } catch (error) {
+      console.warn('Failed to verify obstacle:', error);
+    }
+  };
 
   return (
     <MapView
@@ -144,6 +184,11 @@ export default function MapViewTracker({ path }: Props) {
           {end && <Marker coordinate={{ latitude: end.latitude, longitude: end.longitude }} title="Current" />}
         </>
       )}
+      {/* Render obstacle markers */}
+      <ObstacleView 
+        obstacles={obstacles} 
+        onVerify={handleVerifyObstacle}
+      />
     </MapView>
   );
 }

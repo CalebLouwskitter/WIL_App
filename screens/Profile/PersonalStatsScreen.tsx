@@ -3,7 +3,7 @@ import { ThemedText } from 'components/theme/ThemedText';
 import { ThemedView } from 'components/theme/ThemedView';
 import { Colors } from 'constants/colors';
 import { ReportDownload } from 'services/AnalyticsService';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from 'feah';
 import { useEffect, useState, useMemo } from 'react';
 import { getRides } from 'services/RideStorage';
 import type { RideData } from 'hooks/useRideTracker';
@@ -222,7 +222,7 @@ export default function AnalyticsScreen() {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.headerContainer}>
           <View style={styles.titleContainer}>
-            <Ionicons name="stats-chart" size={24} color={colors.primary} />
+            <Feather name="bar-chart-2" size={24} color={colors.primary} />
             <ThemedText type="title" style={[styles.title, { color: colors.text }]}>
               Ride Analytics
             </ThemedText>
@@ -234,7 +234,7 @@ export default function AnalyticsScreen() {
               onPress={handleGenerateReport}
               disabled={isGeneratingReport}
             >
-              <Ionicons name="download-outline" size={16} color="white" />
+              <Feather name="download" size={16} color="white" />
               <Text style={styles.actionButtonText}>
                 {isGeneratingReport ? 'Generating...' : 'Export'}
               </Text>
@@ -288,19 +288,19 @@ export default function AnalyticsScreen() {
         {/* Summary Cards */}
         <View style={styles.summaryContainer}>
           <View style={[styles.summaryCard, { backgroundColor: colors.surfaceVariant }]}>
-            <Ionicons name="bicycle-outline" size={24} color={colors.primary} />
+            <Feather name="activity" size={24} color={colors.primary} />
             <ThemedText type="defaultSemiBold" style={[styles.summaryValue, { color: colors.onSurface }]}>{userStats.totalRides}</ThemedText>
             <ThemedText style={[styles.summaryLabel, { color: colors.onSurfaceVariant }]}>Total Rides</ThemedText>
           </View>
 
           <View style={[styles.summaryCard, { backgroundColor: colors.surfaceVariant }]}>
-            <Ionicons name="map-outline" size={24} color={colors.primary} />
+            <Feather name="map" size={24} color={colors.primary} />
             <ThemedText type="defaultSemiBold" style={[styles.summaryValue, { color: colors.onSurface }]}>{userStats.totalDistance}km</ThemedText>
             <ThemedText style={[styles.summaryLabel, { color: colors.onSurfaceVariant }]}>Distance</ThemedText>
           </View>
 
           <View style={[styles.summaryCard, { backgroundColor: colors.surfaceVariant }]}>
-            <Ionicons name="trail-sign-outline" size={24} color={colors.primary} />
+            <Feather name="map-pin" size={24} color={colors.primary} />
             <ThemedText type="defaultSemiBold" style={[styles.summaryValue, { color: colors.onSurface }]}>{userStats.trailsCompleted}</ThemedText>
             <ThemedText style={[styles.summaryLabel, { color: colors.onSurfaceVariant }]}>Trails</ThemedText>
           </View>
@@ -384,22 +384,22 @@ export default function AnalyticsScreen() {
           </ThemedText>
           <View style={styles.statsGrid}>
             <View style={[styles.statItem, { backgroundColor: colors.surface }]}>
-              <Ionicons name="star-outline" size={20} color={colors.primary} />
+              <Feather name="star" size={20} color={colors.primary} />
               <ThemedText style={[styles.statLabel, { color: colors.onSurfaceVariant }]}>Favorite Trail</ThemedText>
               <ThemedText type="defaultSemiBold" style={{ color: colors.onSurface }}>{userStats.favoriteTrail}</ThemedText>
             </View>
             <View style={[styles.statItem, { backgroundColor: colors.surface }]}>
-              <Ionicons name="time-outline" size={20} color={colors.primary} />
+              <Feather name="clock" size={20} color={colors.primary} />
               <ThemedText style={[styles.statLabel, { color: colors.onSurfaceVariant }]}>Hours Ridden</ThemedText>
               <ThemedText type="defaultSemiBold" style={{ color: colors.onSurface }}>{userStats.hoursRidden}h</ThemedText>
             </View>
             <View style={[styles.statItem, { backgroundColor: colors.surface }]}>
-              <Ionicons name="speedometer-outline" size={20} color={colors.primary} />
+              <Feather name="zap" size={20} color={colors.primary} />
               <ThemedText style={[styles.statLabel, { color: colors.onSurfaceVariant }]}>Avg. Speed</ThemedText>
               <ThemedText type="defaultSemiBold" style={{ color: colors.onSurface }}>{userStats.avgSpeed} km/h</ThemedText>
             </View>
             <View style={[styles.statItem, { backgroundColor: colors.surface }]}>
-              <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+              <Feather name="calendar" size={20} color={colors.primary} />
               <ThemedText style={[styles.statLabel, { color: colors.onSurfaceVariant }]}>Last Ride</ThemedText>
               <ThemedText type="defaultSemiBold" style={{ color: colors.onSurface }}>{userStats.lastRide}</ThemedText>
             </View>

@@ -181,37 +181,6 @@ const SosAlertScreen = () => {
           </Text>
         </Animated.View>
       </View>
-
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem}>
-          <View style={styles.navIcon} />
-          <Text style={styles.navText}>
-            Dashboard
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem}>
-          <View style={styles.navIcon} />
-          <Text style={[styles.navText, { color: '#00BFFF' }]}>
-            Mapping
-          </Text>
-        </TouchableOpacity>
-
-        <View style={styles.sosNavButton}>
-          <Text style={styles.sosNavText}>SOS</Text>
-        </View>
-
-        <TouchableOpacity style={styles.navItem}>
-          <View style={styles.navIcon} />
-          <Text style={styles.navText}>Analytics</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem}>
-          <View style={styles.navIcon} />
-          <Text style={styles.navText}>Profile</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 };
@@ -244,7 +213,7 @@ const styles = StyleSheet.create({
 
   buttonContainer: {
     paddingHorizontal: 40,
-    paddingBottom: 120,
+    paddingBottom: 200,
     alignItems: 'center',
   },
   swipeContainer: {
@@ -293,49 +262,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 24,
     lineHeight: 20,
-  },
-
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 80,
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-    paddingBottom: 20,
-  },
-  navItem: {
-    alignItems: 'center',
-  },
-  navIcon: {
-    width: 24,
-    height: 24,
-    backgroundColor: '#CCCCCC',
-    borderRadius: 4,
-    marginBottom: 4,
-  },
-  navText: {
-    fontSize: 12,
-    color: '#666666',
-  },
-  sosNavButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#FF4757',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: -10,
-  },
-  sosNavText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
   },
 });
 

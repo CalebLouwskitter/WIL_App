@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
-import Icon from 'react-native-vector-icons/Feather';
+import { Feather } from '@expo/vector-icons';
 
 const DashboardScreen = () => {
   return (
@@ -10,10 +10,10 @@ const DashboardScreen = () => {
         {/* Header */}
         <View style={styles.topIcons}>
           <TouchableOpacity activeOpacity={0.7}>
-            <Icon name="settings" size={27} />
+            <Feather name="settings" size={27} />
           </TouchableOpacity>
           <TouchableOpacity activeOpacity={0.7}>
-            <Icon name="bell" size={27} />
+            <Feather name="bell" size={27} />
           </TouchableOpacity>
         </View>
 
@@ -136,31 +136,6 @@ const DashboardScreen = () => {
         {/* Bottom spacing for scroll */}
         <View style={{ height: 100 }} />
       </ScrollView>
-
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem}>
-          <Text style={styles.navIconActive}>🏠</Text>
-          <Text style={styles.navTextActive}>Dashboard</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <Text style={styles.navIcon}>🗺️</Text>
-          <Text style={styles.navText}>Mapping</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItemCenter}>
-          <View style={styles.navPlusButton}>
-            <Text style={styles.navPlusText}>+</Text>
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <Text style={styles.navIcon}>📊</Text>
-          <Text style={styles.navText}>Analytics</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <Text style={styles.navIcon}>👤</Text>
-          <Text style={styles.navText}>Profile</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 };
@@ -426,53 +401,6 @@ const styles = StyleSheet.create({
   goalLabel: {
     fontSize: 10,
     color: '#6b7280',
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  navItemCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  navIcon: {
-    fontSize: 20,
-    marginBottom: 4,
-    color: '#9ca3af',
-  },
-  navIconActive: {
-    fontSize: 20,
-    marginBottom: 4,
-    color: '#3b82f6',
-  },
-  navText: {
-    fontSize: 10,
-    color: '#9ca3af',
-  },
-  navTextActive: {
-    fontSize: 10,
-    color: '#3b82f6',
-  },
-  navPlusButton: {
-    backgroundColor: '#ef4444',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  navPlusText: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
   },
 });
 
