@@ -202,6 +202,7 @@ export type ObstacleStatus = 'active' | 'resolved' | 'verified' | 'disputed';
 export interface ObstacleDTO {
 	id: UUID;
 	userId: string;
+	userName?: string; // Display name of user who marked the obstacle
 	type: ObstacleType;
 	severity: ObstacleSeverity;
 	status: ObstacleStatus;
@@ -212,6 +213,27 @@ export interface ObstacleDTO {
 	reportedAt: TimestampMs;
 	resolvedAt?: TimestampMs;
 	verifiedBy?: string[]; // array of user IDs who verified this obstacle
+	createdAt: TimestampMs;
+	updatedAt: TimestampMs;
+}
+
+// ---------- Trail Reports (users/{uid}/reports) ---------- //
+
+export type ReportType = 'trail_damage' | 'safety_hazard' | 'maintenance_needed' | 'illegal_activity' | 'wildlife_concern' | 'other';
+export type ReportSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type ReportStatus = 'pending' | 'reviewed' | 'resolved' | 'dismissed';
+
+export interface ReportDTO {
+	id: UUID;
+	userId: string;
+	type: ReportType;
+	severity: ReportSeverity;
+	status: ReportStatus;
+	title: string;
+	description?: string;
+	location?: { latitude: number; longitude: number };
+	photoUrl?: string;
+	rideId?: string; // Associated ride if report was made during a ride
 	createdAt: TimestampMs;
 	updatedAt: TimestampMs;
 }
@@ -329,6 +351,22 @@ export function newObstacle(partial: Partial<ObstacleDTO> & { id: UUID; type: Ob
 		updatedAt: ts,
 		...partial,
 	} as ObstacleDTO;
+}
+
+export function newReport(partial: Partial<ReportDTO> & { id: UUID; type: ReportType; title: string }): ReportDTO {
+	const ts = now();
+	return {
+		userId: currentUid() || 'local',
+		severity: 'medium',
+		status: 'pending',
+		description: undefined,
+		location: undefined,
+		photoUrl: undefined,
+		rideId: undefined,
+		createdAt: ts,
+		updatedAt: ts,
+		...partial,
+	} as ReportDTO;
 }
 
 // ---------- Firestore Converters ---------- //
@@ -472,6 +510,21 @@ export const obstacleConverter: FirestoreDataConverter<ObstacleDTO> = {
 	},
 };
 
+export const reportConverter: FirestoreDataConverter<ReportDTO> = {
+	toFirestore: (report: ReportDTO) => {
+		const data = { ...report };
+		delete (data as any).id;
+		return data;
+	},
+	fromFirestore: (snapshot: QueryDocumentSnapshot, options: SnapshotOptions): ReportDTO => {
+		const data = snapshot.data(options);
+		return {
+			...data,
+			id: snapshot.id,
+		} as ReportDTO;
+	},
+};
+
 export const Converters = {
 	userProfile: userProfileConverter,
 	ride: rideConverter,
@@ -481,6 +534,7 @@ export const Converters = {
 	notificationPref: notificationPrefConverter,
 	sighting: sightingConverter,
 	obstacle: obstacleConverter,
+	report: reportConverter,
 };
 
 // ---------- Collection name helpers ---------- //
@@ -493,6 +547,8 @@ export const COLLECTIONS = {
 	sosAlerts: 'sos_alerts',
 	notificationPrefs: 'notification_prefs',
 	obstacles: 'obstacles',
+	sightings: 'sightings',
+	reports: 'reports',
 };
 
 // ---------- Type Guards ---------- //

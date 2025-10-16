@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FIREBASE_ENABLED, auth, app } from './firebase';
-import { COLLECTIONS, Converters, newObstacle, type ObstacleDTO, type ObstacleType, type ObstacleSeverity, type ObstacleStatus } from './Data';
-import { getFirestore, collection, doc, setDoc, getDocs, query, orderBy as fsOrderBy, where as fsWhere, GeoPoint, limit as fsLimit } from 'firebase/firestore';
+import { COLLECTIONS, Converters, newObstacle, type ObstacleDTO, type ObstacleType, type ObstacleSeverity, type ObstacleStatus, userProfileConverter } from './Data';
+import { getFirestore, collection, doc, setDoc, getDocs, getDoc, query, orderBy as fsOrderBy, where as fsWhere, GeoPoint, limit as fsLimit } from 'firebase/firestore';
 
 export type Obstacle = {
   id: string;
   userId: string;
+  userName?: string; // Display name of user who marked the obstacle
   type: ObstacleType;
   severity: ObstacleSeverity;
   status: ObstacleStatus;
@@ -24,19 +25,43 @@ const storageKey = (uid?: string) => `OBSTACLES_${uid || 'local'}`;
 const globalStorageKey = 'OBSTACLES_GLOBAL';
 
 /**
+ * Get user's display name from Firestore
+ */
+async function getUserDisplayName(uid: string): Promise<string | undefined> {
+  try {
+    if (FIREBASE_ENABLED && app) {
+      const db = getFirestore(app as any);
+      const userRef = doc(db, COLLECTIONS.users, uid).withConverter(userProfileConverter as any);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        return userData.displayName || userData.email || 'Anonymous';
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to fetch user display name:', e);
+  }
+  return undefined;
+}
+
+/**
  * Save a new obstacle report
  */
-export async function saveObstacle(obstacle: Omit<Obstacle, 'id' | 'createdAt' | 'updatedAt' | 'reportedAt' | 'userId' | 'verifiedBy'>) {
+export async function saveObstacle(obstacle: Omit<Obstacle, 'id' | 'createdAt' | 'updatedAt' | 'reportedAt' | 'userId' | 'userName' | 'verifiedBy'>) {
   const uid = FIREBASE_ENABLED ? auth?.currentUser?.uid : undefined;
   const key = storageKey(uid);
   const existing = await AsyncStorage.getItem(key);
   const list: Obstacle[] = existing ? JSON.parse(existing) : [];
+  
+  // Fetch user's display name if logged in
+  const userName = uid ? await getUserDisplayName(uid) : undefined;
   
   const ts = Date.now();
   const newObstacleObj: Obstacle = {
     ...obstacle,
     id: `${ts}_${Math.random().toString(36).slice(2, 8)}`,
     userId: uid || 'local',
+    userName,
     reportedAt: ts,
     verifiedBy: [],
     createdAt: ts,
@@ -53,6 +78,7 @@ export async function saveObstacle(obstacle: Omit<Obstacle, 'id' | 'createdAt' |
       const dto: ObstacleDTO = newObstacle({
         id: newObstacleObj.id,
         userId: newObstacleObj.userId,
+        userName: newObstacleObj.userName,
         type: newObstacleObj.type,
         severity: newObstacleObj.severity,
         status: newObstacleObj.status,
@@ -102,6 +128,7 @@ export async function getObstacles(filters?: { status?: ObstacleStatus; limit?: 
         return {
           id: o.id,
           userId: o.userId,
+          userName: o.userName,
           type: o.type,
           severity: o.severity,
           status: o.status,
