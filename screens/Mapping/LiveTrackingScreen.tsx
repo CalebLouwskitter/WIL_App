@@ -1,21 +1,24 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, ScrollView, StyleSheet, Text, Platform, useColorScheme } from 'react-native';
+import { View, TouchableOpacity, ScrollView, StyleSheet, Text, Platform, useColorScheme, Linking, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import useRideTracker from '../../hooks/useRideTracker';
 import { saveRide } from '../../services/RideStorage';
 import MapViewTracker from '../../components/MapViewTracker';
 import RideStatsCard from '../../components/RideStatsCard';
-import { Feather } from '@expo/vector-icons';
+import Feather from 'react-native-vector-icons/Feather';
 import TrailPreviews from '../../components/TrailPreviews';
 import { getActiveHorse } from '../../services/HorseStorage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
+import MapTypeModal from '../../components/MapTypeModal';
 
 const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const { rideData, startRide, stopRide } = useRideTracker();
   const [isRiding, setIsRiding] = useState(false);
   const [activeHorseName, setActiveHorseName] = useState<string | null>(null);
+  const [mapTypeModalVisible, setMapTypeModalVisible] = useState(false);
+  const [currentMapType, setCurrentMapType] = useState<'standard' | 'satellite' | 'hybrid' | 'terrain' | 'google'>('standard');
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme ?? 'light'];
@@ -70,18 +73,46 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   };
 
   const handleStop = async () => {
-  const finalRide = stopRide();
-  if (finalRide) {
-    await saveRide(finalRide);
-    navigation.navigate('RideReviewScreen', { ride: finalRide });
-  }
-  setIsRiding(false);
-};
+    const finalRide = stopRide();
+    if (finalRide) {
+      await saveRide(finalRide);
+      navigation.navigate('RideReviewScreen', { ride: finalRide });
+    }
+    setIsRiding(false);
+  };
+
+  const handleMapTypeSelect = async (type: 'standard' | 'satellite' | 'hybrid' | 'terrain' | 'google') => {
+    if (type === 'google') {
+      // Open Google Maps with current location (last point in path)
+      const currentLocation = rideData?.path && rideData.path.length > 0 
+        ? rideData.path[rideData.path.length - 1] 
+        : null;
+      if (currentLocation) {
+        const url = Platform.select({
+          ios: `maps:0,0?q=${currentLocation.latitude},${currentLocation.longitude}`,
+          android: `geo:0,0?q=${currentLocation.latitude},${currentLocation.longitude}`,
+        });
+        const supported = await Linking.canOpenURL(url!);
+        if (supported) {
+          await Linking.openURL(url!);
+        } else {
+          Alert.alert('Error', 'Unable to open Google Maps');
+        }
+      } else {
+        Alert.alert('Location Required', 'Please wait for location to be available');
+      }
+    } else {
+      setCurrentMapType(type);
+    }
+  };
 
   return (
     <View style={styles.container}>
       <View style={StyleSheet.absoluteFillObject}>
-        <MapViewTracker path={rideData?.path} />
+        <MapViewTracker 
+          path={rideData?.path} 
+          mapType={currentMapType === 'google' ? 'standard' : currentMapType} 
+        />
       </View>
 
       {/* Top overlay */}
@@ -91,13 +122,24 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
         pointerEvents="none"
       />
       <View style={styles.header} pointerEvents="box-none">
-        <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.iconButton}>
-          <Feather name="settings" size={28} color="white" />
+        <TouchableOpacity onPress={() => setMapTypeModalVisible(true)} style={styles.iconButton}>
+          <Feather name="map" size={28} color="white" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.iconButton}>
+        <TouchableOpacity 
+          onPress={() => navigation.navigate('ProfileStack', { screen: 'Notifications' })} 
+          style={styles.iconButton}
+        >
           <Feather name="bell" size={28} color="white" />
         </TouchableOpacity>
       </View>
+
+      {/* Map Type Modal */}
+      <MapTypeModal
+        visible={mapTypeModalVisible}
+        onClose={() => setMapTypeModalVisible(false)}
+        onSelectMapType={handleMapTypeSelect}
+        currentMapType={currentMapType}
+      />
 
       {/* Bottom overlay / controls */}
       <LinearGradient

@@ -10,7 +10,11 @@ import { getObstaclesInArea, verifyObstacle, type Obstacle } from '../services/O
 // 1) Draw static preview routes (A–C).
 // 2) Draw the rider's live path as a polyline.
 // 3) Keep a tight, 3D, forward-facing camera follow on the latest point.
-type Props = { path: RidePoint[] | undefined };
+type MapType = 'standard' | 'satellite' | 'hybrid' | 'terrain';
+type Props = { 
+  path: RidePoint[] | undefined;
+  mapType?: MapType;
+};
 
 // Fallback large region so the map renders immediately while we resolve a more precise region.
 const WORLD_REGION: Region = {
@@ -20,7 +24,7 @@ const WORLD_REGION: Region = {
   longitudeDelta: 60,
 };
 
-export default function MapViewTracker({ path }: Props) {
+export default function MapViewTracker({ path, mapType = 'standard' }: Props) {
   const [region, setRegion] = useState<Region | null>(null);
   const mapRef = useRef<MapView | null>(null);
   const [heading, setHeading] = useState<number>(0);
@@ -149,8 +153,8 @@ export default function MapViewTracker({ path }: Props) {
       style={{ flex: 1 }}
       provider={PROVIDER_DEFAULT}
 
-      // Hybrid map type shows roads + satellite for a more detailed view
-      mapType="hybrid"
+      // Map type from prop (standard, satellite, hybrid, terrain)
+      mapType={mapType}
       initialRegion={region || WORLD_REGION}
       region={region || undefined}
       showsUserLocation

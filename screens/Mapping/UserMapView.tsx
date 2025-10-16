@@ -1,6 +1,6 @@
 import React, { memo, useState, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import Feather from 'react-native-vector-icons/Feather';
 import MapView, { PROVIDER_DEFAULT } from 'react-native-maps';
 import { DEFAULT_REGION } from '../../services/MapsService';
 
