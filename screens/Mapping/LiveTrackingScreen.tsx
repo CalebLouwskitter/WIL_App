@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, TouchableOpacity, ScrollView, StyleSheet, Text, Platform, useColorScheme, Linking, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, TouchableOpacity, ScrollView, StyleSheet, Text, Platform, useColorScheme, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import useRideTracker from '../../hooks/useRideTracker';
 import { saveRide } from '../../services/RideStorage';
@@ -18,7 +18,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const [isRiding, setIsRiding] = useState(false);
   const [activeHorseName, setActiveHorseName] = useState<string | null>(null);
   const [mapTypeModalVisible, setMapTypeModalVisible] = useState(false);
-  const [currentMapType, setCurrentMapType] = useState<'standard' | 'satellite' | 'hybrid' | 'terrain' | 'google'>('standard');
+  const [currentMapType, setCurrentMapType] = useState<'standard' | 'satellite' | 'hybrid' | 'terrain'>('standard');
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme ?? 'light'];
@@ -56,6 +56,41 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
     }, [])
   );
 
+  // Navigation guard to prevent accidental ride abandonment
+  useEffect(() => {
+    const beforeRemove = (e: any) => {
+      if (!isRiding) return;
+      e.preventDefault();
+      Alert.alert(
+        'Ride in Progress',
+        'You have an active ride. Do you want to stop and save it before leaving?',
+        [
+          { text: 'Continue Riding', style: 'cancel' },
+          {
+            text: 'Discard Ride',
+            style: 'destructive',
+            onPress: () => {
+              stopRide();
+              setIsRiding(false);
+              navigation.dispatch(e.data.action);
+            },
+          },
+          {
+            text: 'Stop & Save',
+            style: 'default',
+            onPress: async () => {
+              await handleStop();
+              navigation.dispatch(e.data.action);
+            },
+          },
+        ]
+      );
+    };
+
+    const unsubscribe = navigation.addListener('beforeRemove', beforeRemove);
+    return unsubscribe;
+  }, [isRiding, navigation]);
+
   const handleStart = async () => {
     // Enforce horse selection before ride start
     const horse = await getActiveHorse();
@@ -81,29 +116,8 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
     setIsRiding(false);
   };
 
-  const handleMapTypeSelect = async (type: 'standard' | 'satellite' | 'hybrid' | 'terrain' | 'google') => {
-    if (type === 'google') {
-      // Open Google Maps with current location (last point in path)
-      const currentLocation = rideData?.path && rideData.path.length > 0 
-        ? rideData.path[rideData.path.length - 1] 
-        : null;
-      if (currentLocation) {
-        const url = Platform.select({
-          ios: `maps:0,0?q=${currentLocation.latitude},${currentLocation.longitude}`,
-          android: `geo:0,0?q=${currentLocation.latitude},${currentLocation.longitude}`,
-        });
-        const supported = await Linking.canOpenURL(url!);
-        if (supported) {
-          await Linking.openURL(url!);
-        } else {
-          Alert.alert('Error', 'Unable to open Google Maps');
-        }
-      } else {
-        Alert.alert('Location Required', 'Please wait for location to be available');
-      }
-    } else {
-      setCurrentMapType(type);
-    }
+  const handleMapTypeSelect = (type: 'standard' | 'satellite' | 'hybrid' | 'terrain') => {
+    setCurrentMapType(type);
   };
 
   return (
@@ -111,7 +125,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
       <View style={StyleSheet.absoluteFillObject}>
         <MapViewTracker 
           path={rideData?.path} 
-          mapType={currentMapType === 'google' ? 'standard' : currentMapType} 
+          mapType={currentMapType} 
         />
       </View>
 

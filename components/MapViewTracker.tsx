@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useColorScheme } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import type { RidePoint } from '../hooks/useRideTracker';
 import { primaryPreviewRoutes } from '../constants/trails';
 import ObstacleView from '../screens/Mapping/ObstacleView';
 import { getObstaclesInArea, verifyObstacle, type Obstacle } from '../services/ObstacleService';
+import { Colors } from '@/constants/colors';
 
 // Renders the main MapView with three responsibilities:
 // 1) Draw static preview routes (A–C).
@@ -25,6 +27,8 @@ const WORLD_REGION: Region = {
 };
 
 export default function MapViewTracker({ path, mapType = 'standard' }: Props) {
+  const colorScheme = useColorScheme();
+  const palette = Colors[colorScheme ?? 'light'];
   const [region, setRegion] = useState<Region | null>(null);
   const mapRef = useRef<MapView | null>(null);
   const [heading, setHeading] = useState<number>(0);
@@ -174,7 +178,7 @@ export default function MapViewTracker({ path, mapType = 'standard' }: Props) {
           key={route.id}
           coordinates={route.routeWaypoints.map((p) => ({ latitude: p.latitude, longitude: p.longitude }))}
           strokeWidth={3}
-          strokeColor={route.color || '#FFFFFF'}
+          strokeColor={route.color || palette.textOnDark}
         />
       ))}
       {path && path.length > 0 && (
@@ -182,7 +186,7 @@ export default function MapViewTracker({ path, mapType = 'standard' }: Props) {
           <Polyline
             coordinates={path.map((p) => ({ latitude: p.latitude, longitude: p.longitude }))}
             strokeWidth={4}
-            strokeColor="#1E88E5"
+            strokeColor={palette.brandPrimary}
           />
           {start && <Marker coordinate={{ latitude: start.latitude, longitude: start.longitude }} title="Start" />}
           {end && <Marker coordinate={{ latitude: end.latitude, longitude: end.longitude }} title="Current" />}

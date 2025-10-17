@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, useColorScheme } from 'react-native
 import MapView, { Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import { primaryPreviewRoutes } from '../constants/trails';
 import { Colors } from '@/constants/colors';
+import Feather from 'react-native-vector-icons/Feather';
 
 const CARD_HEIGHT = 100;
 const CARD_WIDTH = 140;

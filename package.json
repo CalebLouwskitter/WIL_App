@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@dataconnect/generated": "file:src/dataconnect-generated",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.4.5",
     "@react-navigation/stack": "^7.4.5",
@@ -37,6 +38,7 @@
     "babel-preset-expo": "^54.0.2",
     "dotenv": "^17.2.2",
     "expo": "^54.0.9",
+    "expo-module-scripts": "^5.0.7",
     "typescript": "~5.9.2"
   },
   "private": true

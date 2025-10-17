@@ -11,7 +11,7 @@ import {
 import Feather from 'react-native-vector-icons/Feather';
 import { Colors } from '../constants/colors';
 
-type MapType = 'standard' | 'satellite' | 'hybrid' | 'terrain' | 'google';
+type MapType = 'standard' | 'satellite' | 'hybrid' | 'terrain';
 
 type Props = {
   visible: boolean;
@@ -29,7 +29,6 @@ const MapTypeModal: React.FC<Props> = ({ visible, onClose, onSelectMapType, curr
     { type: 'satellite', label: 'Satellite', icon: 'globe', description: 'Aerial imagery' },
     { type: 'hybrid', label: 'Hybrid', icon: 'layers', description: 'Satellite with labels' },
     { type: 'terrain', label: 'Terrain', icon: 'triangle', description: 'Topographic details' },
-    { type: 'google', label: 'Google Maps', icon: 'navigation', description: 'Open in Google Maps' },
   ];
 
   const handleSelect = (type: MapType) => {

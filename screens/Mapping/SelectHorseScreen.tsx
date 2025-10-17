@@ -1,13 +1,16 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, useColorScheme } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getHorses, setActiveHorseId, getActiveHorseId, type Horse } from '../../services/HorseStorage';
+import { Colors } from '@/constants/colors';
 
 const SelectHorseScreen = () => {
   const nav = useNavigation<any>();
   const [horses, setHorses] = useState<Horse[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const colorScheme = useColorScheme();
+  const palette = Colors[colorScheme ?? 'light'];
 
   const load = async () => {
     const [list, id] = await Promise.all([getHorses(), getActiveHorseId()]);
@@ -30,25 +33,25 @@ const SelectHorseScreen = () => {
   const renderItem = ({ item }: { item: Horse }) => {
     const isActive = item.id === activeId;
     return (
-      <TouchableOpacity style={[styles.row, isActive && styles.rowActive]} onPress={() => onSelect(item.id)}>
+      <TouchableOpacity style={[styles.row, { backgroundColor: palette.cardElevated }, isActive && { borderWidth: 1, borderColor: palette.brandPrimary }]} onPress={() => onSelect(item.id)}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{item.name}</Text>
-          <Text style={styles.sub}>{[item.breed, item.age ? `${item.age} yrs` : undefined].filter(Boolean).join(' • ') || '—'}</Text>
+          <Text style={[styles.title, { color: palette.onSurface }]}>{item.name}</Text>
+          <Text style={[styles.sub, { color: palette.onSurfaceVariant }]}>{[item.breed, item.age ? `${item.age} yrs` : undefined].filter(Boolean).join(' • ') || '—'}</Text>
         </View>
-        {isActive ? <Icon name="check" size={18} color="#10B981" /> : <Icon name="chevron-right" size={18} color="#6B7280" />}
+        {isActive ? <Icon name="check" size={18} color={palette.brandPrimary} /> : <Icon name="chevron-right" size={18} color={palette.onSurfaceVariant} />}
       </TouchableOpacity>
     );
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: palette.brandMuted }]}>
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => nav.goBack()} style={styles.backBtn}>
-          <Icon name="chevron-left" size={24} />
+        <TouchableOpacity onPress={() => nav.goBack()} style={[styles.backBtn, { backgroundColor: palette.cardElevated }]}>
+          <Icon name="chevron-left" size={24} color={palette.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Select Horse</Text>
-        <TouchableOpacity onPress={() => nav.navigate('ProfileStack', { screen: 'CreateHorse' })} style={styles.addBtn}>
-          <Icon name="plus" size={18} color="#fff" />
+        <Text style={[styles.headerTitle, { color: palette.onSurface }]}>Select Horse</Text>
+        <TouchableOpacity onPress={() => nav.navigate('ProfileStack', { screen: 'CreateHorse' })} style={[styles.addBtn, { backgroundColor: palette.brandPrimary }]}>
+          <Icon name="plus" size={18} color={palette.onPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -59,9 +62,9 @@ const SelectHorseScreen = () => {
         contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 24 }}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>No horses yet.</Text>
-            <TouchableOpacity style={styles.cta} onPress={() => nav.navigate('ProfileStack', { screen: 'CreateHorse' })}>
-              <Text style={styles.ctaText}>Add a horse</Text>
+            <Text style={[styles.emptyText, { color: palette.onSurfaceVariant }]}>No horses yet.</Text>
+            <TouchableOpacity style={[styles.cta, { backgroundColor: palette.brandPrimary }]} onPress={() => nav.navigate('ProfileStack', { screen: 'CreateHorse' })}>
+              <Text style={[styles.ctaText, { color: palette.onPrimary }]}>Add a horse</Text>
             </TouchableOpacity>
           </View>
         }
@@ -71,19 +74,18 @@ const SelectHorseScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F7FE' },
+  container: { flex: 1 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 40, paddingHorizontal: 16, marginBottom: 8 },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: '#fff' },
+  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 16 },
   headerTitle: { fontSize: 18, fontWeight: '700' },
-  addBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#2D2D2D' },
-  row: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', marginTop: 12, borderRadius: 16, padding: 14, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
-  rowActive: { borderWidth: 1, borderColor: '#10B981' },
+  addBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', marginTop: 12, borderRadius: 16, padding: 14, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
   title: { fontSize: 16, fontWeight: '600' },
-  sub: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  sub: { fontSize: 12, marginTop: 2 },
   empty: { alignItems: 'center', marginTop: 40 },
-  emptyText: { color: '#6B7280', marginBottom: 12 },
-  cta: { backgroundColor: '#2D2D2D', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 10 },
-  ctaText: { color: '#fff', fontWeight: '700' },
+  emptyText: { marginBottom: 12 },
+  cta: { borderRadius: 16, paddingHorizontal: 16, paddingVertical: 10 },
+  ctaText: { fontWeight: '700' },
 });
 
 export default SelectHorseScreen;
