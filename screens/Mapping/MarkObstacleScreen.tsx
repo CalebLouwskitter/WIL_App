@@ -11,7 +11,7 @@ import {
   useColorScheme,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
+import Feather from 'react-native-vector-icons/Feather';
 import * as Location from 'expo-location';
 import { saveObstacle } from '../../services/ObstacleService';
 import type { ObstacleType, ObstacleSeverity } from '../../services/Data';

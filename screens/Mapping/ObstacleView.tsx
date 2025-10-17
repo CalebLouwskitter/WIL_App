@@ -1,7 +1,7 @@
 import React from 'react';
 import { Marker, Callout } from 'react-native-maps';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import Feather from 'react-native-vector-icons/Feather';
 import type { Obstacle } from '../../services/ObstacleService';
 
 type Props = {
