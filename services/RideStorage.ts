@@ -26,6 +26,7 @@ export const saveRide = async (ride: RideData) => {
         path: (ride.path || []).map(ridePointToDTO),
         routeDistances: ride.routeDistances,
         horseId: ride.horseId ?? null,
+        horseName: ride.horseName ?? null,
       });
       await saveRideAndUpdateAggregates(dto);
     }
@@ -52,7 +53,7 @@ export const getRides = async (): Promise<RideData[]> => {
         duration: r.duration,
         routeDistances: r.routeDistances,
         horseId: r.horseId ?? undefined,
-        horseName: undefined,
+        horseName: r.horseName ?? undefined,
       }));
       return mapped;
     } catch (e) {
