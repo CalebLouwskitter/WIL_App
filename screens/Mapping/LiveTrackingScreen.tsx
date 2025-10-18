@@ -126,6 +126,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
         <MapViewTracker 
           path={rideData?.path} 
           mapType={currentMapType} 
+          nearestTrail={rideData?.nearestTrail} 
         />
       </View>
 
@@ -139,12 +140,20 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
         <TouchableOpacity onPress={() => setMapTypeModalVisible(true)} style={styles.iconButton}>
           <Feather name="map" size={28} color="white" />
         </TouchableOpacity>
-        <TouchableOpacity 
-          onPress={() => navigation.navigate('ProfileStack', { screen: 'Notifications' })} 
-          style={styles.iconButton}
-        >
-          <Feather name="bell" size={28} color="white" />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('OnlineUsers')} 
+            style={styles.iconButton}
+          >
+            <Feather name="users" size={28} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('ProfileStack', { screen: 'Notifications' })} 
+            style={styles.iconButton}
+          >
+            <Feather name="bell" size={28} color="white" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Map Type Modal */}
@@ -309,6 +318,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.35)',
     padding: 8,
     borderRadius: 30,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    gap: 8,
   },
   previewContainer: {
     position: 'absolute',
