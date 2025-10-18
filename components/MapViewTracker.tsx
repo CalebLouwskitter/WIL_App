@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, View, Text } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
-import type { RidePoint } from '../hooks/useRideTracker';
+import type { RidePoint, TrailProximity } from '../hooks/useRideTracker';
 import { primaryPreviewRoutes } from '../constants/trails';
 import ObstacleView from '../screens/Mapping/ObstacleView';
 import { getObstaclesInArea, verifyObstacle, type Obstacle } from '../services/ObstacleService';
 import { Colors } from '@/constants/colors';
+import Feather from 'react-native-vector-icons/Feather';
 
 // Renders the main MapView with three responsibilities:
 // 1) Draw static preview routes (A–C).
@@ -16,6 +17,7 @@ type MapType = 'standard' | 'satellite' | 'hybrid' | 'terrain';
 type Props = { 
   path: RidePoint[] | undefined;
   mapType?: MapType;
+  nearestTrail?: TrailProximity | null;
 };
 
 // Fallback large region so the map renders immediately while we resolve a more precise region.
@@ -26,7 +28,7 @@ const WORLD_REGION: Region = {
   longitudeDelta: 60,
 };
 
-export default function MapViewTracker({ path, mapType = 'standard' }: Props) {
+export default function MapViewTracker({ path, mapType = 'standard', nearestTrail }: Props) {
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme ?? 'light'];
   const [region, setRegion] = useState<Region | null>(null);
@@ -191,6 +193,33 @@ export default function MapViewTracker({ path, mapType = 'standard' }: Props) {
           {start && <Marker coordinate={{ latitude: start.latitude, longitude: start.longitude }} title="Start" />}
           {end && <Marker coordinate={{ latitude: end.latitude, longitude: end.longitude }} title="Current" />}
         </>
+      )}
+      {nearestTrail && (
+        <Marker
+          coordinate={nearestTrail.coordinate}
+          anchor={{ x: 0.5, y: 1 }}
+        >
+          <View
+            style={{
+              backgroundColor: palette.cardElevated || '#1F2937',
+              borderRadius: 18,
+              paddingVertical: 6,
+              paddingHorizontal: 10,
+              borderWidth: 2,
+              borderColor: '#FFFFFF',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+            }}
+          >
+            <Feather name="flag" size={16} color={palette.brandPrimary} />
+            <View>
+              <Text style={{ color: palette.text, fontWeight: '700', fontSize: 12 }}>{nearestTrail.name}</Text>
+              <Text style={{ color: palette.placeholder || '#D1D5DB', fontSize: 11 }}>{`${nearestTrail.distance.toFixed(0)} m away`}</Text>
+            </View>
+          </View>
+        </Marker>
       )}
       {/* Render obstacle markers */}
       <ObstacleView 
