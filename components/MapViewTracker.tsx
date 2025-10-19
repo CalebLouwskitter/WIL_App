@@ -10,6 +10,8 @@ import { Colors } from '@/constants/colors';
 import Feather from 'react-native-vector-icons/Feather';
 import type { ObstacleSeverity, ObstacleType } from '../services/Data';
 import ProfilePictureService from '../services/ProfilePictureService';
+import useOnlineUsers from '../hooks/useOnlineUsers';
+import { auth } from '../services/firebase';
 
 // Renders the main MapView with three responsibilities:
 // 1) Draw static preview routes (A–C).
@@ -43,6 +45,7 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
   const [heading, setHeading] = useState<number>(0);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const { users } = useOnlineUsers();
   const filteredObstacles = React.useMemo(() => {
     const f = (obstacleFilters || {});
     let list = obstacles;
@@ -244,6 +247,26 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
           )}
         </Marker>
       )}
+      {/* Other online users with their avatars */}
+      {users
+        .filter(u => u.uid !== auth?.currentUser?.uid)
+        .map(u => (
+          <Marker
+            key={u.uid}
+            coordinate={u.location}
+            title={u.displayName || 'Rider'}
+            description={u.isRiding ? 'Riding' : undefined}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            {u.photoURL ? (
+              <View style={styles.avatarShadow}>
+                <Image source={{ uri: u.photoURL }} style={styles.avatar} />
+              </View>
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: palette.brandPrimary }]} />
+            )}
+          </Marker>
+        ))}
       {nearestTrail && (
         <Marker
           coordinate={nearestTrail.coordinate}

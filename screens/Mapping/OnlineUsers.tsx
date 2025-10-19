@@ -142,8 +142,16 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
               coordinate={user.location}
               title={user.displayName || 'Anonymous'}
               description={formatLastSeen(user.lastSeen)}
-              pinColor={user.isRiding ? palette.success : palette.brandPrimary}
-            />
+              anchor={{ x: 0.5, y: 0.5 }}
+            >
+              {user.photoURL ? (
+                <View style={styles.avatarShadow}>
+                  <Image source={{ uri: user.photoURL }} style={styles.avatar} />
+                </View>
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: user.isRiding ? palette.success : palette.brandPrimary }]} />
+              )}
+            </Marker>
           ))}
         </MapView>
       </View>
@@ -320,6 +328,21 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  avatarShadow: {
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+    borderRadius: 20,
   },
   loadingContainer: {
     flex: 1,
