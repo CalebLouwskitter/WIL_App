@@ -46,7 +46,7 @@ export default function App() {
   }
   return (
     <NavigationContainer>
-      <StatusBar hidden />
+      <StatusBar style="dark" hidden={false} translucent backgroundColor="transparent" />
       {allowBypass ? (
         <AppNavigator />
       ) : !isAuthenticated ? (
