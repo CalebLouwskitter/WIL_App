@@ -22,11 +22,12 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: '20'
+          cache: 'npm'
 
       # Step 3: Install project dependencies
       - name: Install dependencies
-        run: npm ci  # or 'yarn install' if using yarn
+        run: npm install --legacy-peer-deps
 
       # Step 4: Install Snyk CLI globally
       - name: Install Snyk CLI
@@ -49,4 +50,6 @@ jobs:
       - name: Monitor project in Snyk
         run: snyk monitor --all-projects
         env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}

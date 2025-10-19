@@ -14,6 +14,16 @@ export type RidePoint = {
   timestamp: number;
 };
 
+export type TrailProximity = {
+  id: string;
+  name: string;
+  distance: number;
+  coordinate: {
+    latitude: number;
+    longitude: number;
+  };
+};
+
 export type RideData = {
   startTime: number;
   path: RidePoint[];
@@ -23,6 +33,7 @@ export type RideData = {
   routeDistances?: Record<string, number>; // meters per predefined route id
   horseId?: string | null;
   horseName?: string | null;
+  nearestTrail?: TrailProximity | null;
 };
 
 export default function useRideTracker() {
@@ -133,6 +144,29 @@ export default function useRideTracker() {
 
 
 
+        let nearestTrail: TrailProximity | null = null;
+        let nearestDistance = Infinity;
+        primaryPreviewRoutes.forEach((route) => {
+          route.routeWaypoints.forEach((w) => {
+            const dist = haversine(w, usePoint, { unit: 'meter' });
+            if (dist < nearestDistance) {
+              nearestDistance = dist;
+              nearestTrail = {
+                id: route.id,
+                name: route.name,
+                distance: dist,
+                coordinate: {
+                  latitude: w.latitude,
+                  longitude: w.longitude,
+                },
+              };
+            }
+          });
+        });
+        if (nearestDistance > 60) {
+          nearestTrail = null;
+        }
+
         setRideData((prev) => {
           const merged: Record<string, number> = { ...(prev?.routeDistances || {}) };
           Object.entries(segmentDistances).forEach(([k, v]) => {
@@ -147,6 +181,7 @@ export default function useRideTracker() {
             routeDistances: merged,
             horseId: activeHorse?.id ?? null,
             horseName: activeHorse?.name ?? null,
+            nearestTrail,
           };
         });
       }

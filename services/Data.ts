@@ -118,6 +118,7 @@ export interface RideDTO {
 	id: UUID;
 	userId: string;
 	horseId?: string | null;
+	horseName?: string | null;
 	startTime: TimestampMs;
 	endTime: TimestampMs;
 	totalDistance: number;      // meters
@@ -267,6 +268,7 @@ export function newRide(partial: Partial<RideDTO> & { id: UUID; startTime: numbe
 	return {
 		userId: currentUid() || 'local',
 		horseId: null,
+		horseName: null,
 		endTime: end,
 		totalDistance: 0,
 		elevationGain: 0,
@@ -645,18 +647,41 @@ export async function saveRideAndUpdateAggregates(ride: RideDTO) {
 	batch.set(rideRef, ride, { merge: false });
 
 	const profRef = doc(collection(db, COLLECTIONS.users), ride.userId).withConverter(userProfileConverter);
+	const achievementsToAward: { id: string; meta?: Record<string, any> }[] = [];
 	await runTransaction(db, async (tx) => {
 		const profSnap = await tx.get(profRef);
 		let profile = profSnap.exists() ? profSnap.data() : newUserProfile({ uid: ride.userId });
+		const prevTotalRides = profile.totalRides;
+		const prevTotalDistanceM = profile.totalDistanceM;
 		profile.totalRides += 1;
 		profile.totalDistanceM += ride.totalDistance;
 		profile.totalDurationMs += ride.duration;
 		profile.points = profile.totalRides * 10 + Math.round(profile.totalDistanceM / 1000);
 		profile.updatedAt = Date.now();
 		tx.set(profRef, profile, { merge: true });
+		if (prevTotalRides === 0 && profile.totalRides >= 1) {
+			achievementsToAward.push({ id: 'first-ride', meta: { rideId: ride.id, startTime: ride.startTime } });
+		}
+		const hundredKm = 100_000;
+		if (prevTotalDistanceM < hundredKm && profile.totalDistanceM >= hundredKm) {
+			achievementsToAward.push({ id: 'distance-100', meta: { totalDistanceM: profile.totalDistanceM } });
+		}
 	});
 
+	const rideDurationGoal = 4 * 60 * 60 * 1000;
+	if (ride.duration >= rideDurationGoal) {
+		achievementsToAward.push({ id: 'trail-marathon', meta: { durationMs: ride.duration, rideId: ride.id } });
+	}
+	const rideStartHour = new Date(ride.startTime).getHours();
+	if (rideStartHour < 6) {
+		achievementsToAward.push({ id: 'early-bird', meta: { rideId: ride.id, startTime: ride.startTime } });
+	}
+
 	await batch.commit();
+
+	if (achievementsToAward.length > 0) {
+		await Promise.all(achievementsToAward.map((ach) => awardAchievement(ride.userId, ach.id, ach.meta)));
+	}
 	return ride;
 }
 
