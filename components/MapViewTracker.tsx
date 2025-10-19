@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useColorScheme, View, Text } from 'react-native';
+import { useColorScheme, View, Text, Image, StyleSheet } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import type { RidePoint, TrailProximity } from '../hooks/useRideTracker';
@@ -9,6 +9,7 @@ import { getObstaclesInArea, verifyObstacle, type Obstacle } from '../services/O
 import { Colors } from '@/constants/colors';
 import Feather from 'react-native-vector-icons/Feather';
 import type { ObstacleSeverity, ObstacleType } from '../services/Data';
+import ProfilePictureService from '../services/ProfilePictureService';
 
 // Renders the main MapView with three responsibilities:
 // 1) Draw static preview routes (A–C).
@@ -41,12 +42,14 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
   const mapRef = useRef<MapView | null>(null);
   const [heading, setHeading] = useState<number>(0);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const filteredObstacles = React.useMemo(() => {
     const f = (obstacleFilters || {});
     let list = obstacles;
     if (f.severities && f.severities.length) {
       list = list.filter(o => (f.severities as any).includes(o.severity as any));
     }
+
     if (f.types && f.types.length) {
       list = list.filter(o => (f.types as any).includes(o.type as any));
     }
@@ -157,6 +160,18 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
     };
   }, [region?.latitude, region?.longitude]);
 
+  // Load user's avatar for map marker
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const uri = await ProfilePictureService.getProfilePicture();
+        if (mounted) setAvatarUri(uri);
+      } catch {}
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   const start = path && path[0];
   const end = path && path[path.length - 1];
 
@@ -183,7 +198,7 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
       mapType={mapType}
       initialRegion={region || WORLD_REGION}
       region={region || undefined}
-      showsUserLocation
+      showsUserLocation={false}
       showsMyLocationButton
       showsCompass
       followsUserLocation
@@ -213,6 +228,21 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
           {start && <Marker coordinate={{ latitude: start.latitude, longitude: start.longitude }} title="Start" />}
           {end && <Marker coordinate={{ latitude: end.latitude, longitude: end.longitude }} title="Current" />}
         </>
+      )}
+      {/* Current user avatar marker */}
+      {(region || end) && (
+        <Marker
+          coordinate={{ latitude: (end?.latitude ?? region!.latitude), longitude: (end?.longitude ?? region!.longitude) }}
+          anchor={{ x: 0.5, y: 0.5 }}
+        >
+          {avatarUri ? (
+            <View style={styles.avatarShadow}> 
+              <Image source={{ uri: avatarUri }} style={styles.avatar} />
+            </View>
+          ) : (
+            <View style={[styles.avatar, { backgroundColor: palette.brandPrimary }]} />
+          )}
+        </Marker>
       )}
       {nearestTrail && (
         <Marker
@@ -249,3 +279,21 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
     </MapView>
   );
 }
+
+const styles = StyleSheet.create({
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  avatarShadow: {
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+    borderRadius: 20,
+  },
+});
