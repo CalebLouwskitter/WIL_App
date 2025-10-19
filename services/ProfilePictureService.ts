@@ -217,8 +217,10 @@ class ProfilePictureService {
           // Read file into a blob
           const response = await fetch(destinationUri);
           const blob = await response.blob();
+          console.log('Uploading profile picture to Firebase Storage:', storagePath);
           await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
           const downloadUrl = await getDownloadURL(storageRef);
+          console.log('Uploaded. Download URL obtained.');
 
           // Optionally update auth profile photoURL (skipped to avoid API differences)
 
@@ -248,7 +250,7 @@ class ProfilePictureService {
       return destinationUri;
     } catch (error) {
       console.error('Error saving profile picture:', error);
-      console.error('Error details:', JSON.stringify(error));
+      try { console.error('Error details:', JSON.stringify(error)); } catch {}
       throw error;
     }
   }
@@ -256,6 +258,7 @@ class ProfilePictureService {
   // Get current profile picture
   async getProfilePicture(): Promise<string | null> {
     try {
+      console.log('getProfilePicture() -> FIREBASE_ENABLED:', !!FIREBASE_ENABLED, 'hasUser:', !!auth?.currentUser, 'hasApp:', !!app);
       const data = await AsyncStorage.getItem(PROFILE_PICTURE_KEY);
       if (!data) {
         console.log('No profile picture found in storage');
@@ -265,12 +268,14 @@ class ProfilePictureService {
             const storage = getStorage(app);
             const storagePath = `users/${auth.currentUser.uid}/profile.jpg`;
             const storageRef = ref(storage, storagePath);
+            console.log('Attempting remote fetch from Storage path:', storagePath);
             const url = await getDownloadURL(storageRef);
             // Cache for next time
             const profilePic: ProfilePicture = { uri: url, timestamp: Date.now(), type: 'remote', storagePath };
             await AsyncStorage.setItem(PROFILE_PICTURE_KEY, JSON.stringify(profilePic));
             return url;
-          } catch (e) {
+          } catch (e: any) {
+            console.warn('Remote fetch failed:', e?.code || e?.message || e);
             // Fallback to Firebase auth photoURL if available
             if (auth?.currentUser?.photoURL) return auth.currentUser.photoURL;
           }
@@ -297,11 +302,14 @@ class ProfilePictureService {
               const storage = getStorage(app);
               const storagePath = `users/${auth.currentUser.uid}/profile.jpg`;
               const storageRef = ref(storage, storagePath);
+              console.log('Retrying remote fetch from Storage path:', storagePath);
               const url = await getDownloadURL(storageRef);
               const newPic: ProfilePicture = { uri: url, timestamp: Date.now(), type: 'remote', storagePath };
               await AsyncStorage.setItem(PROFILE_PICTURE_KEY, JSON.stringify(newPic));
               return url;
-            } catch {}
+            } catch (e: any) {
+              console.warn('Retry remote fetch failed:', e?.code || e?.message || e);
+            }
           }
           // Final fallback to auth photoURL
           if (auth?.currentUser?.photoURL) return auth.currentUser.photoURL;
@@ -313,6 +321,24 @@ class ProfilePictureService {
     } catch (error) {
       console.error('Error getting profile picture:', error);
       return null;
+    }
+  }
+
+  async checkRemoteProfilePicture(): Promise<{ exists: boolean; url: string | null; path: string | null; reason?: string }> {
+    try {
+      if (!FIREBASE_ENABLED) return { exists: false, url: null, path: null, reason: 'FIREBASE_DISABLED' };
+      if (!auth?.currentUser) return { exists: false, url: null, path: null, reason: 'NO_AUTH_USER' };
+      if (!app) return { exists: false, url: null, path: null, reason: 'NO_APP' };
+      const storage = getStorage(app);
+      const storagePath = `users/${auth.currentUser.uid}/profile.jpg`;
+      const storageRef = ref(storage, storagePath);
+      console.log('checkRemoteProfilePicture -> attempting getDownloadURL:', storagePath);
+      const url = await getDownloadURL(storageRef);
+      console.log('checkRemoteProfilePicture -> success');
+      return { exists: true, url, path: storagePath };
+    } catch (e: any) {
+      console.warn('checkRemoteProfilePicture -> failed:', e?.code || e?.message || e);
+      return { exists: false, url: null, path: null, reason: e?.code || e?.message };
     }
   }
 
