@@ -3,7 +3,7 @@ import { ThemedText } from 'components/theme/ThemedText';
 import { ThemedView } from 'components/theme/ThemedView';
 import { Colors } from 'constants/colors';
 import { ReportDownload } from 'services/AnalyticsService';
-import Feather from 'react-native-vector-icons/Feather';
+import { Feather } from '@expo/vector-icons';
 import { useEffect, useState, useMemo } from 'react';
 import { getRides } from 'services/RideStorage';
 import type { RideData } from 'hooks/useRideTracker';

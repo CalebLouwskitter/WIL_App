@@ -8,7 +8,7 @@ import {
   useColorScheme,
   Dimensions,
 } from 'react-native';
-import Feather from 'react-native-vector-icons/Feather';
+import { Feather } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
 
 type MapType = 'standard' | 'satellite' | 'hybrid' | 'terrain';

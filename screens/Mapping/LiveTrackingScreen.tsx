@@ -5,7 +5,7 @@ import useRideTracker from '../../hooks/useRideTracker';
 import { saveRide } from '../../services/RideStorage';
 import MapViewTracker from '../../components/MapViewTracker';
 import RideStatsCard from '../../components/RideStatsCard';
-import Feather from 'react-native-vector-icons/Feather';
+import { Feather } from '@expo/vector-icons';
 import TrailPreviews from '../../components/TrailPreviews';
 import { getActiveHorse } from '../../services/HorseStorage';
 import { useFocusEffect } from '@react-navigation/native';
