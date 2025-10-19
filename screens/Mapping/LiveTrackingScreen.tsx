@@ -126,7 +126,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             style={[
               styles.rideActiveContainer,
               {
-                bottom: insets.bottom + 210,
+                bottom: insets.bottom + 20,
                 transform: [{ scale: scaleAnim }],
               },
             ]}
@@ -195,7 +195,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
 
           {/* Floating Obstacle Button */}
           <TouchableOpacity
-            style={[styles.reportObstacleButton, { bottom: insets.bottom + 340 }]}
+            style={[styles.reportObstacleButton, { bottom: insets.bottom + 240 }]}
             activeOpacity={0.9}
             onPress={() =>
               navigation.navigate('MarkObstacle', {
@@ -220,12 +220,12 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
       ) : (
         <>
           {/* Trail Previews */}
-          <View style={[styles.previewContainer, { bottom: insets.bottom + 380 }]}>
+          <View style={[styles.previewContainer, { bottom: insets.bottom + 240 }]}>
             <TrailPreviews />
           </View>
 
-          {/* Action Buttons - INCREASED SPACING */}
-          <View style={[styles.actionRow, { bottom: insets.bottom + 270 }]}>
+          {/* Action Buttons - AT BOTTOM */}
+          <View style={[styles.actionRow, { bottom: insets.bottom + 80 }]}>
             <TouchableOpacity
               style={styles.actionButton}
               onPress={handleStart}
@@ -275,8 +275,8 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Active Horse Bar - MOVED DOWN FOR MORE SPACE */}
-          <View style={[styles.activeHorseBar, { bottom: insets.bottom + 150 }]}>
+          {/* Active Horse Bar - AT BOTTOM */}
+          <View style={[styles.activeHorseBar, { bottom: insets.bottom + 12 }]}>
             <BlurView intensity={80} tint="dark" style={styles.activeHorseBlur}>
               <LinearGradient
                 colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']}
