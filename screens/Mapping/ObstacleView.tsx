@@ -3,11 +3,17 @@ import { Marker, Callout } from 'react-native-maps';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import type { Obstacle } from '../../services/ObstacleService';
+import type { ObstacleSeverity, ObstacleType } from '../../services/Data';
 
 type Props = {
   obstacles: Obstacle[];
   onObstaclePress?: (obstacle: Obstacle) => void;
   onVerify?: (obstacle: Obstacle) => void;
+  filters?: {
+    severities?: ObstacleSeverity[];
+    types?: ObstacleType[];
+    showResolved?: boolean;
+  };
 };
 
 const getObstacleIcon = (type: string): string => {
@@ -17,7 +23,7 @@ const getObstacleIcon = (type: string): string => {
     case 'debris':
       return 'trash-2';
     case 'animal':
-      return 'horse';
+      return 'alert-triangle';
     case 'tree':
       return 'feather';
     case 'water':
@@ -60,13 +66,13 @@ const ObstacleView: React.FC<Props> = ({ obstacles, onObstaclePress, onVerify })
             onPress={() => onObstaclePress?.(obstacle)}
           >
             <View style={[styles.markerContainer, { borderColor: color }]}>
-              <Feather name={iconName} size={20} color={color} />
+              <Feather name={iconName as any} size={20} color={color} />
             </View>
             
             <Callout tooltip onPress={() => onObstaclePress?.(obstacle)}>
               <View style={styles.calloutContainer}>
                 <View style={styles.calloutHeader}>
-                  <Feather name={iconName} size={16} color={color} />
+                  <Feather name={iconName as any} size={16} color={color} />
                   <Text style={styles.calloutTitle}>{obstacle.title}</Text>
                 </View>
                 

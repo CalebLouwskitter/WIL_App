@@ -32,6 +32,7 @@ export type ProfileStackParamList = {
   ProfileMain: undefined;              // no params
   PersonalStats: undefined;            // no params
   AchievementsScreen: undefined;      // no params or define params if any
+  Settings: undefined;                 // settings screen
   CreateHorse: undefined;
   HorsesList: undefined;
   AdminManagement: undefined;

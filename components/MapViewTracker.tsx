@@ -8,6 +8,7 @@ import ObstacleView from '../screens/Mapping/ObstacleView';
 import { getObstaclesInArea, verifyObstacle, type Obstacle } from '../services/ObstacleService';
 import { Colors } from '@/constants/colors';
 import Feather from 'react-native-vector-icons/Feather';
+import type { ObstacleSeverity, ObstacleType } from '../services/Data';
 
 // Renders the main MapView with three responsibilities:
 // 1) Draw static preview routes (A–C).
@@ -18,6 +19,11 @@ type Props = {
   path: RidePoint[] | undefined;
   mapType?: MapType;
   nearestTrail?: TrailProximity | null;
+  obstacleFilters?: {
+    severities?: ObstacleSeverity[];
+    types?: ObstacleType[];
+    showResolved?: boolean;
+  };
 };
 
 // Fallback large region so the map renders immediately while we resolve a more precise region.
@@ -28,13 +34,27 @@ const WORLD_REGION: Region = {
   longitudeDelta: 60,
 };
 
-export default function MapViewTracker({ path, mapType = 'standard', nearestTrail }: Props) {
+export default function MapViewTracker({ path, mapType = 'standard', nearestTrail, obstacleFilters }: Props) {
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme ?? 'light'];
   const [region, setRegion] = useState<Region | null>(null);
   const mapRef = useRef<MapView | null>(null);
   const [heading, setHeading] = useState<number>(0);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
+  const filteredObstacles = React.useMemo(() => {
+    const f = (obstacleFilters || {});
+    let list = obstacles;
+    if (f.severities && f.severities.length) {
+      list = list.filter(o => (f.severities as any).includes(o.severity as any));
+    }
+    if (f.types && f.types.length) {
+      list = list.filter(o => (f.types as any).includes(o.type as any));
+    }
+    if (f.showResolved === false) {
+      list = list.filter(o => o.status !== 'resolved');
+    }
+    return list;
+  }, [obstacles, obstacleFilters]);
 
   // When the path grows, recenter on the most recent point with a tight delta
   // (gives a max-zoomed-in feel so nearby objects are visible).
@@ -223,7 +243,7 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
       )}
       {/* Render obstacle markers */}
       <ObstacleView 
-        obstacles={obstacles} 
+        obstacles={filteredObstacles} 
         onVerify={handleVerifyObstacle}
       />
     </MapView>

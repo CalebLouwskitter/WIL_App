@@ -12,9 +12,13 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import MapTypeModal from '../../components/MapTypeModal';
+import { useUnits } from '../../hooks/useUnits';
+import type { ObstacleSeverity } from '../../services/Data';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
-  const { rideData, startRide, stopRide } = useRideTracker();
+  const { rideData, startRide, stopRide, currentSpeed } = useRideTracker();
   const [isRiding, setIsRiding] = useState(false);
   const [activeHorseName, setActiveHorseName] = useState<string | null>(null);
   const [mapTypeModalVisible, setMapTypeModalVisible] = useState(false);
@@ -22,6 +26,8 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme ?? 'light'];
+  const { isMetric, toggle } = useUnits();
+  const [showSevereOnly, setShowSevereOnly] = useState(false);
 
   const rideActions = [
     {
@@ -126,7 +132,11 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
         <MapViewTracker 
           path={rideData?.path} 
           mapType={currentMapType} 
-          nearestTrail={rideData?.nearestTrail} 
+          nearestTrail={rideData?.nearestTrail}
+          obstacleFilters={{
+            severities: showSevereOnly ? (['high', 'critical'] as ObstacleSeverity[]) : [],
+            showResolved: false,
+          }}
         />
       </View>
 
@@ -197,8 +207,56 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                   distance={rideData.totalDistance}
                   elevation={rideData.elevationGain}
                   durationMs={rideData.duration}
+                  speedKmh={currentSpeed}
+                  isMetric={isMetric}
                 />
               </View>
+            )}
+            <View style={styles.toggleRow}>
+              <TouchableOpacity
+                style={[styles.toggleBtn, { backgroundColor: palette.cardElevated }]}
+                onPress={toggle}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.toggleBtnText, { color: palette.onSurface }]}>
+                  Units: {isMetric ? 'km/h' : 'mph'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleBtn, { backgroundColor: palette.cardElevated }]}
+                onPress={() => setShowSevereOnly((v) => !v)}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.toggleBtnText, { color: palette.onSurface }]}>
+                  {showSevereOnly ? 'Filter: High+' : 'Filter: All'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {rideData?.path && rideData.path.length > 1 && (
+              <TouchableOpacity
+                style={[styles.toggleBtn, { backgroundColor: palette.cardElevated, marginHorizontal: 20 }]}
+                onPress={async () => {
+                  try {
+                    const name = `ride-${rideData.startTime}.gpx`;
+                    const baseDir = ((FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory || '') as string;
+                    const uri = baseDir + name;
+                    const fmt = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+                    const date = new Date(rideData.startTime);
+                    const dateName = `${date.getFullYear()}-${fmt(date.getMonth() + 1)}-${fmt(date.getDate())}`;
+                    const trkSeg = rideData.path
+                      .map((p) => `<trkpt lat="${p.latitude}" lon="${p.longitude}"><ele>${p.altitude || 0}</ele><time>${new Date(p.timestamp).toISOString()}</time></trkpt>`) 
+                      .join('');
+                    const gpx = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="WIL_App" xmlns="http://www.topografix.com/GPX/1/1">\n<trk>\n<name>Ride ${dateName}</name>\n<trkseg>${trkSeg}</trkseg>\n</trk>\n</gpx>`;
+                    await FileSystem.writeAsStringAsync(uri, gpx);
+                    await Sharing.shareAsync(uri, { mimeType: 'application/gpx+xml', dialogTitle: 'Export GPX' });
+                  } catch (e) {
+                    Alert.alert('Export Failed', 'Could not export GPX.');
+                  }
+                }}
+                activeOpacity={0.9}
+              >
+                <Text style={[styles.toggleBtnText, { color: palette.onSurface }]}>Export GPX</Text>
+              </TouchableOpacity>
             )}
             <TouchableOpacity
               style={[styles.button, styles.stopButton, { backgroundColor: palette.rideStop }]}
@@ -433,6 +491,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 8,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginHorizontal: 20,
+    marginTop: 8,
+  },
+  toggleBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toggleBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
 

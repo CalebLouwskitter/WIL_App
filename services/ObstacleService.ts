@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FIREBASE_ENABLED, auth, app } from './firebase';
 import { COLLECTIONS, Converters, newObstacle, type ObstacleDTO, type ObstacleType, type ObstacleSeverity, type ObstacleStatus, userProfileConverter } from './Data';
-import { getFirestore, collection, doc, setDoc, getDocs, getDoc, query, orderBy as fsOrderBy, where as fsWhere, GeoPoint, limit as fsLimit } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, getDocs, getDoc, query, orderBy as fsOrderBy, where as fsWhere, GeoPoint, limit as fsLimit, arrayUnion, updateDoc } from 'firebase/firestore';
 
 export type Obstacle = {
   id: string;
@@ -273,12 +273,12 @@ export async function verifyObstacle(obstacleId: string) {
   try {
     if (FIREBASE_ENABLED && app) {
       const db = getFirestore(app as any);
-      const ref = doc(db, COLLECTIONS.obstacles, obstacleId).withConverter(Converters?.obstacle as any);
-      // This would need arrayUnion in a real implementation
-      await setDoc(ref, { 
-        verifiedBy: [uid],
+      const ref = doc(db, COLLECTIONS.obstacles, obstacleId);
+      // Use arrayUnion to append uid without overwriting existing verifications
+      await updateDoc(ref, {
+        verifiedBy: arrayUnion(uid),
         updatedAt: Date.now()
-      } as any, { merge: true });
+      });
     }
   } catch (e) {
     console.warn('Failed to verify obstacle in Firestore:', e);

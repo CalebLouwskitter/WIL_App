@@ -7,25 +7,39 @@ export default function RideStatsCard({
   elevation,
   durationMs,
   title,
+  speedKmh,
+  isMetric = true,
 }: {
   distance: number;
   elevation: number;
   durationMs: number;
   title?: string;
+  speedKmh?: number;
+  isMetric?: boolean;
 }) {
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme ?? 'light'];
   const styles = useMemo(() => createStyles(palette), [palette]);
-  const km = distance / 1000;
+  const distanceValue = isMetric ? distance / 1000 : distance / 1609.34;
+  const distanceUnit = isMetric ? 'km' : 'mi';
   const mins = durationMs / 1000 / 60;
+  const hasSpeed = typeof speedKmh === 'number' && isFinite(speedKmh as number);
+  const speedValue = hasSpeed ? (isMetric ? (speedKmh as number) : (speedKmh as number) * 0.621371) : 0;
+  const speedUnit = isMetric ? 'km/h' : 'mph';
 
   return (
     <View style={styles.card}>
       {title ? <Text style={[styles.title, { color: palette.onSurface }]}>{title}</Text> : null}
       <View style={styles.row}>
+        {hasSpeed && (
+          <View style={styles.metric}>
+            <Text style={[styles.value, { color: palette.onSurface }]}>{speedValue.toFixed(1)}</Text>
+            <Text style={styles.label}>{speedUnit}</Text>
+          </View>
+        )}
         <View style={styles.metric}>
-          <Text style={[styles.value, { color: palette.onSurface }]}>{km.toFixed(2)}</Text>
-          <Text style={styles.label}>km</Text>
+          <Text style={[styles.value, { color: palette.onSurface }]}>{distanceValue.toFixed(2)}</Text>
+          <Text style={styles.label}>{distanceUnit}</Text>
         </View>
         <View style={styles.metric}>
           <Text style={[styles.value, { color: palette.onSurface }]}>{elevation.toFixed(0)}</Text>

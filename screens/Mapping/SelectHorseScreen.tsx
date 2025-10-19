@@ -4,18 +4,27 @@ import { Feather as Icon } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getHorses, setActiveHorseId, getActiveHorseId, type Horse } from '../../services/HorseStorage';
 import { Colors } from '@/constants/colors';
+import { getRides } from '../../services/RideStorage';
 
 const SelectHorseScreen = () => {
   const nav = useNavigation<any>();
   const [horses, setHorses] = useState<Horse[]>([]);
+  const [rideCounts, setRideCounts] = useState<Record<string, number>>({});
   const [activeId, setActiveId] = useState<string | null>(null);
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme ?? 'light'];
 
   const load = async () => {
-    const [list, id] = await Promise.all([getHorses(), getActiveHorseId()]);
+    const [list, id, rides] = await Promise.all([getHorses(), getActiveHorseId(), getRides()]);
     setHorses(list);
     setActiveId(id);
+    const counts: Record<string, number> = {};
+    for (const r of rides) {
+      const hid = r.horseId || '';
+      if (!hid) continue;
+      counts[hid] = (counts[hid] || 0) + 1;
+    }
+    setRideCounts(counts);
   };
 
   useFocusEffect(
@@ -36,7 +45,13 @@ const SelectHorseScreen = () => {
       <TouchableOpacity style={[styles.row, { backgroundColor: palette.cardElevated }, isActive && { borderWidth: 1, borderColor: palette.brandPrimary }]} onPress={() => onSelect(item.id)}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: palette.onSurface }]}>{item.name}</Text>
-          <Text style={[styles.sub, { color: palette.onSurfaceVariant }]}>{[item.breed, item.age ? `${item.age} yrs` : undefined].filter(Boolean).join(' • ') || '—'}</Text>
+          <Text style={[styles.sub, { color: palette.onSurfaceVariant }]}>
+            {[
+              item.breed,
+              item.age ? `${item.age} yrs` : undefined,
+              typeof rideCounts[item.id] === 'number' ? `${rideCounts[item.id]} rides` : undefined,
+            ].filter(Boolean).join(' • ') || '—'}
+          </Text>
         </View>
         {isActive ? <Icon name="check" size={18} color={palette.brandPrimary} /> : <Icon name="chevron-right" size={18} color={palette.onSurfaceVariant} />}
       </TouchableOpacity>

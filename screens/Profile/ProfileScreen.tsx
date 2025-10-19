@@ -89,11 +89,11 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
       <View style={styles.topIcons}>
-        <TouchableOpacity activeOpacity={0.7}>
-          <Icon name="settings" size={27} />
+        <TouchableOpacity activeOpacity={0.7} onPress={() => handleNavigate('Settings')} disabled={navDisabled}>
+          <Icon name="settings" size={27} color={colors.icon} />
         </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.7}>
-          <Icon name="bell" size={27} />
+        <TouchableOpacity activeOpacity={0.7} onPress={() => handleNavigate('Notifications')} disabled={navDisabled}>
+          <Icon name="bell" size={27} color={colors.icon} />
         </TouchableOpacity>
       </View>
 

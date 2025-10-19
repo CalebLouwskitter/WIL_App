@@ -44,10 +44,26 @@ try {
   if (hasAllEnv) {
     // Avoid double init during fast refresh / re-renders
     appInstance = getApps().length ? getApp() : initializeApp(firebaseConfig);
-    authInstance = initializeAuth(appInstance, {
-      persistence: getReactNativePersistence(AsyncStorage as any)
-    });
+    
+    // Initialize Auth with React Native persistence
+    try {
+      authInstance = initializeAuth(appInstance, {
+        persistence: getReactNativePersistence(AsyncStorage as any)
+      });
+    } catch (authError: any) {
+      // Auth may already be initialized
+      if (authError.code === 'auth/already-initialized') {
+        const { getAuth } = require('firebase/auth');
+        authInstance = getAuth(appInstance);
+      } else {
+        throw authError;
+      }
+    }
+    
+    // Note: Firestore initialization is handled in FirebaseFirestoreService.ts
+    // for React Native specific configuration (long polling)
     firestoreInstance = getFirestore(appInstance);
+    
   } else if (__DEV__) {
     // Only spam in dev
     console.warn('[Firebase] Missing Firebase config -> Firebase disabled. Missing:', missingKeys.join(', '));

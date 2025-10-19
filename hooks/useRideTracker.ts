@@ -39,6 +39,7 @@ export type RideData = {
 export default function useRideTracker() {
   const [rideData, setRideData] = useState<RideData | null>(null);
   const watchSub = useRef<LocationSubscription | null>(null);
+  const [currentSpeed, setCurrentSpeed] = useState(0);
 
 
 
@@ -53,6 +54,7 @@ export default function useRideTracker() {
     if (status !== 'granted') throw new Error('Location permission denied');
 
     const startTime = Date.now();
+    setCurrentSpeed(0);
 
 
 
@@ -111,8 +113,9 @@ export default function useRideTracker() {
               altitude: prev.altitude * (1 - SMOOTH_ALPHA) + (point.altitude ?? 0) * SMOOTH_ALPHA,
             };
           }
-
-          totalDistance += haversine(prev, usePoint, { unit: 'meter' });
+          const segmentDistance = haversine(prev, usePoint, { unit: 'meter' });
+          totalDistance += segmentDistance;
+          setCurrentSpeed((segmentDistance / dt) * 3.6);
           const elevationChange = usePoint.altitude - prev.altitude;
           if (elevationChange > 0) elevationGain += elevationChange;
         }
@@ -196,5 +199,5 @@ export default function useRideTracker() {
     return rideData;
   }, [rideData]);
 
-  return { rideData, startRide, stopRide };
+  return { rideData, startRide, stopRide, currentSpeed };
 }

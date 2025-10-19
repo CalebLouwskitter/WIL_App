@@ -138,7 +138,7 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
                 onPress={() => setSelectedType(item.type)}
               >
                 <Feather
-                  name={item.icon}
+                  name={item.icon as any}
                   size={28}
                   color={selectedType === item.type ? palette.obstaclePrimary : palette.onSurfaceVariant}
                 />
