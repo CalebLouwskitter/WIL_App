@@ -1,16 +1,18 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions } from 'react-native';
+// screens/Profile/ProfileScreen.tsx - WITH PROFILE PICTURE
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions, Image, ActivityIndicator } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { ProfileStackParamList } from '@/navigation/ProfileStack';
-import { useEffect } from 'react';
 import { getRides } from '../../services/RideStorage';
 import type { RideData } from '../../hooks/useRideTracker';
 import { useColorScheme } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { FIREBASE_ENABLED, auth } from '../../services/firebase';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
+import ProfilePictureService from '../../services/ProfilePictureService';
 
 type ProfileScreenNavigationProp = StackNavigationProp<ProfileStackParamList, 'ProfileMain'>;
 
@@ -20,13 +22,19 @@ const achievementsData = [
   { color: '#A0FF9D', title: 'Early Bird', desc: 'Morning ride before 6 am' },
 ];
 
-type StatItem = { label: string; value: string; boxColor: string; circleColor: string; icon: string };
+type IconName = 'activity' | 'map' | 'clock' | 'star';
+type StatItem = { label: string; value: string; boxColor: string; circleColor: string; icon: IconName };
 
 export default function ProfileScreen() {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const [navDisabled, setNavDisabled] = useState(false);
   const scheme = useColorScheme();
   const colors = Colors[scheme ?? 'light'];
+  
+  // Profile picture state
+  const [profilePictureUri, setProfilePictureUri] = useState<string | null>(null);
+  const [loadingPicture, setLoadingPicture] = useState(false);
+  
   const [statsData, setStatsData] = useState<StatItem[]>([
     { label: 'Rides', value: '0', boxColor: colors.profileStatRidesBox, circleColor: colors.profileStatRidesCircle, icon: 'activity' },
     { label: 'Km', value: '0', boxColor: colors.profileStatKmBox, circleColor: colors.profileStatKmCircle, icon: 'map' },
@@ -40,6 +48,47 @@ export default function ProfileScreen() {
   const email = FIREBASE_ENABLED && auth?.currentUser?.email ? auth?.currentUser?.email : '—';
   const { profile } = useCurrentUser();
 
+  // Load profile picture
+  const loadProfilePicture = useCallback(async () => {
+    try {
+      const uri = await ProfilePictureService.getProfilePicture();
+      setProfilePictureUri(uri);
+    } catch (error) {
+      console.error('Error loading profile picture:', error);
+    }
+  }, []);
+
+  // Handle profile picture change
+  const handleChangeProfilePicture = async () => {
+    setLoadingPicture(true);
+    try {
+      const uri = await ProfilePictureService.showPickerOptions();
+      if (uri) {
+        setProfilePictureUri(uri);
+      }
+    } catch (error) {
+      console.error('Error changing profile picture:', error);
+    } finally {
+      setLoadingPicture(false);
+    }
+  };
+
+  // Handle remove profile picture
+  const handleRemoveProfilePicture = async () => {
+    try {
+      await ProfilePictureService.removeProfilePicture();
+      setProfilePictureUri(null);
+    } catch (error) {
+      console.error('Error removing profile picture:', error);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfilePicture();
+    }, [loadProfilePicture])
+  );
+
   useEffect(() => {
     (async () => {
       try {
@@ -51,7 +100,6 @@ export default function ProfileScreen() {
         const totalKm = Math.round(totalDistanceMeters / 1000);
         const totalDurationMs = rides.reduce((a, r) => a + (r.duration || 0), 0);
         const hours = Math.round(totalDurationMs / (1000 * 60 * 60));
-        // Simple points model: 10 points per ride + 1 per km
         const points = totalRides * 10 + totalKm;
 
         setStatsData([
@@ -98,7 +146,50 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.userSection}>
-        <View style={styles.userIcon} />
+        {/* Profile Picture with Edit Button */}
+        <TouchableOpacity 
+          style={styles.profilePictureContainer}
+          onPress={handleChangeProfilePicture}
+          activeOpacity={0.8}
+        >
+          {loadingPicture ? (
+            <View style={styles.profilePictureLoading}>
+              <ActivityIndicator size="large" color={colors.brandPrimary} />
+            </View>
+          ) : profilePictureUri ? (
+            <>
+              <Image 
+                source={{ uri: profilePictureUri }} 
+                style={styles.profilePicture}
+              />
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.6)']}
+                style={styles.profilePictureOverlay}
+              >
+                <Icon name="camera" size={20} color="white" />
+              </LinearGradient>
+            </>
+          ) : (
+            <View style={styles.profilePicturePlaceholder}>
+              <Icon name="user" size={40} color={colors.icon} />
+              <View style={styles.cameraIconContainer}>
+                <Icon name="camera" size={16} color="white" />
+              </View>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        {/* Profile Picture Options */}
+        {profilePictureUri && (
+          <TouchableOpacity
+            style={styles.removePhotoButton}
+            onPress={handleRemoveProfilePicture}
+            activeOpacity={0.7}
+          >
+            <Icon name="trash-2" size={14} color={colors.danger} />
+          </TouchableOpacity>
+        )}
+
         <View style={styles.userText}>
           <Text style={styles.userName}>{displayName}</Text>
           <Text style={styles.userEmail}>{email}</Text>
@@ -118,7 +209,7 @@ export default function ProfileScreen() {
               <Text style={styles.statLabel1}>{item.label}</Text>
               <Text style={styles.statValue}>{item.value}</Text>
               <View style={[styles.iconCircle, { backgroundColor: item.circleColor }]}>
-                <Icon name={item.icon} size={16} color="#fff" />
+                <Icon name={item.icon as any} size={16} color="#fff" />
               </View>
             </View>
           ))}
@@ -220,8 +311,78 @@ const { width: screenWidth } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F4F7FE', padding: 16, paddingTop: 35 },
   topIcons: { flexDirection: 'row', paddingTop: 10, justifyContent: 'space-between' },
-  userSection: { flexDirection: 'row', alignItems: 'center', marginTop: 20 },
-  userIcon: { width: 78, height: 78, borderRadius: 39, backgroundColor: '#ccc' },
+  userSection: { flexDirection: 'row', alignItems: 'center', marginTop: 20, position: 'relative' },
+  
+  // Profile Picture Styles
+  profilePictureContainer: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  profilePicture: {
+    width: '100%',
+    height: '100%',
+  },
+  profilePicturePlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profilePictureLoading: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profilePictureOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cameraIconContainer: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#2D2D2D',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#F4F7FE',
+  },
+  removePhotoButton: {
+    position: 'absolute',
+    top: -4,
+    left: 56,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  
   userText: { marginLeft: 12 },
   userName: { fontSize: 20, fontWeight: 'bold' },
   userEmail: { fontSize: 14, color: '#666' },
