@@ -571,7 +571,11 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
     }
 
     if (!payload.sighting && !payload.report) {
-      onClose?.();
+      if (onClose) {
+        onClose();
+      } else {
+        navigation.goBack();
+      }
       return;
     }
 
@@ -586,7 +590,7 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
       Alert.alert(
         '✓ Successfully Saved',
         'Your observations have been uploaded and saved to the database.',
-        [{ text: 'Done', onPress: () => onClose?.() }]
+        [{ text: 'Done', onPress: () => onClose ? onClose() : navigation.goBack() }]
       );
 
       // Reset form
@@ -607,12 +611,16 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
         'You have unsaved changes. What would you like to do?',
         [
           { text: 'Continue Editing', style: 'cancel' },
-          { text: 'Discard & Close', style: 'destructive', onPress: () => onClose?.() },
+          { text: 'Discard & Close', style: 'destructive', onPress: () => onClose ? onClose() : navigation.goBack() },
           { text: 'Save & Close', onPress: () => submitAll() },
         ]
       );
     } else {
-      onClose?.();
+      if (onClose) {
+        onClose();
+      } else {
+        navigation.goBack();
+      }
     }
   };
 

@@ -260,7 +260,12 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
 
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={() => navigation.navigate('Analytics')}
+              onPress={() => {
+                const parent = navigation.getParent();
+                if (parent) {
+                  parent.navigate('Analytics');
+                }
+              }}
               activeOpacity={0.9}
             >
               <LinearGradient
