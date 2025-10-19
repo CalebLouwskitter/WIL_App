@@ -37,14 +37,27 @@ export const getUser = async (userId: string): Promise<User | null> => {
   if (!firestore) {
     throw new Error("Firestore is not initialized");
   }
-  const userRef = doc(firestore, 'users', userId);
+  const userRef = doc(firestore, 'users', userId).withConverter(userProfileConverter as any);
   const userSnap = await getDoc(userRef);
 
-  if (userSnap.exists()) {
-    return { uid: userSnap.id, ...userSnap.data() } as User;
-  } else {
+  if (!userSnap.exists()) {
     return null;
   }
+
+  const profile = userSnap.data() as UserProfile;
+  const normalized: User = {
+    uid: profile.uid,
+    email: profile.email ?? null,
+    displayName: profile.displayName ?? null,
+    status: (profile.status ?? 'approved') as User['status'],
+    role: profile.role ?? 'member',
+  };
+
+  if (profile.status !== normalized.status || profile.role !== normalized.role) {
+    await setDoc(userRef, { status: normalized.status, role: normalized.role } as any, { merge: true });
+  }
+
+  return normalized;
 };
 
 export const createUser = async (profile: UserProfile) => {
