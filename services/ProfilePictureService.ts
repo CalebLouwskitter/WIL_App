@@ -259,8 +259,22 @@ class ProfilePictureService {
       const data = await AsyncStorage.getItem(PROFILE_PICTURE_KEY);
       if (!data) {
         console.log('No profile picture found in storage');
-        // Fallback to Firebase auth photoURL if available
-        if (FIREBASE_ENABLED && auth?.currentUser?.photoURL) {
+        // Try to fetch from Firebase Storage deterministic path
+        if (FIREBASE_ENABLED && auth?.currentUser && app) {
+          try {
+            const storage = getStorage(app);
+            const storagePath = `users/${auth.currentUser.uid}/profile.jpg`;
+            const storageRef = ref(storage, storagePath);
+            const url = await getDownloadURL(storageRef);
+            // Cache for next time
+            const profilePic: ProfilePicture = { uri: url, timestamp: Date.now(), type: 'remote', storagePath };
+            await AsyncStorage.setItem(PROFILE_PICTURE_KEY, JSON.stringify(profilePic));
+            return url;
+          } catch (e) {
+            // Fallback to Firebase auth photoURL if available
+            if (auth?.currentUser?.photoURL) return auth.currentUser.photoURL;
+          }
+        } else if (auth?.currentUser?.photoURL) {
           return auth.currentUser.photoURL;
         }
         return null;
@@ -277,10 +291,20 @@ class ProfilePictureService {
         if (!fileInfo.exists) {
           console.log('Profile picture file no longer exists');
           await this.removeProfilePicture();
-          // Fallback to Firebase auth photoURL if available
-          if (FIREBASE_ENABLED && auth?.currentUser?.photoURL) {
-            return auth.currentUser.photoURL;
+          // Attempt to fetch from Firebase Storage again
+          if (FIREBASE_ENABLED && auth?.currentUser && app) {
+            try {
+              const storage = getStorage(app);
+              const storagePath = `users/${auth.currentUser.uid}/profile.jpg`;
+              const storageRef = ref(storage, storagePath);
+              const url = await getDownloadURL(storageRef);
+              const newPic: ProfilePicture = { uri: url, timestamp: Date.now(), type: 'remote', storagePath };
+              await AsyncStorage.setItem(PROFILE_PICTURE_KEY, JSON.stringify(newPic));
+              return url;
+            } catch {}
           }
+          // Final fallback to auth photoURL
+          if (auth?.currentUser?.photoURL) return auth.currentUser.photoURL;
           return null;
         }
       }
@@ -292,7 +316,7 @@ class ProfilePictureService {
     }
   }
 
-  // Remove profile picture
+// ... (rest of the code remains the same)
   async removeProfilePicture(): Promise<void> {
     try {
       const data = await AsyncStorage.getItem(PROFILE_PICTURE_KEY);
