@@ -482,11 +482,22 @@ export const notificationPrefConverter: FirestoreDataConverter<NotificationPrefD
 	},
 };
 
+// Helper to strip undefined values (Firestore rejects undefined)
+function stripUndefined<T extends Record<string, any>>(obj: T): Partial<T> {
+	const clean: any = {};
+	Object.keys(obj).forEach(key => {
+		if (obj[key] !== undefined) {
+			clean[key] = obj[key];
+		}
+	});
+	return clean;
+}
+
 export const sightingConverter: FirestoreDataConverter<SightingDTO> = {
 	toFirestore: (sighting: SightingDTO) => {
 		const data = { ...sighting };
 		delete (data as any).id;
-		return data;
+		return stripUndefined(data);
 	},
 	fromFirestore: (snapshot: QueryDocumentSnapshot, options: SnapshotOptions): SightingDTO => {
 		const data = snapshot.data(options);
@@ -501,7 +512,7 @@ export const obstacleConverter: FirestoreDataConverter<ObstacleDTO> = {
 	toFirestore: (obstacle: ObstacleDTO) => {
 		const data = { ...obstacle };
 		delete (data as any).id;
-		return data;
+		return stripUndefined(data);
 	},
 	fromFirestore: (snapshot: QueryDocumentSnapshot, options: SnapshotOptions): ObstacleDTO => {
 		const data = snapshot.data(options);
@@ -516,7 +527,7 @@ export const reportConverter: FirestoreDataConverter<ReportDTO> = {
 	toFirestore: (report: ReportDTO) => {
 		const data = { ...report };
 		delete (data as any).id;
-		return data;
+		return stripUndefined(data);
 	},
 	fromFirestore: (snapshot: QueryDocumentSnapshot, options: SnapshotOptions): ReportDTO => {
 		const data = snapshot.data(options);

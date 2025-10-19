@@ -394,29 +394,54 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
 
         const sightingRef = doc(collection(db, 'wildlife_sightings'));
         
-        setDoc(sightingRef, {
-          ...payload.sighting,
-          photo_url: photoUrl,
-          photo_uri: undefined, // Remove local URI
+        // Build clean object without undefined fields (Firestore rejects undefined)
+        const sightingData: any = {
+          notes: payload.sighting.notes,
+          sighting_time: payload.sighting.sighting_time,
+          location: payload.sighting.location,
           user_id: currentUser?.uid,
           user_email: currentUser?.email,
           created_at: timestamp,
           ride_id: rideId || `ride_${Date.now()}`,
-        });
+        };
+        
+        // Only add optional fields if they exist
+        if (payload.sighting.wildlife_type) {
+          sightingData.wildlife_type = payload.sighting.wildlife_type;
+        }
+        if (photoUrl) {
+          sightingData.photo_url = photoUrl;
+        }
+        
+        setDoc(sightingRef, sightingData);
       }
 
       // Save trail report if exists
       if (payload.report) {
         const reportRef = doc(collection(db, 'trail_reports'));
         
-        setDoc(reportRef, {
-          ...payload.report,
+        // Build clean object without undefined fields (Firestore rejects undefined)
+        const reportData: any = {
+          date: payload.report.date,
+          time: payload.report.time,
+          notes: payload.report.notes,
+          severity: payload.report.severity,
           user_id: currentUser?.uid,
           user_email: currentUser?.email,
           created_at: timestamp,
           status: 'pending', // For admin review
           ride_id: rideId || `ride_${Date.now()}`,
-        });
+        };
+        
+        // Only add optional fields if they exist
+        if (payload.report.location) {
+          reportData.location = payload.report.location;
+        }
+        if (payload.report.issue_type) {
+          reportData.issue_type = payload.report.issue_type;
+        }
+        
+        setDoc(reportRef, reportData);
       }
 
       // Update ride document if rideId exists

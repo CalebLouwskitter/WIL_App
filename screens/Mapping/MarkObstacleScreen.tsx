@@ -43,7 +43,7 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
   const obstacleTypes: { type: ObstacleType; label: string; icon: string }[] = [
     { type: 'pothole', label: 'Pothole', icon: 'alert-triangle' },
     { type: 'debris', label: 'Debris', icon: 'trash-2' },
-    { type: 'animal', label: 'Animal', icon: 'horse' },
+    { type: 'animal', label: 'Animal', icon: 'alert-triangle' },
     { type: 'tree', label: 'Fallen Tree', icon: 'feather' },
     { type: 'water', label: 'Water Hazard', icon: 'droplet' },
     { type: 'other', label: 'Other', icon: 'alert-circle' },
