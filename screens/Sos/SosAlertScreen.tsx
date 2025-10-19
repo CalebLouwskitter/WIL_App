@@ -1,133 +1,145 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
   TouchableOpacity,
   StatusBar,
   Animated,
+  Linking,
+  Alert,
 } from 'react-native';
-import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import * as Location from 'expo-location';
+import { PanGestureHandler, State, HandlerStateChangeEvent, PanGestureHandlerEventPayload } from 'react-native-gesture-handler';
+
+const HOLD_THRESHOLD = -150;
+const SNAP_VALUE = -200;
+const COUNTDOWN_START = 3;
+
+// ✅ Your WhatsApp group link here
+const WHATSAPP_GROUP_LINK = '';
 
 const SosAlertScreen = () => {
+  const [helpSent, setHelpSent] = useState(false);
   const [activated, setActivated] = useState(false);
-  const [aboveThreshold, setAboveThreshold] = useState(false);
-  const [countdown, setCountdown] = useState(10);
-  const [counting, setCounting] = useState(false);
+  const [countdown, setCountdown] = useState(COUNTDOWN_START);
+
   const translateY = useRef(new Animated.Value(0)).current;
+  const translateYJS = useRef(new Animated.Value(0)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
-  const isActivatedRef = useRef(false);
-  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const autoResetTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const ACTIVATION_THRESHOLD = -120; // easier to reach
-  const CANCEL_HYSTERESIS = 20; // allow small jitter before canceling
-  const HOLD_MS = 200; // faster activation while still preventing accidental triggers
+  const dragY = useRef(0);
+  const activatedRef = useRef(false);
 
-  // Map gesture Y to animated value for smooth movement; use listener for activation logic
+  const resetToInitialState = () => {
+    activatedRef.current = false;
+    setActivated(false);
+    setHelpSent(false);
+    setCountdown(COUNTDOWN_START);
+    translateY.setValue(0);
+    translateYJS.setValue(0);
+    Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true }).start();
+  };
+
   const onGestureEvent = Animated.event(
-    [{ nativeEvent: { translationY: translateY } }],
+    [{ nativeEvent: { translationY: translateYJS } }],
     {
-      useNativeDriver: true,
-      listener: (event: any) => {
-        const { translationY } = event.nativeEvent;
-        // Activation when swiped up beyond threshold
-        if (!isActivatedRef.current && translationY <= ACTIVATION_THRESHOLD) {
-          if (!aboveThreshold) setAboveThreshold(true);
-          isActivatedRef.current = true;
-          // Subtle feedback on crossing threshold (slightly more bouncy)
-          Animated.spring(buttonScale, { toValue: 1.06, useNativeDriver: true, tension: 96, friction: 4.5 }).start();
-          // Start 10s countdown while held above threshold
-          if (!counting) {
-            setCounting(true);
-            setCountdown(10);
-            if (countdownTimerRef.current) clearInterval(countdownTimerRef.current as any);
-            countdownTimerRef.current = setInterval(() => {
-              setCountdown(prev => {
-                const next = prev - 1;
-                if (next <= 0) {
-                  // Countdown finished => finalize activation
-                  if (countdownTimerRef.current) {
-                    clearInterval(countdownTimerRef.current as any);
-                    countdownTimerRef.current = null;
-                  }
-                  setCounting(false);
-                  setActivated(true);
-                  Animated.parallel([
-                    Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true, tension: 96, friction: 4.5 }),
-                    Animated.spring(translateY, { toValue: -200, useNativeDriver: true, friction: 4.5, tension: 96 }),
-                  ]).start();
+      useNativeDriver: false,
+      listener: (e: any) => {
+        const ty = (e?.nativeEvent?.translationY ?? 0) as number;
+        dragY.current = ty;
+        const clampedValue = Math.min(0, ty);
+        translateY.setValue(clampedValue);
 
-                  // TODO: Trigger actual SOS action here (navigate, API call, etc.)
-
-                  // Auto reset after a short delay to restore UI
-                  if (autoResetTimerRef.current) clearTimeout(autoResetTimerRef.current);
-                  autoResetTimerRef.current = setTimeout(() => {
-                    setActivated(false);
-                    isActivatedRef.current = false;
-                    setAboveThreshold(false);
-                    Animated.spring(translateY, { toValue: 0, useNativeDriver: true, friction: 4.5, tension: 96 }).start();
-                  }, 1200);
-                  return 0;
-                }
-                return next;
-              });
-            }, 1000);
-          }
-        }
-
-        // If user moves back below threshold while still holding, cancel pending activation
-        if (isActivatedRef.current && translationY > ACTIVATION_THRESHOLD + CANCEL_HYSTERESIS) {
-          isActivatedRef.current = false;
-          if (holdTimerRef.current) {
-            clearTimeout(holdTimerRef.current);
-            holdTimerRef.current = null;
-          }
-          if (aboveThreshold) setAboveThreshold(false);
-          if (countdownTimerRef.current) {
-            clearInterval(countdownTimerRef.current as any);
-            countdownTimerRef.current = null;
-          }
-          if (counting) setCounting(false);
-          Animated.spring(buttonScale, { toValue: 0.98, useNativeDriver: true, tension: 96, friction: 4.5 }).start();
+        if (!activatedRef.current && ty <= HOLD_THRESHOLD) {
+          activatedRef.current = true;
+          setActivated(true);
+          Animated.timing(translateY, {
+            toValue: SNAP_VALUE,
+            duration: 120,
+            useNativeDriver: true,
+          }).start();
         }
       },
     }
   );
 
-  const onHandlerStateChange = (
-    event: import('react-native-gesture-handler').PanGestureHandlerStateChangeEvent
-  ) => {
-    const { state, oldState } = event.nativeEvent;
-    if (state === State.BEGAN) {
-      Animated.spring(buttonScale, { toValue: 0.97, useNativeDriver: true, tension: 96, friction: 4.5 }).start();
-    }
+  const onHandlerStateChange = (event: HandlerStateChangeEvent<PanGestureHandlerEventPayload>) => {
+    if (event.nativeEvent.oldState === State.ACTIVE) {
+      Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true }).start();
 
-    // On gesture end/cancel, reset visuals and state
-    if (
-      oldState === State.ACTIVE ||
-      state === State.END ||
-      state === State.CANCELLED ||
-      state === State.FAILED
-    ) {
-      if (holdTimerRef.current) { clearTimeout(holdTimerRef.current); holdTimerRef.current = null; }
-      if (countdownTimerRef.current) { clearInterval(countdownTimerRef.current as any); countdownTimerRef.current = null; }
-      if (counting) setCounting(false);
-      setAboveThreshold(false);
-      Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true, tension: 96, friction: 4.5 }).start();
-      // If successfully activated, keep at top until auto-reset; otherwise reset immediately
-      if (!activated) {
-        isActivatedRef.current = false;
-        Animated.spring(translateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          tension: 96,
-          friction: 4.5,
-        }).start();
+      if (!helpSent) {
+        if (!activatedRef.current) {
+          Animated.spring(translateY, { 
+            toValue: 0, 
+            useNativeDriver: true,
+            tension: 80,
+            friction: 6
+          }).start();
+        } else {
+          activatedRef.current = false;
+          setActivated(false);
+          setCountdown(COUNTDOWN_START);
+          Animated.spring(translateY, { 
+            toValue: 0, 
+            useNativeDriver: true,
+            tension: 80,
+            friction: 6
+          }).start();
+        }
       }
+    } else if (event.nativeEvent.state === State.BEGAN) {
+      Animated.spring(buttonScale, { toValue: 0.95, useNativeDriver: true }).start();
     }
   };
+
+  // Send location to WhatsApp
+  const sendLocationToWhatsApp = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permission is required to send your location.');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      const mapsUrl = `https://maps.google.com/?q=${location.coords.latitude},${location.coords.longitude}`;
+      const message = `🚨 SOS Activated! 🚨\nMy current location: ${mapsUrl}`;
+
+      const encodedMessage = encodeURIComponent(message);
+      const fullUrl = `${WHATSAPP_GROUP_LINK}?text=${encodedMessage}`;
+
+      const supported = await Linking.canOpenURL(fullUrl);
+      if (supported) {
+        await Linking.openURL(fullUrl);
+      } else {
+        Alert.alert('Error', 'Could not open WhatsApp. Please try again.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to get location.');
+      console.error('Error sending location:', error);
+    }
+  };
+
+  // Countdown effect
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | null = null;
+    if (activated && !helpSent) {
+      timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            if (timer) clearInterval(timer);
+            setHelpSent(true);
+            sendLocationToWhatsApp();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [activated, helpSent]);
 
   const animatedButtonStyle = {
     transform: [
@@ -143,43 +155,61 @@ const SosAlertScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, activated ? styles.redBackground : null]}>
       <StatusBar
-        barStyle="dark-content"
-        backgroundColor="#FFFFFF"
+        barStyle={activated ? "light-content" : "dark-content"}
+        backgroundColor={activated ? "#FF0000" : "#FFFFFF"}
       />
 
+      {activated && !helpSent && (
+        <View style={styles.countdownContainer}>
+          <Text style={styles.countdownText}>{countdown}</Text>
+        </View>
+      )}
+
       <View style={styles.mainContent}>
-        <Text style={styles.title}>
-          {activated ? 'Emergency Alert Activated' : 'Emergency Alert Activating'}
-        </Text>
-        <Text style={styles.subtitle}>
-          {activated
-            ? 'Help is on the way.'
-            : (aboveThreshold && counting
-                ? `Hold button up to confirm\nActivating in ${countdown} seconds...`
-                : 'Swipe the button up and hold.\nHelp will arrive soon.')}
-        </Text>
+        {!helpSent ? (
+          <>
+            <Text style={[styles.title, activated && { color: '#FF0000' }]}>
+              Having an Emergency?
+            </Text>
+            <Text style={[styles.subtitle, activated && { color: '#FF0000' }]}>
+              Swipe the button up and hold.{'\n'}Help will arrive soon.
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={[styles.helpSentTitle, activated && styles.whiteText]}>Help has been sent</Text>
+            <Text style={[styles.helpSentSubtitle, activated && styles.whiteText]}>
+              Emergency services have been notified and are on their way.
+            </Text>
+          </>
+        )}
       </View>
 
       <View style={styles.buttonContainer}>
-        <Animated.View style={styles.swipeContainer}>
-          <View style={styles.swipeTrack}>
-            <PanGestureHandler
-              onGestureEvent={onGestureEvent}
-              onHandlerStateChange={onHandlerStateChange}
-              activeOffsetY={-10} // only activate for upward swipes beyond 10px
-              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-            >
+        {!helpSent ? (
+          <View style={styles.swipeContainer}>
+            <View style={styles.swipeTrack}>
               <Animated.View style={[styles.sosButton, animatedButtonStyle]}>
-                <Text style={styles.sosText}>{(aboveThreshold && counting) || activated ? String(countdown) : 'SOS'}</Text>
+                <Text style={styles.sosText}>SOS</Text>
               </Animated.View>
-            </PanGestureHandler>
+              <PanGestureHandler
+                onGestureEvent={onGestureEvent}
+                onHandlerStateChange={onHandlerStateChange}
+              >
+                <Animated.View style={styles.gestureOverlay} />
+              </PanGestureHandler>
+            </View>
+            <Text style={[styles.swipeInstruction, activated && { color: '#FF0000' }]}>
+              Swipe the button up{'\n'}and hold.
+            </Text>
           </View>
-          <Text style={styles.swipeInstruction}>
-            {activated ? 'SOS Activated' : (aboveThreshold && counting ? 'Keep holding...' : 'Swipe the button up\nand hold.')}
-          </Text>
-        </Animated.View>
+        ) : (
+          <TouchableOpacity style={styles.cancelButton} onPress={resetToInitialState}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -189,6 +219,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  redBackground: {
+    backgroundColor: '#FF0000',
+  },
+  whiteText: {
+    color: '#FFFFFF',
+  },
+  countdownContainer: {
+    position: 'absolute',
+    top: 100,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  countdownText: {
+    fontSize: 64,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   mainContent: {
     flex: 1,
@@ -210,10 +259,22 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 40,
   },
-
+  helpSentTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#000000',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  helpSentSubtitle: {
+    fontSize: 16,
+    color: '#666666',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
   buttonContainer: {
     paddingHorizontal: 40,
-    paddingBottom: 200,
+    paddingBottom: 40,
     alignItems: 'center',
   },
   swipeContainer: {
@@ -231,6 +292,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#E8E8E8',
     position: 'relative',
+    overflow: 'hidden',
   },
   sosButton: {
     width: 100,
@@ -262,6 +324,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 24,
     lineHeight: 20,
+  },
+  cancelButton: {
+    width: 200,
+    height: 60,
+    backgroundColor: '#FF4757',
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  cancelButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  gestureOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
   },
 });
 
