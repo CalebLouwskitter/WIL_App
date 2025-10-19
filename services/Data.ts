@@ -802,3 +802,125 @@ export async function deleteSighting(uid: string, id: string) {
 	await deleteDoc(ref);
 	return true;
 }
+
+// --------------------------------------------------------------------------
+// Obstacles: obstacles collection helpers
+// --------------------------------------------------------------------------
+
+export async function createObstacle(obstacle: ObstacleDTO) {
+	return createDoc<ObstacleDTO>(COLLECTIONS.obstacles, obstacle, obstacleConverter);
+}
+
+export async function upsertObstacle(obstacle: ObstacleDTO) {
+	return upsertDoc<ObstacleDTO>(COLLECTIONS.obstacles, obstacle, obstacleConverter);
+}
+
+export async function getObstacle(id: string): Promise<ObstacleDTO | null> {
+	return getDocById<ObstacleDTO>(COLLECTIONS.obstacles, id, obstacleConverter);
+}
+
+export async function listObstacles(
+	opts?: { 
+		userId?: string;
+		status?: ObstacleStatus;
+		limit?: number; 
+		orderBy?: [keyof ObstacleDTO & string, ('asc' | 'desc')?] 
+	}
+): Promise<ObstacleDTO[]> {
+	if (!FIREBASE_ENABLED || !app) return [];
+	const db = getFirestore(app);
+	let q: Query<ObstacleDTO> = collection(db, COLLECTIONS.obstacles).withConverter(obstacleConverter);
+	
+	// Add filters
+	if (opts?.userId) {
+		q = fsQuery(q, fsWhere('userId', '==', opts.userId));
+	}
+	if (opts?.status) {
+		q = fsQuery(q, fsWhere('status', '==', opts.status));
+	}
+	
+	// Add ordering
+	if (opts?.orderBy) {
+		const dir = opts.orderBy[1];
+		q = fsQuery(q, fsOrderBy(opts.orderBy[0], dir === 'asc' || dir === 'desc' ? dir : undefined));
+	} else {
+		// Default sort by reportedAt desc
+		q = fsQuery(q, fsOrderBy('reportedAt', 'desc'));
+	}
+	
+	// Add limit
+	if (opts?.limit) q = fsQuery(q, fsLimit(opts.limit));
+	
+	const snap = await getDocs(q);
+	return snap.docs.map(d => d.data());
+}
+
+export async function deleteObstacle(id: string) {
+	if (!FIREBASE_ENABLED || !app) return true;
+	const db = getFirestore(app);
+	const ref = doc(collection(db, COLLECTIONS.obstacles), id);
+	const { deleteDoc } = await import('firebase/firestore');
+	await deleteDoc(ref);
+	return true;
+}
+
+// --------------------------------------------------------------------------
+// Reports: reports collection helpers
+// --------------------------------------------------------------------------
+
+export async function createReport(report: ReportDTO) {
+	return createDoc<ReportDTO>(COLLECTIONS.reports, report, reportConverter);
+}
+
+export async function upsertReport(report: ReportDTO) {
+	return upsertDoc<ReportDTO>(COLLECTIONS.reports, report, reportConverter);
+}
+
+export async function getReport(id: string): Promise<ReportDTO | null> {
+	return getDocById<ReportDTO>(COLLECTIONS.reports, id, reportConverter);
+}
+
+export async function listReports(
+	opts?: { 
+		userId?: string;
+		status?: ReportStatus;
+		limit?: number; 
+		orderBy?: [keyof ReportDTO & string, ('asc' | 'desc')?] 
+	}
+): Promise<ReportDTO[]> {
+	if (!FIREBASE_ENABLED || !app) return [];
+	const db = getFirestore(app);
+	let q: Query<ReportDTO> = collection(db, COLLECTIONS.reports).withConverter(reportConverter);
+	
+	// Add filters
+	if (opts?.userId) {
+		q = fsQuery(q, fsWhere('userId', '==', opts.userId));
+	}
+	if (opts?.status) {
+		q = fsQuery(q, fsWhere('status', '==', opts.status));
+	}
+	
+	// Add ordering
+	if (opts?.orderBy) {
+		const dir = opts.orderBy[1];
+		q = fsQuery(q, fsOrderBy(opts.orderBy[0], dir === 'asc' || dir === 'desc' ? dir : undefined));
+	} else {
+		// Default sort by createdAt desc
+		q = fsQuery(q, fsOrderBy('createdAt', 'desc'));
+	}
+	
+	// Add limit
+	if (opts?.limit) q = fsQuery(q, fsLimit(opts.limit));
+	
+	const snap = await getDocs(q);
+	return snap.docs.map(d => d.data());
+}
+
+export async function deleteReport(id: string) {
+	if (!FIREBASE_ENABLED || !app) return true;
+	const db = getFirestore(app);
+	const ref = doc(collection(db, COLLECTIONS.reports), id);
+	const { deleteDoc } = await import('firebase/firestore');
+	await deleteDoc(ref);
+	return true;
+}
