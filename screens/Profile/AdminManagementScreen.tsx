@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, ActivityIndicator } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { getAllUsers, approveUser, disapproveUser, deleteUserDoc, seedUsersRbac, setUserRole } from '../../services/FirebaseUserService';
 import { User } from '../../types/User'; // Assuming a User type exists
 
 export default function AdminManagementScreen() {
+  const navigation = useNavigation();
   const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -130,11 +133,19 @@ export default function AdminManagementScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={{flexDirection:'row', justifyContent:'space-between', alignItems:'center'}}>
-        <Text style={styles.title}>User Management</Text>
-        <TouchableOpacity onPress={handleSeed} style={[styles.button, { backgroundColor:'#111' }]}> 
-          <Text style={styles.buttonText}>Seed RBAC</Text>
+      <View style={styles.headerRow}>
+        <TouchableOpacity
+          accessibilityLabel="Go back"
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="chevron-back" size={24} color="#111" />
         </TouchableOpacity>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={styles.title}>Admin</Text>
+        </View>
+        <View style={{ width: 32 }} />
       </View>
       <View style={styles.promoteRow}>
         <TextInput
@@ -233,9 +244,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4F7FE',
   },
   title: {
-    fontSize: 24,
+    fontSize: 30,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButton: {
+    width: 32,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
   },
   userItem: {
     backgroundColor: '#FFFFFF',
