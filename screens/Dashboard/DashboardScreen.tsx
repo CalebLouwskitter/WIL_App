@@ -1,8 +1,44 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
+import { useNavigation } from '@react-navigation/native';
 
 const DashboardScreen = () => {
+  const navigation = useNavigation<any>();
+
+  const quickLinks = [
+    {
+      key: 'Dashboard',
+      label: 'Dashboard',
+      icon: 'home',
+      onPress: () => navigation.navigate('Dashboard'),
+    },
+    {
+      key: 'UserMapView',
+      label: 'Map View',
+      icon: 'map',
+      onPress: () => navigation.navigate('Mapping', { screen: 'UserMapView' }),
+    },
+    {
+      key: 'Sos',
+      label: 'SOS',
+      icon: 'alert-triangle',
+      onPress: () => navigation.navigate('Sos'),
+    },
+    {
+      key: 'Analytics',
+      label: 'Analytics',
+      icon: 'bar-chart-2',
+      onPress: () => navigation.navigate('Analytics'),
+    },
+    {
+      key: 'Profile',
+      label: 'Profile',
+      icon: 'user',
+      onPress: () => navigation.navigate('ProfileStack', { screen: 'ProfileMain' }),
+    },
+  ];
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -15,6 +51,28 @@ const DashboardScreen = () => {
           <TouchableOpacity activeOpacity={0.7}>
             <Feather name="bell" size={27} />
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.quickAccessWrapper}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickAccessScroll}
+          >
+            {quickLinks.map((link) => (
+              <TouchableOpacity
+                key={link.key}
+                activeOpacity={0.8}
+                style={styles.quickAccessButton}
+                onPress={link.onPress}
+              >
+                <View style={styles.quickAccessIconWrapper}>
+                  <Feather name={link.icon as any} size={20} color="#1f2937" />
+                </View>
+                <Text style={styles.quickAccessLabel}>{link.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {/* Emergency Alert */}
@@ -147,6 +205,40 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  quickAccessWrapper: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  quickAccessScroll: {
+    gap: 12,
+    paddingVertical: 4,
+  },
+  quickAccessButton: {
+    width: 96,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  quickAccessIconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#e5e7eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  quickAccessLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#111827',
   },
   topIcons: {
     flexDirection: 'row',

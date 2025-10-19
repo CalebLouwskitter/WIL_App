@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import { Paths, File, Directory } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
@@ -97,15 +97,13 @@ export class ReportDownload {
 
     // Generate filename with timestamp
     const timestamp = new Date().toISOString().split('T')[0];
-    const filename = `${FileSystem.documentDirectory}RideAnalytics_${data.timeSlot}_${timestamp}.xlsx`;
+    const file = new File(Paths.document, `RideAnalytics_${data.timeSlot}_${timestamp}.xlsx`);
     
     // Write Excel file
     const base64 = XLSX.write(workbook, { type: 'base64' });
-    await FileSystem.writeAsStringAsync(filename, base64, {
-      encoding: FileSystem.EncodingType.Base64
-    });
+    file.write(base64, { encoding: 'base64' });
 
-    return filename;
+    return file.uri;
   }
 
   // (Farley, 2022) 
@@ -206,8 +204,8 @@ static async saveReportLocally(data: ReportData): Promise<string> {
   static async getReportFileSize(data: ReportData): Promise<number> {
     try {
       const filename = await this.generateExcelReport(data);
-      const fileInfo = await FileSystem.getInfoAsync(filename);
-      return fileInfo.exists ? fileInfo.size || 0 : 0;
+      const file = new File(filename);
+      return file.exists ? (file.info().size || 0) : 0;
     } catch (error) {
       console.error('Error getting file size:', error);
       return 0;
@@ -217,20 +215,21 @@ static async saveReportLocally(data: ReportData): Promise<string> {
   
   static async cleanupOldReports(): Promise<void> {
     try {
-      const directory = FileSystem.documentDirectory;
-      if (!directory) return;
+      const directory = Paths.document;
       
-      const files = await FileSystem.readDirectoryAsync(directory);
-      const reportFiles = files.filter(file => file.startsWith('RideAnalytics_'));
+      const items = directory.list();
+      const reportFiles = items.filter((item): item is File => 
+        item instanceof File && item.name.startsWith('RideAnalytics_')
+      );
       
       // Keep only the last 5 reports
       if (reportFiles.length > 5) {
         const filesToDelete = reportFiles
-          .sort()
+          .sort((a, b) => a.name.localeCompare(b.name))
           .slice(0, reportFiles.length - 5);
         
         for (const file of filesToDelete) {
-          await FileSystem.deleteAsync(`${directory}${file}`, { idempotent: true });
+          file.delete();
         }
       }
     } catch (error) {
