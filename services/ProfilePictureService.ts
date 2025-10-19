@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { Alert } from 'react-native';
+import { auth, FIREBASE_ENABLED, app } from './firebase';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const PROFILE_PICTURE_KEY = '@profile_picture';
 
@@ -10,6 +12,7 @@ export interface ProfilePicture {
   uri: string;
   timestamp: number;
   type: 'local' | 'remote';
+  storagePath?: string;
 }
 
 class ProfilePictureService {
@@ -203,17 +206,45 @@ class ProfilePictureService {
         console.log('No storage directory available, storing original URI');
       }
 
-      // Save reference to AsyncStorage
+      // If Firebase is enabled and user is authenticated, upload to Firebase Storage
+      if (FIREBASE_ENABLED && auth?.currentUser && app) {
+        try {
+          const uid = auth.currentUser.uid;
+          const storage = getStorage(app);
+          const storagePath = `users/${uid}/profile.jpg`;
+          const storageRef = ref(storage, storagePath);
+
+          // Read file into a blob
+          const response = await fetch(destinationUri);
+          const blob = await response.blob();
+          await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+          const downloadUrl = await getDownloadURL(storageRef);
+
+          // Optionally update auth profile photoURL (skipped to avoid API differences)
+
+          // Save remote reference to AsyncStorage
+          const profilePic: ProfilePicture = {
+            uri: downloadUrl,
+            timestamp: Date.now(),
+            type: 'remote',
+            storagePath,
+          };
+          await AsyncStorage.setItem(PROFILE_PICTURE_KEY, JSON.stringify(profilePic));
+          console.log('Saved remote profile picture to AsyncStorage');
+          return downloadUrl;
+        } catch (uploadError) {
+          console.warn('Failed to upload to Firebase Storage, falling back to local only:', uploadError);
+        }
+      }
+
+      // Fallback: Save local reference to AsyncStorage
       const profilePic: ProfilePicture = {
         uri: destinationUri,
         timestamp: Date.now(),
         type: 'local',
       };
-
-      console.log('Saving to AsyncStorage:', profilePic);
       await AsyncStorage.setItem(PROFILE_PICTURE_KEY, JSON.stringify(profilePic));
-      console.log('Saved to AsyncStorage');
-
+      console.log('Saved local profile picture to AsyncStorage');
       return destinationUri;
     } catch (error) {
       console.error('Error saving profile picture:', error);
@@ -228,6 +259,10 @@ class ProfilePictureService {
       const data = await AsyncStorage.getItem(PROFILE_PICTURE_KEY);
       if (!data) {
         console.log('No profile picture found in storage');
+        // Fallback to Firebase auth photoURL if available
+        if (FIREBASE_ENABLED && auth?.currentUser?.photoURL) {
+          return auth.currentUser.photoURL;
+        }
         return null;
       }
 
@@ -242,6 +277,10 @@ class ProfilePictureService {
         if (!fileInfo.exists) {
           console.log('Profile picture file no longer exists');
           await this.removeProfilePicture();
+          // Fallback to Firebase auth photoURL if available
+          if (FIREBASE_ENABLED && auth?.currentUser?.photoURL) {
+            return auth.currentUser.photoURL;
+          }
           return null;
         }
       }
@@ -271,6 +310,19 @@ class ProfilePictureService {
           } catch (deleteError) {
             console.warn('Could not delete file:', deleteError);
           }
+        }
+
+        // If uploaded to Firebase Storage, delete it as well
+        if (FIREBASE_ENABLED && auth?.currentUser && profilePic.storagePath && app) {
+          try {
+            const storage = getStorage(app);
+            const storageRef = ref(storage, profilePic.storagePath);
+            await deleteObject(storageRef);
+            console.log('Remote profile picture deleted from Firebase Storage');
+          } catch (e) {
+            console.warn('Could not delete remote profile picture:', e);
+          }
+          // Auth photoURL not modified here
         }
       }
 
