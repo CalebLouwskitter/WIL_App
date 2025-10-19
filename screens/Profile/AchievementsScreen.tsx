@@ -83,7 +83,7 @@ export default function AchievementsScreen() {
       <View key={achievement.id} style={[styles.card, { backgroundColor: achievement.cardColor }]}
       >
         <View style={styles.cardIcon}>
-          <Icon name={achievement.icon} size={22} color="#2D2D2D" />
+          <Icon name={achievement.icon as any} size={22} color="#2D2D2D" />
         </View>
         <Text style={styles.cardTitle}>{achievement.title}</Text>
         <Text style={styles.cardDesc}>{achievement.description}</Text>
@@ -144,7 +144,7 @@ export default function AchievementsScreen() {
             ? inProgress.map((item) => renderCard(item, false))
             : (
               <View style={styles.emptyCard}>
-                <Icon name="trophy" size={32} color="#9CA3AF" />
+                <Icon name="award" size={32} color="#9CA3AF" />
                 <Text style={styles.emptyTitle}>All achievements complete</Text>
                 <Text style={styles.emptySubtitle}>You have earned every badge.</Text>
               </View>
@@ -302,4 +302,3 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 });
-
