@@ -14,11 +14,26 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import { Colors } from '@/constants/colors';
 import useOnlineUsers from '../../hooks/useOnlineUsers';
+import { auth } from '../../services/firebase';
 import { startLocationBroadcast, stopLocationBroadcast, type OnlineUser } from '../../services/OnlineUserService';
 import * as Location from 'expo-location';
 
 const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
   const { users, loading } = useOnlineUsers();
+  const filteredUsers = React.useMemo(() => {
+    const currentUid = auth?.currentUser?.uid;
+    const byKey = new Map<string, OnlineUser>();
+    for (const u of users) {
+      // hide stale entries older than 5 minutes
+      if (Date.now() - (u.lastSeen || 0) > 5 * 60 * 1000) continue;
+      // exclude current user's uid
+      if (currentUid && u.uid === currentUid) continue;
+      const key = `${u.uid}_${u.deviceId || 'unknown'}`;
+      const prev = byKey.get(key);
+      if (!prev || (u.lastSeen || 0) > (prev.lastSeen || 0)) byKey.set(key, u);
+    }
+    return Array.from(byKey.values());
+  }, [users]);
   const [selectedUser, setSelectedUser] = useState<OnlineUser | null>(null);
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const insets = useSafeAreaInsets();
@@ -136,14 +151,22 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
           showsUserLocation
           showsMyLocationButton
         >
-          {users.map((user) => (
+          {filteredUsers.map((user) => (
             <Marker
-              key={user.uid}
+              key={`${user.uid}_${user.deviceId || 'unknown'}`}
               coordinate={user.location}
               title={user.displayName || 'Anonymous'}
               description={formatLastSeen(user.lastSeen)}
-              pinColor={user.isRiding ? palette.success : palette.brandPrimary}
-            />
+              anchor={{ x: 0.5, y: 0.5 }}
+            >
+              {user.photoURL ? (
+                <View style={styles.avatarShadow}>
+                  <Image source={{ uri: user.photoURL }} style={styles.avatar} />
+                </View>
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: user.isRiding ? palette.success : palette.brandPrimary }]} />
+              )}
+            </Marker>
           ))}
         </MapView>
       </View>
@@ -168,7 +191,7 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
         <View style={styles.listHeader}>
           <Text style={[styles.listTitle, { color: palette.text }]}>Active Riders</Text>
           <View style={[styles.countBadge, { backgroundColor: palette.brandPrimary }]}>
-            <Text style={styles.countText}>{users.length}</Text>
+            <Text style={styles.countText}>{filteredUsers.length}</Text>
           </View>
         </View>
 
@@ -176,14 +199,14 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={palette.brandPrimary} />
           </View>
-        ) : users.length === 0 ? (
+        ) : filteredUsers.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Feather name="users" size={48} color={palette.placeholder} />
             <Text style={[styles.emptyText, { color: palette.placeholder }]}>No active riders nearby</Text>
           </View>
         ) : (
           <FlatList
-            data={users}
+            data={filteredUsers}
             renderItem={renderUserItem}
             keyExtractor={(item) => item.uid}
             contentContainerStyle={styles.listContent}
@@ -320,6 +343,21 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  avatarShadow: {
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+    borderRadius: 20,
   },
   loadingContainer: {
     flex: 1,

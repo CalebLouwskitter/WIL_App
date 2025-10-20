@@ -13,13 +13,31 @@ export type OnlineUser = {
   };
   lastSeen: number;
   isRiding?: boolean;
+  deviceId?: string;
 };
 
-const LOCATION_UPDATE_INTERVAL = 15 * 60 * 1000;
+const LOCATION_UPDATE_INTERVAL = 2 * 60 * 1000;
 const ONLINE_THRESHOLD = 30 * 60 * 1000;
 
 const storageKey = 'ONLINE_USERS_LOCAL';
+const deviceIdKey = 'DEVICE_ID';
 let updateTimer: NodeJS.Timeout | null = null;
+
+async function getOrCreateDeviceId(): Promise<string> {
+  try {
+    const existing = await AsyncStorage.getItem(deviceIdKey);
+    if (existing) return existing;
+    const id = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    await AsyncStorage.setItem(deviceIdKey, id);
+    return id;
+  } catch {
+    return 'device';
+  }
+}
+
+export async function getDeviceId() {
+  return getOrCreateDeviceId();
+}
 
 export async function startLocationBroadcast() {
   if (!FIREBASE_ENABLED || !auth?.currentUser) {
@@ -42,11 +60,13 @@ export async function startLocationBroadcast() {
       const db = getFirestore(app as any);
       const currentUser = auth?.currentUser;
       if (!currentUser) return;
-      
-      const userLocationRef = doc(db, 'onlineUsers', currentUser.uid);
+      const deviceId = await getOrCreateDeviceId();
+      const docId = `${currentUser.uid}_${deviceId}`;
+      const userLocationRef = doc(db, 'onlineUsers', docId);
       
       await setDoc(userLocationRef, {
         uid: currentUser.uid,
+        deviceId,
         displayName: currentUser.displayName || 'Anonymous',
         photoURL: currentUser.photoURL || null,
         location: {
@@ -79,9 +99,17 @@ export function stopLocationBroadcast() {
   }
 
   if (FIREBASE_ENABLED && auth?.currentUser && app) {
-    const db = getFirestore(app);
-    const userLocationRef = doc(db, 'onlineUsers', auth.currentUser.uid);
-    setDoc(userLocationRef, { isRiding: false, lastSeen: Date.now() }, { merge: true }).catch(console.warn);
+    (async () => {
+      try {
+        const db = getFirestore(app);
+        const deviceId = await getOrCreateDeviceId();
+        const docId = `${auth.currentUser!.uid}_${deviceId}`;
+        const userLocationRef = doc(db, 'onlineUsers', docId);
+        await setDoc(userLocationRef, { isRiding: false, lastSeen: Date.now() }, { merge: true });
+      } catch (e) {
+        console.warn(e);
+      }
+    })();
   }
 }
 
@@ -92,6 +120,7 @@ export async function getOnlineUsers(): Promise<OnlineUser[]> {
   }
 
   try {
+    console.log('[OnlineUserService] getOnlineUsers: querying recent users...');
     const db = getFirestore(app);
     const onlineUsersRef = collection(db, 'onlineUsers');
     const threshold = Date.now() - ONLINE_THRESHOLD;
@@ -103,22 +132,23 @@ export async function getOnlineUsers(): Promise<OnlineUser[]> {
     );
 
     const snapshot = await getDocs(q);
+    console.log(`[OnlineUserService] getOnlineUsers: snapshot size=${snapshot.size}`);
     const users: OnlineUser[] = [];
 
     snapshot.forEach((doc) => {
       const data = doc.data();
-      if (data.uid !== auth?.currentUser?.uid) {
-        users.push({
-          uid: data.uid,
-          displayName: data.displayName,
-          photoURL: data.photoURL,
-          location: data.location,
-          lastSeen: data.lastSeen,
-          isRiding: data.isRiding,
-        });
-      }
+      users.push({
+        uid: data.uid,
+        displayName: data.displayName,
+        photoURL: data.photoURL,
+        location: data.location,
+        lastSeen: data.lastSeen,
+        isRiding: data.isRiding,
+        deviceId: data.deviceId,
+      });
     });
 
+    console.log(`[OnlineUserService] getOnlineUsers: returning users=${users.length}`);
     await AsyncStorage.setItem(storageKey, JSON.stringify(users));
     return users;
   } catch (error) {
@@ -143,21 +173,23 @@ export function subscribeToOnlineUsers(callback: (users: OnlineUser[]) => void):
     orderBy('lastSeen', 'desc')
   );
 
+  console.log('[OnlineUserService] subscribeToOnlineUsers: subscribing...');
   return onSnapshot(q, (snapshot) => {
+    console.log(`[OnlineUserService] onSnapshot: size=${snapshot.size}`);
     const users: OnlineUser[] = [];
     snapshot.forEach((doc) => {
       const data = doc.data();
-      if (data.uid !== auth?.currentUser?.uid) {
-        users.push({
-          uid: data.uid,
-          displayName: data.displayName,
-          photoURL: data.photoURL,
-          location: data.location,
-          lastSeen: data.lastSeen,
-          isRiding: data.isRiding,
-        });
-      }
+      users.push({
+        uid: data.uid,
+        displayName: data.displayName,
+        photoURL: data.photoURL,
+        location: data.location,
+        lastSeen: data.lastSeen,
+        isRiding: data.isRiding,
+        deviceId: data.deviceId,
+      });
     });
+    console.log(`[OnlineUserService] onSnapshot: users after filter=${users.length}`);
     callback(users);
     AsyncStorage.setItem(storageKey, JSON.stringify(users));
   }, (error) => {
