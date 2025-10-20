@@ -11,11 +11,9 @@ import { Feather } from '@expo/vector-icons';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen';
 import MappingStack from './MappingStack';
 import SosAlertScreen from '../screens/Sos/SosAlertScreen';
-import RideStatsScreen from '../screens/Analytics/RideStatsScreen';
-import SettingsScreen from '../screens/Profile/SettingsScreen';
+import AnalyticsStack from './AnalyticsStack';
 
 import { Colors } from '../constants/colors';
-import ProfileScreen from '../screens/Profile/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -75,7 +73,7 @@ const TabNavigator = () => {
       />
       <Tab.Screen
         name="Analytics"
-        component={RideStatsScreen}
+        component={AnalyticsStack}
         options={{
           tabBarIcon: ({ focused, color, size }) => (
             <Feather name="bar-chart-2" color={color} size={24} />
