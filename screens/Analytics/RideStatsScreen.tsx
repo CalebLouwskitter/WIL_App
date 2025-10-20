@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, SafeAreaView, Modal } from 'react-native';
 import { getRides } from '../../services/RideStorage';
 import type { RideData as BaseRideData } from '../../hooks/useRideTracker';
 import { primaryPreviewRoutes } from '../../constants/trails';
@@ -14,6 +14,8 @@ type RideData = BaseRideData & { routeDistances?: Record<string, number> };
 
 const RideStatsScreen = () => {
   const [rides, setRides] = useState<RideData[]>([]);
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  const [notificationsVisible, setNotificationsVisible] = useState(false);
   const navigation = useNavigation<any>();
   const colorScheme = useColorScheme();
   const theme = resolvePalette(colorScheme);
@@ -50,15 +52,33 @@ const RideStatsScreen = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.surface }]}>
-        <View style={styles.headerContent}>
-          <View style={styles.headerIcon}>
-            <Feather name="activity" size={24} color={theme.brandPrimary} />
+        <View style={styles.headerRow}>
+          <View style={styles.headerContent}>
+            <View style={styles.headerIcon}>
+              <Feather name="activity" size={24} color={theme.brandPrimary} />
+            </View>
+            <View>
+              <Text style={[styles.headerTitle, { color: theme.onSurface }]}>Ride History</Text>
+              <Text style={[styles.headerSubtitle, { color: theme.onSurfaceVariant }]}>
+                {rides.length} {rides.length === 1 ? 'ride' : 'rides'} completed
+              </Text>
+            </View>
           </View>
-          <View>
-            <Text style={[styles.headerTitle, { color: theme.onSurface }]}>Ride History</Text>
-            <Text style={[styles.headerSubtitle, { color: theme.onSurfaceVariant }]}>
-              {rides.length} {rides.length === 1 ? 'ride' : 'rides'} completed
-            </Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.headerActionButton}
+              onPress={() => setSettingsVisible(true)}
+            >
+              <Feather name="settings" size={24} color={theme.icon} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.headerActionButton}
+              onPress={() => setNotificationsVisible(true)}
+            >
+              <Feather name="bell" size={24} color={theme.icon} />
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -67,6 +87,27 @@ const RideStatsScreen = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <TouchableOpacity
+          style={[styles.trailInsightsCard, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('TrailStats')}
+        >
+          <LinearGradient
+            colors={[theme.brandPrimary + '11', theme.brandPrimary + '05']}
+            style={styles.trailInsightsGradient}
+          >
+            <View style={styles.trailInsightsHeader}>
+              <View style={[styles.trailIconCircle, { backgroundColor: theme.brandPrimary + '22' }]}> 
+                <Feather name="trending-up" size={22} color={theme.brandPrimary} />
+              </View>
+              <View style={styles.trailInsightsText}>
+                <Text style={[styles.trailInsightsTitle, { color: theme.onSurface }]}>Trail Usage Insights</Text>
+                <Text style={[styles.trailInsightsSubtitle, { color: theme.onSurfaceVariant }]}>See which routes get the most activity.</Text>
+              </View>
+              <Feather name="chevron-right" size={20} color={theme.onSurfaceVariant} />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
         {rides.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View style={[styles.emptyIconCircle, { backgroundColor: theme.surfaceVariant }]}>
@@ -202,6 +243,52 @@ const RideStatsScreen = () => {
         )}
         <View style={styles.bottomSpacing} />
       </ScrollView>
+      <Modal
+        visible={settingsVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSettingsVisible(false)}
+      >
+        <View style={styles.modalWrapper}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setSettingsVisible(false)}
+          />
+          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}> 
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.onSurface }]}>Settings</Text>
+              <TouchableOpacity onPress={() => setSettingsVisible(false)}>
+                <Feather name="x" size={20} color={theme.onSurfaceVariant} />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.modalPlaceholder, { color: theme.onSurfaceVariant }]}>Quick settings will appear here.</Text>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={notificationsVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setNotificationsVisible(false)}
+      >
+        <View style={styles.modalWrapper}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setNotificationsVisible(false)}
+          />
+          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}> 
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.onSurface }]}>Notifications</Text>
+              <TouchableOpacity onPress={() => setNotificationsVisible(false)}>
+                <Feather name="x" size={20} color={theme.onSurfaceVariant} />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.modalPlaceholder, { color: theme.onSurfaceVariant }]}>Notifications will show here.</Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -255,6 +342,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -277,9 +369,57 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 2,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerActionButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   scrollContent: {
     padding: 16,
     paddingBottom: 32,
+  },
+  trailInsightsCard: {
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  trailInsightsGradient: {
+    padding: 20,
+  },
+  trailInsightsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  trailIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trailInsightsText: {
+    flex: 1,
+    marginLeft: 14,
+    marginRight: 12,
+    gap: 4,
+  },
+  trailInsightsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  trailInsightsSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -433,6 +573,33 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 16,
+  },
+  modalWrapper: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalContent: {
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  modalPlaceholder: {
+    fontSize: 15,
+    lineHeight: 22,
   },
 });
 

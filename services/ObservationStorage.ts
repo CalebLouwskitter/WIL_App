@@ -41,6 +41,8 @@ export interface RideObservation {
       latitude: number;
       longitude: number;
     };
+    trailId?: string;
+    trailName?: string;
   };
 }
 
@@ -124,6 +126,8 @@ export const saveObservation = async (observation: Omit<RideObservation, 'id' | 
             userId,
             location: observation.report.location,
             rideId: observation.rideId,
+            trailId: observation.report.trailId,
+            trailName: observation.report.trailName,
           });
           await createReport(reportDTO);
         }

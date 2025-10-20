@@ -6,6 +6,9 @@ import useRideTracker from '../../hooks/useRideTracker';
 import { saveRide } from '../../services/RideStorage';
 import MapViewTracker from '../../components/MapViewTracker';
 import RideStatsCard from '../../components/RideStatsCard';
+import SettingsModal from '../../components/Modals/SettingsModal';
+import NotificationsModal from '../../components/Modals/NotificationsModal';
+
 import Feather from 'react-native-vector-icons/Feather';
 import { getActiveHorse } from '../../services/HorseStorage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -18,6 +21,9 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const { rideData, startRide, stopRide, currentSpeed } = useRideTracker();
   const [isRiding, setIsRiding] = useState(false);
   const [activeHorseName, setActiveHorseName] = useState<string | null>(null);
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  const [notificationsVisible, setNotificationsVisible] = useState(false);
+
   const insets = useSafeAreaInsets();
   const nav = useNavigation<any>();
 
@@ -89,230 +95,247 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
     }
     setIsRiding(false);
   };
-    
-  const handleNavigateSettings = () => {
-    nav.navigate('ProfileStack' as never, { screen: 'Settings' } as never);
+
+  const handleOpenSettings = () => {
+    setSettingsVisible(true);
   };
 
-  const handleNavigateNotifications = () => {
-    nav.navigate('ProfileStack' as never, { screen: 'Notifications' } as never);
+  const handleOpenNotifications = () => {
+    setNotificationsVisible(true);
   };
 
   return (
-    <View style={styles.container}>
-      <View style={StyleSheet.absoluteFillObject}>
-        <MapViewTracker path={rideData?.path} />
-      </View>
+    <>
+      <View style={styles.container}>
+        <View style={StyleSheet.absoluteFillObject}>
+          <MapViewTracker path={rideData?.path} />
+        </View>
 
-      <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+        <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+          <LinearGradient
+            colors={['rgba(16, 185, 129, 0.15)', 'transparent', 'rgba(59, 130, 246, 0.15)']}
+            style={StyleSheet.absoluteFillObject}
+          />
+        </View>
+
         <LinearGradient
-          colors={['rgba(16, 185, 129, 0.15)', 'transparent', 'rgba(59, 130, 246, 0.15)']}
-          style={StyleSheet.absoluteFillObject}
+          colors={['rgba(15, 23, 42, 0.8)', 'transparent']}
+          style={styles.topGradient}
+          pointerEvents="none"
         />
-      </View>
-
-      <LinearGradient
-        colors={['rgba(15, 23, 42, 0.8)', 'transparent']}
-        style={styles.topGradient}
-        pointerEvents="none"
-      />
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]} pointerEvents="box-none">
-        <TouchableOpacity 
-          style={styles.iconButton} 
-          activeOpacity={0.7}
-          onPress={handleNavigateSettings}
-        >
-          <BlurView intensity={80} tint="dark" style={styles.blurButton}>
-            <Feather name="settings" size={22} color="white" />
-          </BlurView>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.iconButton} 
-          activeOpacity={0.7}
-          onPress={handleNavigateNotifications}
-        >
-          <BlurView intensity={80} tint="dark" style={styles.blurButton}>
-            <Feather name="bell" size={22} color="white" />
-            <View style={styles.notificationDot} />
-          </BlurView>
-        </TouchableOpacity>
-      </View>
-
-      {isRiding ? (
-        <>
-          <Animated.View
-            style={[
-              styles.rideActiveContainer,
-              {
-                bottom: insets.bottom + 20,
-                transform: [{ scale: scaleAnim }],
-              },
-            ]}
+        <View style={[styles.header, { paddingTop: insets.top + 12 }]} pointerEvents="box-none">
+          <TouchableOpacity
+            style={styles.iconButton}
+            activeOpacity={0.7}
+            onPress={handleOpenSettings}
           >
-            <BlurView intensity={100} tint="dark" style={styles.statsCardContainer}>
-              <LinearGradient
-                colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.05)']}
-                style={styles.statsGradient}
-              >
-                <View style={styles.statsHeader}>
-                  <Text style={styles.statsTitle}>Active Ride</Text>
-                  <View style={styles.recordingBadge}>
-                    <Animated.View
-                      style={[
-                        styles.recordingDot,
-                        { transform: [{ scale: pulseAnim }] },
-                      ]}
-                    />
-                    <Text style={styles.recordingText}>Recording</Text>
-                  </View>
-                </View>
-
-                {rideData && (
-                  <View style={styles.statsGrid}>
-                    <View style={styles.statItem}>
-                      <Text style={[styles.statValue, styles.statValueEmerald]}>
-                        {(rideData.totalDistance / 1000).toFixed(2)}
-                      </Text>
-                      <Text style={styles.statLabel}>kilometers</Text>
-                    </View>
-                    <View style={[styles.statItem, styles.statItemBorder]}>
-                      <Text style={[styles.statValue, styles.statValueOrange]}>
-                        {currentSpeed.toFixed(1)}
-                      </Text>
-                      <Text style={styles.statLabel}>km/h</Text>
-                    </View>
-                    <View style={[styles.statItem, styles.statItemBorder]}>
-                      <Text style={[styles.statValue, styles.statValueBlue]}>
-                        {rideData.elevationGain.toFixed(0)}
-                      </Text>
-                      <Text style={styles.statLabel}>elevation</Text>
-                    </View>
-                    <View style={styles.statItem}>
-                      <Text style={[styles.statValue, styles.statValuePurple]}>
-                        {Math.floor(rideData.duration / 60000)}
-                      </Text>
-                      <Text style={styles.statLabel}>minutes</Text>
-                    </View>
-                  </View>
-                )}
-              </LinearGradient>
+            <BlurView intensity={80} tint="dark" style={styles.blurButton}>
+              <Feather name="settings" size={22} color="white" />
             </BlurView>
-
-            <TouchableOpacity
-              style={styles.stopButton}
-              onPress={handleStop}
-              activeOpacity={0.9}
-            >
-              <LinearGradient
-                colors={['#f43f5e', '#dc2626', '#f43f5e']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.stopButtonGradient}
-              >
-                <Text style={styles.stopButtonText}>Stop Ride</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animated.View>
+          </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.reportObstacleButton, { bottom: insets.bottom + 240 }]}
-            activeOpacity={0.9}
-            onPress={() =>
-              navigation.navigate('MarkObstacle', {
-                location:
-                  rideData?.path && rideData.path.length > 0
-                    ? {
-                        latitude: rideData.path[rideData.path.length - 1].latitude,
-                        longitude: rideData.path[rideData.path.length - 1].longitude,
-                      }
-                    : undefined,
-              })
-            }
+            style={styles.iconButton}
+            activeOpacity={0.7}
+            onPress={handleOpenNotifications}
           >
-            <LinearGradient
-              colors={['#f59e0b', '#ea580c']}
-              style={styles.obstacleButtonGradient}
-            >
-              <Feather name="alert-triangle" size={28} color="white" />
-            </LinearGradient>
-          </TouchableOpacity>
-        </>
-      ) : (
-        <>
-          <View style={[styles.actionRow, { bottom: insets.bottom + 80 }]}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={handleStart}
-              activeOpacity={0.9}
-            >
-              <LinearGradient
-                colors={['#10b981', '#14b8a6', '#06b6d4']}
-                style={styles.actionButtonGradient}
-              >
-                <View style={styles.actionButtonInner}>
-                  <Feather name="navigation" size={24} color="white" />
-                  <Text style={styles.actionButtonText}>Free Ride</Text>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => navigation.navigate('SelectHorse')}
-              activeOpacity={0.9}
-            >
-              <LinearGradient
-                colors={['#8b5cf6', '#a855f7', '#d946ef']}
-                style={styles.actionButtonGradient}
-              >
-                <View style={styles.actionButtonInner}>
-                  <Feather name="award" size={24} color="white" />
-                  <Text style={styles.actionButtonText}>Select Horse</Text>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => {
-                const parent = navigation.getParent();
-                if (parent) {
-                  parent.navigate('Analytics' as never);
-                }
-              }}
-              activeOpacity={0.9}
-            >
-              <LinearGradient
-                colors={['#3b82f6', '#6366f1', '#8b5cf6']}
-                style={styles.actionButtonGradient}
-              >
-                <View style={styles.actionButtonInner}>
-                  <Feather name="clock" size={24} color="white" />
-                  <Text style={styles.actionButtonText}>Recent</Text>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-
-          <View style={[styles.activeHorseBar, { bottom: insets.bottom + 12 }]}>
-            <BlurView intensity={80} tint="dark" style={styles.activeHorseBlur}>
-              <LinearGradient
-                colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']}
-                style={styles.activeHorseGradient}
-              >
-                <Text style={styles.activeHorseText}>
-                  Active horse:{' '}
-                  <Text style={styles.activeHorseName}>
-                    {activeHorseName || 'None selected'}
-                  </Text>
-                </Text>
-              </LinearGradient>
+            <BlurView intensity={80} tint="dark" style={styles.blurButton}>
+              <Feather name="bell" size={22} color="white" />
+              <View style={styles.notificationDot} />
             </BlurView>
-          </View>
-        </>
-      )}
-    </View>
+          </TouchableOpacity>
+        </View>
+
+        {isRiding ? (
+          <>
+            <Animated.View
+              style={[
+                styles.rideActiveContainer,
+                {
+                  bottom: insets.bottom + 20,
+                  transform: [{ scale: scaleAnim }],
+                },
+              ]}
+            >
+              <BlurView intensity={100} tint="dark" style={styles.statsCardContainer}>
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.05)']}
+                  style={styles.statsGradient}
+                >
+                  <View style={styles.statsHeader}>
+                    <Text style={styles.statsTitle}>Active Ride</Text>
+                    <View style={styles.recordingBadge}>
+                      <Animated.View
+                        style={[
+                          styles.recordingDot,
+                          { transform: [{ scale: pulseAnim }] },
+                        ]}
+                      />
+                      <Text style={styles.recordingText}>Recording</Text>
+                    </View>
+                  </View>
+
+                  {rideData && (
+                    <View style={styles.statsGrid}>
+                      <View style={styles.statItem}>
+                        <Text style={[styles.statValue, styles.statValueEmerald]}>
+                          {(rideData.totalDistance / 1000).toFixed(2)}
+                        </Text>
+                        <Text style={styles.statLabel}>kilometers</Text>
+                      </View>
+                      <View style={[styles.statItem, styles.statItemBorder]}>
+                        <Text style={[styles.statValue, styles.statValueOrange]}>
+                          {currentSpeed.toFixed(1)}
+                        </Text>
+                        <Text style={styles.statLabel}>km/h</Text>
+                      </View>
+                      <View style={[styles.statItem, styles.statItemBorder]}>
+                        <Text style={[styles.statValue, styles.statValueBlue]}>
+                          {rideData.elevationGain.toFixed(0)}
+                        </Text>
+                        <Text style={styles.statLabel}>elevation</Text>
+                      </View>
+                      <View style={styles.statItem}>
+                        <Text style={[styles.statValue, styles.statValuePurple]}>
+                          {Math.floor(rideData.duration / 60000)}
+                        </Text>
+                        <Text style={styles.statLabel}>minutes</Text>
+                      </View>
+                    </View>
+                  )}
+                </LinearGradient>
+              </BlurView>
+
+              <TouchableOpacity
+                style={styles.stopButton}
+                onPress={handleStop}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={['#f43f5e', '#dc2626', '#f43f5e']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.stopButtonGradient}
+                >
+                  <Text style={styles.stopButtonText}>Stop Ride</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </Animated.View>
+
+            <TouchableOpacity
+              style={[styles.reportObstacleButton, { bottom: insets.bottom + 240 }]}
+              activeOpacity={0.9}
+              onPress={() =>
+                navigation.navigate('MarkObstacle', {
+                  location:
+                    rideData?.path && rideData.path.length > 0
+                      ? {
+                          latitude: rideData.path[rideData.path.length - 1].latitude,
+                          longitude: rideData.path[rideData.path.length - 1].longitude,
+                        }
+                      : undefined,
+                })
+              }
+            >
+              <LinearGradient
+                colors={['#f59e0b', '#ea580c']}
+                style={styles.obstacleButtonGradient}
+              >
+                <Feather name="alert-triangle" size={28} color="white" />
+              </LinearGradient>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <View style={[styles.actionRow, { bottom: insets.bottom + 80 }]}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleStart}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={['#10b981', '#14b8a6', '#06b6d4']}
+                  style={styles.actionButtonGradient}
+                >
+                  <View style={styles.actionButtonInner}>
+                    <Feather name="navigation" size={24} color="white" />
+                    <Text style={styles.actionButtonText}>Free Ride</Text>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => navigation.navigate('SelectHorse')}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={['#8b5cf6', '#a855f7', '#d946ef']}
+                  style={styles.actionButtonGradient}
+                >
+                  <View style={styles.actionButtonInner}>
+                    <Feather name="award" size={24} color="white" />
+                    <Text style={styles.actionButtonText}>Select Horse</Text>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => {
+                  const parent = navigation.getParent();
+                  if (parent) {
+                    parent.navigate('Analytics' as never);
+                  }
+                }}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={['#3b82f6', '#6366f1', '#8b5cf6']}
+                  style={styles.actionButtonGradient}
+                >
+                  <View style={styles.actionButtonInner}>
+                    <Feather name="clock" size={24} color="white" />
+                    <Text style={styles.actionButtonText}>Recent</Text>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.activeHorseBar, { bottom: insets.bottom + 12 }]}>
+              <BlurView intensity={80} tint="dark" style={styles.activeHorseBlur}>
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']}
+                  style={styles.activeHorseGradient}
+                >
+                  <Text style={styles.activeHorseText}>
+                    Active horse:{' '}
+                    <Text style={styles.activeHorseName}>
+                      {activeHorseName || 'None selected'}
+                    </Text>
+                  </Text>
+                </LinearGradient>
+              </BlurView>
+            </View>
+          </>
+        )}
+      </View>
+
+      <SettingsModal
+        visible={settingsVisible}
+        onClose={() => setSettingsVisible(false)}
+        onRequestFullSettings={() =>
+          nav.navigate('ProfileStack' as never, { screen: 'Settings' } as never)
+        }
+      />
+      <NotificationsModal
+        visible={notificationsVisible}
+        onClose={() => setNotificationsVisible(false)}
+        onRequestNotificationsScreen={() =>
+          nav.navigate('ProfileStack' as never, { screen: 'Notifications' } as never)
+        }
+      />
+    </>
   );
 };
 
