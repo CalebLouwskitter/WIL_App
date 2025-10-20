@@ -4,6 +4,8 @@ import { ThemedView } from 'components/theme/ThemedView';
 import { Colors } from 'constants/colors';
 import { ReportDownload } from 'services/AnalyticsService';
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+
 import { useEffect, useState, useMemo } from 'react';
 import { getRides } from 'services/RideStorage';
 import type { RideData } from 'hooks/useRideTracker';
@@ -32,6 +34,7 @@ interface ChartData {
 }
 
 export default function AnalyticsScreen() {
+  const navigation = useNavigation<any>();
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('month');
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const colorScheme = useColorScheme();
@@ -181,7 +184,7 @@ export default function AnalyticsScreen() {
   const handleGenerateReport = async () => {
     setIsGeneratingReport(true);
     try {
-  await ReportDownload.generateAndShareReport({ timeSlot, userStats, chartData, generatedDate: new Date().toISOString() });
+      await ReportDownload.generateAndShareReport({ timeSlot, userStats, chartData, generatedDate: new Date().toISOString() });
       Alert.alert('Success', 'Report generated successfully!');
     } catch (error) {
       Alert.alert('Error', 'Failed to generate report. Please try again.');
@@ -221,13 +224,16 @@ export default function AnalyticsScreen() {
     <ThemedView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.headerContainer}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+            <Feather name="chevron-left" size={24} color={colors.text} />
+          </TouchableOpacity>
           <View style={styles.titleContainer}>
             <Feather name="bar-chart-2" size={24} color={colors.primary} />
             <ThemedText type="title" style={[styles.title, { color: colors.text }]}>
               Ride Analytics
             </ThemedText>
           </View>
-          
+
           <View style={styles.actionButtons}>
             <TouchableOpacity 
               style={[styles.actionButton, { backgroundColor: colors.primary }]}
