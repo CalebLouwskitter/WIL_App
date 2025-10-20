@@ -16,7 +16,7 @@ export type OnlineUser = {
   deviceId?: string;
 };
 
-const LOCATION_UPDATE_INTERVAL = 15 * 60 * 1000;
+const LOCATION_UPDATE_INTERVAL = 2 * 60 * 1000;
 const ONLINE_THRESHOLD = 30 * 60 * 1000;
 
 const storageKey = 'ONLINE_USERS_LOCAL';
