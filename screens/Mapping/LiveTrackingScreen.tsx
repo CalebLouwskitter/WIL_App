@@ -12,6 +12,7 @@ import TrailPreviews from '../../components/TrailPreviews';
 import { getActiveHorse } from '../../services/HorseStorage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { startLocationBroadcast, stopLocationBroadcast } from '../../services/OnlineUserService';
 
 const { width } = Dimensions.get('window');
 
@@ -20,6 +21,13 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const [isRiding, setIsRiding] = useState(false);
   const [activeHorseName, setActiveHorseName] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    startLocationBroadcast();
+    return () => {
+      stopLocationBroadcast();
+    };
+  }, []);
 
   // Animations
   const pulseAnim = useState(new Animated.Value(1))[0];
@@ -69,6 +77,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
     setIsRiding(true);
     try {
       await startRide();
+      startLocationBroadcast();
     } catch (e) {
       console.warn(e);
       setIsRiding(false);
@@ -76,6 +85,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   };
 
   const handleStop = async () => {
+    stopLocationBroadcast();
     const finalRide = stopRide();
     if (finalRide) {
       await saveRide(finalRide);

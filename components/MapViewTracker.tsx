@@ -12,6 +12,7 @@ import type { ObstacleSeverity, ObstacleType } from '../services/Data';
 import ProfilePictureService from '../services/ProfilePictureService';
 import useOnlineUsers from '../hooks/useOnlineUsers';
 import { auth } from '../services/firebase';
+import { getDeviceId } from '../services/OnlineUserService';
 
 // Renders the main MapView with three responsibilities:
 // 1) Draw static preview routes (A–C).
@@ -46,6 +47,7 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const { users } = useOnlineUsers();
+  const [myDeviceId, setMyDeviceId] = useState<string | null>(null);
   const filteredObstacles = React.useMemo(() => {
     const f = (obstacleFilters || {});
     let list = obstacles;
@@ -175,6 +177,18 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
     return () => { mounted = false; };
   }, []);
 
+  // Load this device's id for proper filtering (so other devices on same UID are shown)
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const id = await getDeviceId();
+        if (mounted) setMyDeviceId(id);
+      } catch {}
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   const start = path && path[0];
   const end = path && path[path.length - 1];
 
@@ -238,33 +252,50 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
           coordinate={{ latitude: (end?.latitude ?? region!.latitude), longitude: (end?.longitude ?? region!.longitude) }}
           anchor={{ x: 0.5, y: 0.5 }}
         >
-          {avatarUri ? (
-            <View style={styles.avatarShadow}> 
-              <Image source={{ uri: avatarUri }} style={styles.avatar} />
+          <View>
+            {avatarUri ? (
+              <View style={styles.avatarShadow}> 
+                <Image source={{ uri: avatarUri }} style={styles.avatar} />
+              </View>
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: palette.brandPrimary }]} />
+            )}
+            <View style={[styles.userBadge, { backgroundColor: palette.brandPrimary }]}> 
+              <Feather name="user" size={10} color="#FFFFFF" />
             </View>
-          ) : (
-            <View style={[styles.avatar, { backgroundColor: palette.brandPrimary }]} />
-          )}
+          </View>
         </Marker>
       )}
       {/* Other online users with their avatars */}
       {users
-        .filter(u => u.uid !== auth?.currentUser?.uid)
+        .filter(u => {
+          const currentUid = auth?.currentUser?.uid;
+          if (!currentUid) return true;
+          // hide stale entries older than 5 minutes
+          if (Date.now() - (u.lastSeen || 0) > 5 * 60 * 1000) return false;
+          // always hide entries from my uid to avoid duplicates/confusion
+          return u.uid !== currentUid;
+        })
         .map(u => (
           <Marker
-            key={u.uid}
+            key={`${u.uid}_${u.deviceId || 'unknown'}`}
             coordinate={u.location}
             title={u.displayName || 'Rider'}
             description={u.isRiding ? 'Riding' : undefined}
             anchor={{ x: 0.5, y: 0.5 }}
           >
-            {u.photoURL ? (
-              <View style={styles.avatarShadow}>
-                <Image source={{ uri: u.photoURL }} style={styles.avatar} />
+            <View>
+              {u.photoURL ? (
+                <View style={styles.avatarShadow}>
+                  <Image source={{ uri: u.photoURL }} style={styles.avatar} />
+                </View>
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: palette.brandPrimary }]} />
+              )}
+              <View style={[styles.userBadge, { backgroundColor: u.isRiding ? '#10b981' : palette.brandPrimary }]}> 
+                <Feather name="user" size={10} color="#FFFFFF" />
               </View>
-            ) : (
-              <View style={[styles.avatar, { backgroundColor: palette.brandPrimary }]} />
-            )}
+            </View>
           </Marker>
         ))}
       {nearestTrail && (
@@ -318,5 +349,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 4,
     borderRadius: 20,
+  },
+  userBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
 });
