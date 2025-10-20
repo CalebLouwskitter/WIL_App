@@ -181,12 +181,11 @@ export default function ProfileScreen() {
         <Animated.View style={[
           styles.profileCard,
           { 
-            opacity: fadeAnim,
             transform: [{ translateY: slideAnim }]
           }
         ]}>
           <LinearGradient
-            colors={['#0F172A', '#1E293B', '#334155'] as const}
+            colors={['#1E40AF', '#3B82F6', '#60A5FA'] as const}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.profileCardGradient}
@@ -220,7 +219,7 @@ export default function ProfileScreen() {
                     </View>
                   )}
                   <View style={styles.cameraButton}>
-                    <Icon name="camera" size={14} color="#fff" />
+                                          <Icon name="camera" size={14} color="#1E40AF" />
                   </View>
                 </TouchableOpacity>
 
@@ -239,7 +238,7 @@ export default function ProfileScreen() {
                 <Text style={styles.profileName}>{displayName}</Text>
                 <Text style={styles.profileEmail}>{email}</Text>
                 <View style={styles.verifiedBadge}>
-                  <Icon name="check-circle" size={14} color="#10B981" />
+                  <Icon name="check-circle" size={14} color="#fff" />
                   <Text style={styles.verifiedText}>Verified Rider</Text>
                 </View>
               </View>
@@ -521,7 +520,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   decorativeCircle2: {
     position: 'absolute',
@@ -530,7 +529,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
   profileContent: {
     flexDirection: 'row',
@@ -550,6 +549,7 @@ const styles = StyleSheet.create({
   profilePicture: {
     width: '100%',
     height: '100%',
+    backgroundColor: 'transparent',
   },
   profilePictureBorder: {
     position: 'absolute',
@@ -559,19 +559,19 @@ const styles = StyleSheet.create({
     bottom: -3,
     borderRadius: 43,
     borderWidth: 3,
-    borderColor: '#3B82F6',
+    borderColor: '#fff',
   },
   profilePicturePlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#334155',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   profilePictureLoading: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#334155',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -582,14 +582,14 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#0F172A',
-    shadowColor: '#3B82F6',
+    borderColor: '#1E40AF',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
   },
@@ -628,19 +628,19 @@ const styles = StyleSheet.create({
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     gap: 6,
     alignSelf: 'flex-start',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   verifiedText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#10B981',
+    color: '#fff',
     letterSpacing: 0.3,
   },
 
