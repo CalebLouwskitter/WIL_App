@@ -1,4 +1,3 @@
-// LiveTrackingScreen.tsx - FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, StyleSheet, Text, Animated, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,7 +8,7 @@ import MapViewTracker from '../../components/MapViewTracker';
 import RideStatsCard from '../../components/RideStatsCard';
 import Feather from 'react-native-vector-icons/Feather';
 import { getActiveHorse } from '../../services/HorseStorage';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { startLocationBroadcast, stopLocationBroadcast } from '../../services/OnlineUserService';
 
@@ -20,6 +19,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const [isRiding, setIsRiding] = useState(false);
   const [activeHorseName, setActiveHorseName] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
+  const nav = useNavigation<any>();
 
   useEffect(() => {
     startLocationBroadcast();
@@ -28,12 +28,10 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
     };
   }, []);
 
-  // Animations
   const pulseAnim = useState(new Animated.Value(1))[0];
   const scaleAnim = useState(new Animated.Value(0.95))[0];
 
   useEffect(() => {
-    // Pulse animation for recording indicator
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -49,7 +47,6 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
       ])
     ).start();
 
-    // Entrance animation
     Animated.spring(scaleAnim, {
       toValue: 1,
       friction: 8,
@@ -92,15 +89,21 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
     }
     setIsRiding(false);
   };
+    
+  const handleNavigateSettings = () => {
+    nav.navigate('ProfileStack' as never, { screen: 'Settings' } as never);
+  };
+
+  const handleNavigateNotifications = () => {
+    nav.navigate('ProfileStack' as never, { screen: 'Notifications' } as never);
+  };
 
   return (
     <View style={styles.container}>
-      {/* Map Background */}
       <View style={StyleSheet.absoluteFillObject}>
         <MapViewTracker path={rideData?.path} />
       </View>
 
-      {/* Animated gradient orbs */}
       <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
         <LinearGradient
           colors={['rgba(16, 185, 129, 0.15)', 'transparent', 'rgba(59, 130, 246, 0.15)']}
@@ -108,19 +111,27 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
         />
       </View>
 
-      {/* Top Bar */}
       <LinearGradient
         colors={['rgba(15, 23, 42, 0.8)', 'transparent']}
         style={styles.topGradient}
         pointerEvents="none"
       />
       <View style={[styles.header, { paddingTop: insets.top + 12 }]} pointerEvents="box-none">
-        <TouchableOpacity style={styles.iconButton} activeOpacity={0.7}>
+        <TouchableOpacity 
+          style={styles.iconButton} 
+          activeOpacity={0.7}
+          onPress={handleNavigateSettings}
+        >
           <BlurView intensity={80} tint="dark" style={styles.blurButton}>
-            <Feather name="map" size={22} color="white" />
+            <Feather name="settings" size={22} color="white" />
           </BlurView>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconButton} activeOpacity={0.7}>
+        
+        <TouchableOpacity 
+          style={styles.iconButton} 
+          activeOpacity={0.7}
+          onPress={handleNavigateNotifications}
+        >
           <BlurView intensity={80} tint="dark" style={styles.blurButton}>
             <Feather name="bell" size={22} color="white" />
             <View style={styles.notificationDot} />
@@ -130,7 +141,6 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
 
       {isRiding ? (
         <>
-          {/* Active Ride Stats Card */}
           <Animated.View
             style={[
               styles.rideActiveContainer,
@@ -145,7 +155,6 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                 colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.05)']}
                 style={styles.statsGradient}
               >
-                {/* Header */}
                 <View style={styles.statsHeader}>
                   <Text style={styles.statsTitle}>Active Ride</Text>
                   <View style={styles.recordingBadge}>
@@ -159,7 +168,6 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                   </View>
                 </View>
 
-                {/* Stats Grid */}
                 {rideData && (
                   <View style={styles.statsGrid}>
                     <View style={styles.statItem}>
@@ -191,7 +199,6 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
               </LinearGradient>
             </BlurView>
 
-            {/* Stop Button */}
             <TouchableOpacity
               style={styles.stopButton}
               onPress={handleStop}
@@ -208,7 +215,6 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             </TouchableOpacity>
           </Animated.View>
 
-          {/* Floating Obstacle Button */}
           <TouchableOpacity
             style={[styles.reportObstacleButton, { bottom: insets.bottom + 240 }]}
             activeOpacity={0.9}
@@ -234,7 +240,6 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
         </>
       ) : (
         <>
-          {/* Action Buttons - AT BOTTOM */}
           <View style={[styles.actionRow, { bottom: insets.bottom + 80 }]}>
             <TouchableOpacity
               style={styles.actionButton}
@@ -273,7 +278,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
               onPress={() => {
                 const parent = navigation.getParent();
                 if (parent) {
-                  parent.navigate('Analytics');
+                  parent.navigate('Analytics' as never);
                 }
               }}
               activeOpacity={0.9}
@@ -290,7 +295,6 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Active Horse Bar - AT BOTTOM */}
           <View style={[styles.activeHorseBar, { bottom: insets.bottom + 12 }]}>
             <BlurView intensity={80} tint="dark" style={styles.activeHorseBlur}>
               <LinearGradient
