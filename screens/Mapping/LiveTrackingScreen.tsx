@@ -8,7 +8,6 @@ import { saveRide } from '../../services/RideStorage';
 import MapViewTracker from '../../components/MapViewTracker';
 import RideStatsCard from '../../components/RideStatsCard';
 import Feather from 'react-native-vector-icons/Feather';
-import TrailPreviews from '../../components/TrailPreviews';
 import { getActiveHorse } from '../../services/HorseStorage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,7 +16,7 @@ import { startLocationBroadcast, stopLocationBroadcast } from '../../services/On
 const { width } = Dimensions.get('window');
 
 const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
-  const { rideData, startRide, stopRide } = useRideTracker();
+  const { rideData, startRide, stopRide, currentSpeed } = useRideTracker();
   const [isRiding, setIsRiding] = useState(false);
   const [activeHorseName, setActiveHorseName] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
@@ -165,9 +164,15 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                   <View style={styles.statsGrid}>
                     <View style={styles.statItem}>
                       <Text style={[styles.statValue, styles.statValueEmerald]}>
-                        {(rideData.totalDistance / 1000).toFixed(1)}
+                        {(rideData.totalDistance / 1000).toFixed(2)}
                       </Text>
                       <Text style={styles.statLabel}>kilometers</Text>
+                    </View>
+                    <View style={[styles.statItem, styles.statItemBorder]}>
+                      <Text style={[styles.statValue, styles.statValueOrange]}>
+                        {currentSpeed.toFixed(1)}
+                      </Text>
+                      <Text style={styles.statLabel}>km/h</Text>
                     </View>
                     <View style={[styles.statItem, styles.statItemBorder]}>
                       <Text style={[styles.statValue, styles.statValueBlue]}>
@@ -229,11 +234,6 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
         </>
       ) : (
         <>
-          {/* Trail Previews */}
-          <View style={[styles.previewContainer, { bottom: insets.bottom + 240 }]}>
-            <TrailPreviews />
-          </View>
-
           {/* Action Buttons - AT BOTTOM */}
           <View style={[styles.actionRow, { bottom: insets.bottom + 80 }]}>
             <TouchableOpacity
@@ -434,12 +434,15 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   statValue: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: '900',
     marginBottom: 4,
   },
   statValueEmerald: {
     color: '#6ee7b7',
+  },
+  statValueOrange: {
+    color: '#fdba74',
   },
   statValueBlue: {
     color: '#93c5fd',
@@ -491,12 +494,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(251, 146, 60, 0.3)',
-  },
-  previewContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    paddingHorizontal: 24,
   },
   actionRow: {
     position: 'absolute',

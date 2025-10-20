@@ -44,7 +44,7 @@ export default function useRideTracker() {
 
 
   // Noise filter thresholds
-  const MIN_STEP_METERS = 3; 
+  const MIN_STEP_METERS = 1; // Reduced to capture more granular movement
   const MAX_STEP_METERS = 60;
   const MAX_SPEED_MPS = 15;
   const SMOOTH_ALPHA = 0.3;
@@ -88,23 +88,21 @@ export default function useRideTracker() {
           const d = haversine(prev, point, { unit: 'meter' });
           const speed = d / dt;
 
-
-
           // Ignore tiny jitter
           if (d < MIN_STEP_METERS) {
             return; // skip update
           }
-          
-          
           
           // Ignore unrealistic jumps
           if (d > MAX_STEP_METERS || speed > MAX_SPEED_MPS) {
             return; // likely GPS glitch
           }
           
+          // Calculate distance BEFORE smoothing (use raw GPS for accurate distance)
+          totalDistance += d;
+          setCurrentSpeed(speed * 3.6); // km/h
           
-          
-          // Light exponential smoothing for small moves (<20m)
+          // Light exponential smoothing for small moves (<20m) - ONLY for display position
           if (d < 20) {
             usePoint = {
               ...point,
@@ -113,10 +111,9 @@ export default function useRideTracker() {
               altitude: prev.altitude * (1 - SMOOTH_ALPHA) + (point.altitude ?? 0) * SMOOTH_ALPHA,
             };
           }
-          const segmentDistance = haversine(prev, usePoint, { unit: 'meter' });
-          totalDistance += segmentDistance;
-          setCurrentSpeed((segmentDistance / dt) * 3.6);
-          const elevationChange = usePoint.altitude - prev.altitude;
+          
+          // Elevation calculation
+          const elevationChange = point.altitude - prev.altitude;
           if (elevationChange > 0) elevationGain += elevationChange;
         }
         path.push(usePoint);

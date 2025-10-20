@@ -15,6 +15,7 @@ import {
 	limit as fsLimit,
 	writeBatch,
 	runTransaction,
+	deleteDoc,
 	type QueryDocumentSnapshot,
 	type FirestoreDataConverter,
 	type SnapshotOptions,
@@ -797,8 +798,6 @@ export async function deleteSighting(uid: string, id: string) {
 	if (!FIREBASE_ENABLED || !app) return true;
 	const db = getFirestore(app);
 	const ref = doc(userSightingsCol(db, uid), id);
-	// deleteDoc not imported directly earlier; import now if needed
-	const { deleteDoc } = await import('firebase/firestore');
 	await deleteDoc(ref);
 	return true;
 }
@@ -859,7 +858,6 @@ export async function deleteObstacle(id: string) {
 	if (!FIREBASE_ENABLED || !app) return true;
 	const db = getFirestore(app);
 	const ref = doc(collection(db, COLLECTIONS.obstacles), id);
-	const { deleteDoc } = await import('firebase/firestore');
 	await deleteDoc(ref);
 	return true;
 }
@@ -920,7 +918,6 @@ export async function deleteReport(id: string) {
 	if (!FIREBASE_ENABLED || !app) return true;
 	const db = getFirestore(app);
 	const ref = doc(collection(db, COLLECTIONS.reports), id);
-	const { deleteDoc } = await import('firebase/firestore');
 	await deleteDoc(ref);
 	return true;
 }
