@@ -257,6 +257,16 @@ export default function ProfileScreen() {
           <Text style={styles.myHorsesTxt}>My Horses</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.observationsBtn}
+          activeOpacity={0.85}
+          onPress={() => handleNavigate('Observations')}
+          disabled={navDisabled}
+        >
+          <Icon name="eye" size={18} color="#fff" />
+          <Text style={styles.observationsBtnTxt}>Ride Observations</Text>
+        </TouchableOpacity>
+
         {profile?.role === 'admin' && (
           <TouchableOpacity
             style={styles.myHorsesBtn}
@@ -611,6 +621,29 @@ const styles = StyleSheet.create({
   },
   myHorsesTxt: { 
     color: '#2D2D2D', 
+    fontWeight: '700',
+    fontSize: 14
+  },
+  observationsBtn: { 
+    marginHorizontal: 16,
+    marginVertical: 8,
+    alignSelf: 'stretch',
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    backgroundColor: '#2C5530', 
+    borderRadius: 10, 
+    paddingVertical: 14, 
+    paddingHorizontal: 16, 
+    gap: 8,
+    shadowColor: '#2C5530',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  observationsBtnTxt: { 
+    color: '#fff', 
     fontWeight: '700',
     fontSize: 14
   },

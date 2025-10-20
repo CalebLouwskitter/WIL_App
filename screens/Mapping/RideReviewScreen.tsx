@@ -41,6 +41,8 @@ import {
   type UUID,
 } from '@/services/Data';
 import * as FileSystem from 'expo-file-system';
+import * as ImagePicker from 'expo-image-picker';
+import { saveObservation } from '@/services/ObservationStorage';
 
 // Type definitions for geolocation
 interface GeolocationPosition {
@@ -330,27 +332,73 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
   };
 
   const handleTakePhoto = async () => {
-    // Simple photo placeholder since we don't have react-native-image-picker
-    // You'll need to implement this with your actual image picker library
-    Alert.alert(
-      'Add Photo',
-      'Photo functionality requires react-native-image-picker to be installed.',
-      [
-        {
-          text: 'Use Placeholder',
-          onPress: () => {
-            // Set a placeholder image for demonstration
-            setSightingPhoto('https://via.placeholder.com/300x200?text=Wildlife+Photo');
-          },
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    try {
+      setIsLoadingPhoto(true);
+      
+      // Request camera permissions
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'Camera access is needed to take photos of wildlife.',
+          [{ text: 'OK' }]
+        );
+        setIsLoadingPhoto(false);
+        return;
+      }
+
+      // Launch camera
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSightingPhoto(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
+    } finally {
+      setIsLoadingPhoto(false);
+    }
   };
 
   const handleChoosePhoto = async () => {
-    // Same as above - placeholder implementation
-    handleTakePhoto();
+    try {
+      setIsLoadingPhoto(true);
+      
+      // Request media library permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'Photo library access is needed to choose photos.',
+          [{ text: 'OK' }]
+        );
+        setIsLoadingPhoto(false);
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSightingPhoto(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error choosing photo:', error);
+      Alert.alert('Error', 'Failed to choose photo. Please try again.');
+    } finally {
+      setIsLoadingPhoto(false);
+    }
   };
 
   const handlePhotoPress = () => {
@@ -546,50 +594,54 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
   };
 
   const submitAll = async () => {
-    const nowISO = new Date().toISOString();
-    const payload: any = {};
+    try {
+      setIsSubmitting(true);
 
-    if (selectedWildlife || sightingNotes || sightingPhoto) {
-      payload.sighting = {
-        wildlife_type: selectedWildlife ? WILDLIFE.find((w) => w.id === selectedWildlife)?.label : undefined,
-        notes: sightingNotes,
-        photo_uri: sightingPhoto,
-        sighting_time: nowISO,
-        location: currentLocation, // Include current location with sighting
-      };
-    }
-
-    if (selectedIssue || reportNotes || reportLocation) {
-      payload.report = {
-        location: reportLocation ?? null,
-        issue_type: selectedIssue ? TRAIL_ISSUES.find((i) => i.id === selectedIssue)?.label : undefined,
-        date: nowISO.slice(0, 10),
-        time: nowISO,
-        notes: reportNotes,
-        severity: selectedIssue === 'i_hazard' ? 'high' : 'medium', // Add severity based on type
-      };
-    }
-
-    if (!payload.sighting && !payload.report) {
-      if (onClose) {
-        onClose();
-      } else {
-        navigation.goBack();
+      // Check if there's anything to save
+      if (!selectedWildlife && !selectedIssue && !sightingNotes && !reportNotes) {
+        if (onClose) {
+          onClose();
+        } else {
+          navigation.goBack();
+        }
+        return;
       }
-      return;
-    }
 
-    // Save to Firebase
-    const success = await saveToFirebase(payload);
-    
-    if (success) {
-      // Call the original onSubmit if provided
-      onSubmit?.(payload);
+      // Build observation object
+      const observation: any = {
+        rideId: rideId,
+      };
+
+      // Add sighting data if exists
+      if (selectedWildlife || sightingNotes || sightingPhoto) {
+        observation.sighting = {
+          wildlifeType: selectedWildlife ? WILDLIFE.find((w) => w.id === selectedWildlife)?.label || 'Unknown' : 'Unknown',
+          notes: sightingNotes || '',
+          photoUri: sightingPhoto || undefined,
+          location: currentLocation || undefined,
+        };
+      }
+
+      // Add report data if exists
+      if (selectedIssue || reportNotes || reportLocation) {
+        observation.report = {
+          issueType: selectedIssue ? TRAIL_ISSUES.find((i) => i.id === selectedIssue)?.label || 'Other' : 'Other',
+          notes: reportNotes || '',
+          severity: (selectedIssue === 'i_hazard' ? 'high' : 'medium') as 'low' | 'medium' | 'high' | 'critical',
+          location: reportLocation || currentLocation || undefined,
+        };
+      }
+
+      // Save observation using the new storage service
+      await saveObservation(observation);
+      
+      // Call the original onSubmit if provided (for backward compatibility)
+      onSubmit?.(observation);
       
       // Success feedback
       Alert.alert(
         '✓ Successfully Saved',
-        'Your observations have been uploaded and saved to the database.',
+        'Your observations have been saved locally and synced to the cloud.',
         [{ text: 'Done', onPress: () => onClose ? onClose() : navigation.goBack() }]
       );
 
@@ -599,8 +651,17 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
       setSightingPhoto(null);
       setSelectedIssue(null);
       setReportNotes('');
-      setReportLocation(currentLocation); // Reset to current location instead of null
+      setReportLocation(currentLocation);
       setHasUnsavedChanges(false);
+    } catch (error) {
+      console.error('Error saving observations:', error);
+      Alert.alert(
+        'Save Error',
+        'Failed to save your observations. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
