@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View, Dimensions } from 'react-native';
 import MapView from 'react-native-maps';
 import Feather from 'react-native-vector-icons/Feather';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import SettingsModal from '../../components/Modals/SettingsModal';
 import NotificationsModal from '../../components/Modals/NotificationsModal';
@@ -166,6 +166,27 @@ const DashboardScreen = () => {
         <SettingsModal
           visible={settingsVisible}
           onClose={() => setSettingsVisible(false)}
+          onRequestFullSettings={() => {
+            setTimeout(() => {
+              (navigation as any).dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [
+                    {
+                      name: 'ProfileStack',
+                      state: {
+                        index: 1,
+                        routes: [
+                          { name: 'ProfileMain' },
+                          { name: 'Settings' },
+                        ],
+                      },
+                    },
+                  ],
+                })
+              );
+            }, 0);
+          }}
         />
       )}
 

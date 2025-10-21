@@ -11,7 +11,7 @@ import NotificationsModal from '../../components/Modals/NotificationsModal';
 
 import Feather from 'react-native-vector-icons/Feather';
 import { getActiveHorse } from '../../services/HorseStorage';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, CommonActions } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { startLocationBroadcast, stopLocationBroadcast } from '../../services/OnlineUserService';
 
@@ -310,9 +310,30 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
       <SettingsModal
         visible={settingsVisible}
         onClose={() => setSettingsVisible(false)}
-        onRequestFullSettings={() =>
-          nav.navigate('ProfileStack' as never, { screen: 'Settings' } as never)
-        }
+        onRequestFullSettings={() => {
+          const parent = nav.getParent();
+          if (parent) {
+            parent.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [
+                  {
+                    name: 'ProfileStack' as never,
+                    state: {
+                      index: 1,
+                      routes: [
+                        { name: 'ProfileMain' as never } as any,
+                        { name: 'Settings' as never } as any,
+                      ],
+                    },
+                  } as any,
+                ],
+              })
+            );
+          } else {
+            nav.navigate('ProfileStack' as never, { screen: 'Settings' } as never);
+          }
+        }}
       />
       <NotificationsModal
         visible={notificationsVisible}
