@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useColorScheme, View, Text, Image, StyleSheet } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT, Region } from 'react-native-maps';
+import MapView, { Marker, Polyline, PROVIDER_DEFAULT, Region, Circle } from 'react-native-maps';
 import * as Location from 'expo-location';
 import type { RidePoint, TrailProximity } from '../hooks/useRideTracker';
 import { primaryPreviewRoutes } from '../constants/trails';
@@ -43,6 +43,8 @@ type Props = {
   path: RidePoint[] | undefined;
   mapType?: MapType;
   nearestTrail?: TrailProximity | null;
+  snappedCoordinate?: { latitude: number; longitude: number } | null;
+  snapRadius?: number | null;
   obstacleFilters?: {
     severities?: ObstacleSeverity[];
     types?: ObstacleType[];
@@ -58,7 +60,7 @@ const WORLD_REGION: Region = {
   longitudeDelta: 60,
 };
 
-export default function MapViewTracker({ path, mapType = 'standard', nearestTrail, obstacleFilters }: Props) {
+export default function MapViewTracker({ path, mapType = 'standard', nearestTrail, snappedCoordinate, snapRadius, obstacleFilters }: Props) {
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme ?? 'light'];
   const [region, setRegion] = useState<Region | null>(null);
@@ -351,6 +353,15 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
           {start && <Marker coordinate={{ latitude: start.latitude, longitude: start.longitude }} title="Start" />}
           {end && <Marker coordinate={{ latitude: end.latitude, longitude: end.longitude }} title="Current" />}
         </>
+      )}
+      {snappedCoordinate && !!snapRadius && (
+        <Circle
+          center={snappedCoordinate}
+          radius={snapRadius}
+          strokeColor={applyOpacity(palette.brandPrimary, 0.9)}
+          fillColor={applyOpacity(palette.brandPrimary, 0.15)}
+          strokeWidth={2}
+        />
       )}
       {/* Current user avatar marker */}
       {(region || end) && (

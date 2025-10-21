@@ -193,6 +193,10 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
     const requestLocationPermission = async () => {
       if (Platform.OS === 'android') {
         try {
+          const alreadyGranted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
+          if (alreadyGranted) {
+            return true;
+          }
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
             {

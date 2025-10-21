@@ -20,6 +20,8 @@ const { width } = Dimensions.get('window');
 const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const { rideData, startRide, stopRide, currentSpeed } = useRideTracker();
   const [isRiding, setIsRiding] = useState(false);
+  const [isConfirmingStart, setIsConfirmingStart] = useState(false);
+
   const [activeHorseName, setActiveHorseName] = useState<string | null>(null);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
@@ -108,7 +110,12 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
     <>
       <View style={styles.container}>
         <View style={StyleSheet.absoluteFillObject}>
-          <MapViewTracker path={rideData?.path} />
+          <MapViewTracker
+            path={rideData?.snappedPath ?? rideData?.path}
+            nearestTrail={rideData?.nearestTrail}
+            snappedCoordinate={rideData?.snappedCoordinate ?? null}
+            snapRadius={rideData?.snapRadius ?? null}
+          />
         </View>
 
         <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
@@ -236,7 +243,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             <View style={[styles.actionRow, { bottom: insets.bottom + 80 }]}>
               <TouchableOpacity
                 style={styles.actionButton}
-                onPress={handleStart}
+                onPress={() => setIsConfirmingStart(true)}
                 activeOpacity={0.9}
               >
                 <LinearGradient
@@ -303,6 +310,39 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                 </LinearGradient>
               </BlurView>
             </View>
+            {/* Start/Cancel confirmation */}
+            {isConfirmingStart && (
+              <View style={[styles.confirmBar, { bottom: insets.bottom + 20 }]}>
+                <BlurView intensity={100} tint="dark" style={styles.confirmBlur}>
+                  <View style={styles.confirmRow}>
+                    <TouchableOpacity
+                      style={[styles.confirmBtn, styles.cancelBtn]}
+                      onPress={() => setIsConfirmingStart(false)}
+                      activeOpacity={0.9}
+                    >
+                      <LinearGradient colors={["#ef4444", "#dc2626"]} style={styles.confirmBtnGradient}>
+                        <Feather name="x" size={18} color="white" />
+                        <Text style={styles.confirmText}>Cancel</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.confirmBtn, styles.startBtn]}
+                      onPress={async () => {
+                        setIsConfirmingStart(false);
+                        await handleStart();
+                      }}
+                      activeOpacity={0.9}
+                    >
+                      <LinearGradient colors={["#10b981", "#14b8a6"]} style={styles.confirmBtnGradient}>
+                        <Feather name="play" size={18} color="white" />
+                        <Text style={styles.confirmText}>Start</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
+                </BlurView>
+              </View>
+            )}
           </>
         )}
       </View>
@@ -560,6 +600,62 @@ const styles = StyleSheet.create({
   activeHorseName: {
     color: '#6ee7b7',
     fontWeight: 'bold',
+  },
+  // Confirmation styles
+  confirmBar: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+  },
+  confirmBlur: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)'
+  },
+  confirmRow: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 14,
+  },
+  confirmBtn: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  confirmBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+  },
+  confirmText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  cancelBtn: {},
+  startBtn: {},
+  // Dev utilities
+  devRow: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+  },
+  devButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  devButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+  },
+  devButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 12,
   },
 });
 
