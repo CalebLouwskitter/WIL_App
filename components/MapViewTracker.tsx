@@ -15,6 +15,7 @@ import ProfilePictureService from '../services/ProfilePictureService';
 import useOnlineUsers from '../hooks/useOnlineUsers';
 import { auth } from '../services/firebase';
 import { getDeviceId } from '../services/OnlineUserService';
+import haversine from 'haversine';
 
 const applyOpacity = (hexColor: string, opacity: number) => {
   const hex = hexColor.replace('#', '').trim();
@@ -71,6 +72,11 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
   const [myDeviceId, setMyDeviceId] = useState<string | null>(null);
   const [observations, setObservations] = useState<RideObservation[]>([]);
   const [trailUsage, setTrailUsage] = useState<Record<string, TrailUsageStats>>({});
+  const lastFollowCenter = useRef<{ latitude: number; longitude: number } | null>(null);
+  const lastObstacleFetchRef = useRef<{ center: { latitude: number; longitude: number }; ts: number } | null>(null);
+  const FOLLOW_MIN_METERS = 12;
+  const OBSTACLE_FETCH_MIN_MOVE_METERS = 250;
+  const OBSTACLE_FETCH_MIN_MS = 10000;
   const filteredObstacles = React.useMemo(() => {
     const f = (obstacleFilters || {});
     let list = obstacles;
@@ -123,12 +129,17 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
         const brng = (toDeg(Math.atan2(y, x)) + 360) % 360;
         setHeading(brng);
       }
-      setRegion({
-        latitude: last.latitude,
-        longitude: last.longitude,
-        latitudeDelta: 0.002,
-        longitudeDelta: 0.002,
-      });
+      const prevCenter = lastFollowCenter.current;
+      const moved = prevCenter ? haversine(prevCenter, last, { unit: 'meter' }) : Infinity;
+      if (!prevCenter || moved > FOLLOW_MIN_METERS) {
+        setRegion({
+          latitude: last.latitude,
+          longitude: last.longitude,
+          latitudeDelta: 0.002,
+          longitudeDelta: 0.002,
+        });
+        lastFollowCenter.current = { latitude: last.latitude, longitude: last.longitude };
+      }
     }
   }, [path?.length]);
 
@@ -165,8 +176,13 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
     (async () => {
       if (region) return;
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') return; // Silent fail; map will show world view.
+        let permission = await Location.getForegroundPermissionsAsync();
+        if (permission.status !== 'granted') {
+          if (!permission.canAskAgain) return; // Silent fail; map will show world view.
+          permission = await Location.requestForegroundPermissionsAsync();
+        }
+
+        if (permission.status !== 'granted') return; // Silent fail; map will show world view.
         const loc = await Location.getCurrentPositionAsync({});
         if (!cancelled) {
           setRegion({
@@ -188,6 +204,13 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
     let cancelled = false;
     (async () => {
       if (!region) return;
+      const now = Date.now();
+      const prev = lastObstacleFetchRef.current;
+      const movedEnough = prev
+        ? haversine(prev.center, { latitude: region.latitude, longitude: region.longitude }, { unit: 'meter' }) > OBSTACLE_FETCH_MIN_MOVE_METERS
+        : true;
+      const elapsedEnough = prev ? now - prev.ts >= OBSTACLE_FETCH_MIN_MS : true;
+      if (!movedEnough && !elapsedEnough) return;
       try {
         const nearbyObstacles = await getObstaclesInArea(
           { latitude: region.latitude, longitude: region.longitude },
@@ -196,6 +219,10 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
         );
         if (!cancelled) {
           setObstacles(nearbyObstacles);
+          lastObstacleFetchRef.current = {
+            center: { latitude: region.latitude, longitude: region.longitude },
+            ts: now,
+          };
         }
       } catch (error) {
         console.warn('Failed to load obstacles:', error);
@@ -273,9 +300,10 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
     try {
       await verifyObstacle(obstacle.id);
       // Refresh obstacles to show updated verification count
+      const uid = auth?.currentUser?.uid || 'local';
       setObstacles(prev => prev.map(o => 
         o.id === obstacle.id 
-          ? { ...o, verifiedBy: [...(o.verifiedBy || []), 'current-user'] }
+          ? { ...o, verifiedBy: o.verifiedBy?.includes(uid) ? o.verifiedBy : [...(o.verifiedBy || []), uid] }
           : o
       ));
     } catch (error) {
@@ -291,11 +319,10 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
       // Map type from prop (standard, satellite, hybrid, terrain)
       mapType={mapType}
       initialRegion={region || WORLD_REGION}
-      region={region || undefined}
       showsUserLocation={false}
       showsMyLocationButton
       showsCompass
-      followsUserLocation
+      moveOnMarkerPress={false}
       
       // Show buildings and POIs to reinforce the "3D nearby objects" feel
       showsBuildings
@@ -341,6 +368,7 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
         <Marker
           coordinate={{ latitude: (end?.latitude ?? region!.latitude), longitude: (end?.longitude ?? region!.longitude) }}
           anchor={{ x: 0.5, y: 0.5 }}
+          tracksViewChanges={false}
         >
           <View>
             {avatarUri ? (
@@ -360,11 +388,17 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
       {users
         .filter(u => {
           const currentUid = auth?.currentUser?.uid;
-          if (!currentUid) return true;
           // hide stale entries older than 5 minutes
           if (Date.now() - (u.lastSeen || 0) > 5 * 60 * 1000) return false;
-          // always hide entries from my uid to avoid duplicates/confusion
-          return u.uid !== currentUid;
+          if (!currentUid) return true;
+          // hide only my current device, allow other devices of same uid
+          if (u.uid === currentUid) {
+            if (myDeviceId && u.deviceId) {
+              return u.deviceId !== myDeviceId;
+            }
+            return false;
+          }
+          return true;
         })
         .map(u => (
           <Marker
@@ -373,6 +407,7 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
             title={u.displayName || 'Rider'}
             description={u.isRiding ? 'Riding' : undefined}
             anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges={false}
           >
             <View>
               {u.photoURL ? (

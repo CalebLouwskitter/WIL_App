@@ -1,12 +1,11 @@
 import { useColorScheme, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { getRides } from 'services/RideStorage';
-import type { RideData } from 'hooks/useRideTracker';
-import { ReportDownload } from 'services/AnalyticsService';
-import { trailData } from '@/constants/trails';
+import { getRides } from '../../services/RideStorage';
+import type { RideData } from '../../hooks/useRideTracker';
+import { ReportDownload } from '../../services/AnalyticsService';
 
 import {
   BarChart,
@@ -34,6 +33,7 @@ interface ChartData {
 
 function PersonalStatsScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('month');
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -46,170 +46,138 @@ function PersonalStatsScreen() {
       return { totalRides: 0, totalDistance: 0, favoriteTrail: '-', hoursRidden: 0, trailsCompleted: 0, avgSpeed: 0, lastRide: '-' };
     }
     const totalRides = rides.length;
-    const totalDistanceMeters = rides.reduce((a, r) => a + (r.totalDistance || 0), 0);
+    const totalDistanceMeters = rides.reduce((a, r) => a + r.totalDistance, 0);
     const totalDistance = +(totalDistanceMeters / 1000).toFixed(1);
-    const hoursRidden = +(rides.reduce((a, r) => a + (r.duration || 0), 0) / 1000 / 3600).toFixed(1);
+    const hoursRidden = +(rides.reduce((a, r) => a + r.duration, 0) / 1000 / 3600).toFixed(1);
     const avgSpeed = hoursRidden > 0 ? +(totalDistance / hoursRidden).toFixed(1) : 0;
     const lastRideTime = new Date(Math.max(...rides.map(r => r.startTime)));
     const diffDays = Math.floor((Date.now() - lastRideTime.getTime()) / (1000 * 60 * 60 * 24));
     const lastRide = diffDays === 0 ? 'Today' : diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
-
-    // Aggregate distance by trail id from routeDistances
-    const trailDistance: Record<string, number> = {};
-    rides.forEach((r) => {
-      const rd = r.routeDistances || {};
-      Object.keys(rd).forEach((k) => {
-        trailDistance[k] = (trailDistance[k] || 0) + (rd[k] || 0);
-      });
-    });
-
-    // Determine favorite trail by total distance
-    let favoriteTrail = '-';
-    let maxDist = 0;
-    Object.entries(trailDistance).forEach(([trailId, dist]) => {
-      if (dist > maxDist) {
-        maxDist = dist;
-        const t = trailData.find(t => t.id === trailId);
-        favoriteTrail = t?.name || trailId;
-      }
-    });
-
-    // Trails completed = number of trails with any distance ridden
-    const trailsCompleted = Object.keys(trailDistance).length;
-
-    return { totalRides, totalDistance, favoriteTrail, hoursRidden, trailsCompleted, avgSpeed, lastRide };
+    return { totalRides, totalDistance, favoriteTrail: 'Secrets Trail', hoursRidden, trailsCompleted: 8, avgSpeed, lastRide };
   }, [rides]);
 
   const [chartData, setChartData] = useState<ChartData>({ rideFrequency: [], trailPopularity: [], weeklyDistance: [] });
 
-  const generateDataForTimeSlot = (slot: TimeSlot, srcRides: RideData[]): ChartData => {
+  const generateDataForTimeSlot = (slot: TimeSlot) => {
     const primaryColor = '#3B82F6';
-
-    // Determine start date for the selected slot
-    const now = new Date();
-    const start = new Date(now);
-    if (slot === 'day') start.setDate(now.getDate() - 1);
-    else if (slot === 'week') start.setDate(now.getDate() - 7);
-    else if (slot === 'month') start.setMonth(now.getMonth() - 1);
-    else if (slot === '3month') start.setMonth(now.getMonth() - 3);
-    else if (slot === '6month') start.setMonth(now.getMonth() - 6);
-    else if (slot === '1year') start.setFullYear(now.getFullYear() - 1);
-
-    const inRange = srcRides.filter(r => r.startTime >= start.getTime());
-
-    // Ride frequency buckets
-    let rideFrequency: Array<{ value: number; label: string; frontColor: string }> = [];
-    if (slot === 'day') {
-      const buckets = [
-        { label: '6AM', range: [6, 8] },
-        { label: '9AM', range: [9, 11] },
-        { label: '12PM', range: [12, 14] },
-        { label: '3PM', range: [15, 17] },
-        { label: '6PM', range: [18, 20] },
-        { label: '9PM', range: [21, 23] },
-      ];
-      rideFrequency = buckets.map(b => {
-        const count = inRange.filter(r => {
-          const h = new Date(r.startTime).getHours();
-          return h >= b.range[0] && h <= b.range[1];
-        }).length;
-        return { value: count, label: b.label, frontColor: primaryColor };
-      });
-    } else if (slot === 'week') {
-      const labels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-      rideFrequency = labels.map((lbl, idx) => {
-        const count = inRange.filter(r => {
-          const d = new Date(r.startTime);
-          const day = (d.getDay() + 6) % 7; // Monday=0
-          return day === idx;
-        }).length;
-        return { value: count, label: lbl, frontColor: primaryColor };
-      });
-    } else if (slot === 'month') {
-      const weekLabels = ['W1','W2','W3','W4'];
-      rideFrequency = weekLabels.map((lbl, idx) => {
-        const count = inRange.filter(r => {
-          const d = new Date(r.startTime);
-          const weekIdx = Math.min(3, Math.floor((d.getDate() - 1) / 7));
-          return weekIdx === idx;
-        }).length;
-        return { value: count, label: lbl, frontColor: primaryColor };
-      });
-    } else {
-      // Group by month or quarter
-      if (slot === '3month' || slot === '6month') {
-        const monthsBack = slot === '3month' ? 3 : 6;
-        const labels: string[] = [];
-        const base = new Date(now.getFullYear(), now.getMonth(), 1);
-        for (let i = monthsBack - 1; i >= 0; i--) {
-          const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
-          labels.push(d.toLocaleString('en-US', { month: 'short' }));
-        }
-        rideFrequency = labels.map((lbl, i) => {
-          const monthIndex = new Date(now.getFullYear(), now.getMonth() - (monthsBack - 1 - i), 1).getMonth();
-          const count = inRange.filter(r => new Date(r.startTime).getMonth() === monthIndex).length;
-          return { value: count, label: lbl, frontColor: primaryColor };
-        });
-      } else {
-        const quarters = ['Q1','Q2','Q3','Q4'];
-        rideFrequency = quarters.map((lbl, q) => {
-          const count = inRange.filter(r => Math.floor(new Date(r.startTime).getMonth() / 3) === q).length;
-          return { value: count, label: lbl, frontColor: primaryColor };
-        });
+    const baseData = {
+      day: {
+        rideFrequency: [
+          { value: 2, label: '6AM', frontColor: primaryColor },
+          { value: 1, label: '9AM', frontColor: primaryColor },
+          { value: 0, label: '12PM', frontColor: primaryColor },
+          { value: 3, label: '3PM', frontColor: primaryColor },
+          { value: 2, label: '6PM', frontColor: primaryColor },
+          { value: 1, label: '9PM', frontColor: primaryColor },
+        ],
+        weeklyDistance: [
+          { value: 5, dataPointText: '5km' },
+          { value: 8, dataPointText: '8km' },
+          { value: 3, dataPointText: '3km' },
+          { value: 12, dataPointText: '12km' },
+          { value: 7, dataPointText: '7km' },
+          { value: 9, dataPointText: '9km' },
+          { value: 6, dataPointText: '6km' },
+        ]
+      },
+      week: {
+        rideFrequency: [
+          { value: 3, label: 'Mon', frontColor: primaryColor },
+          { value: 2, label: 'Tue', frontColor: primaryColor },
+          { value: 4, label: 'Wed', frontColor: primaryColor },
+          { value: 1, label: 'Thu', frontColor: primaryColor },
+          { value: 5, label: 'Fri', frontColor: primaryColor },
+          { value: 6, label: 'Sat', frontColor: primaryColor },
+          { value: 4, label: 'Sun', frontColor: primaryColor },
+        ],
+        weeklyDistance: [
+          { value: 12, dataPointText: '12km' },
+          { value: 18, dataPointText: '18km' },
+          { value: 8, dataPointText: '8km' },
+          { value: 23, dataPointText: '23km' },
+          { value: 15, dataPointText: '15km' },
+          { value: 20, dataPointText: '20km' },
+          { value: 14, dataPointText: '14km' },
+        ]
+      },
+      month: {
+        rideFrequency: [
+          { value: 8, label: 'W1', frontColor: primaryColor },
+          { value: 10, label: 'W2', frontColor: primaryColor },
+          { value: 14, label: 'W3', frontColor: primaryColor },
+          { value: 12, label: 'W4', frontColor: primaryColor },
+        ],
+        weeklyDistance: [
+          { value: 45, dataPointText: '45km' },
+          { value: 52, dataPointText: '52km' },
+          { value: 38, dataPointText: '38km' },
+          { value: 61, dataPointText: '61km' },
+        ]
+      },
+      '3month': {
+        rideFrequency: [
+          { value: 25, label: 'M1', frontColor: primaryColor },
+          { value: 32, label: 'M2', frontColor: primaryColor },
+          { value: 28, label: 'M3', frontColor: primaryColor },
+        ],
+        weeklyDistance: [
+          { value: 180, dataPointText: '180km' },
+          { value: 220, dataPointText: '220km' },
+          { value: 195, dataPointText: '195km' },
+        ]
+      },
+      '6month': {
+        rideFrequency: [
+          { value: 8, label: 'Jan', frontColor: primaryColor },
+          { value: 10, label: 'Feb', frontColor: primaryColor },
+          { value: 14, label: 'Mar', frontColor: primaryColor },
+          { value: 9, label: 'Apr', frontColor: primaryColor },
+          { value: 12, label: 'May', frontColor: primaryColor },
+          { value: 15, label: 'Jun', frontColor: primaryColor },
+        ],
+        weeklyDistance: [
+          { value: 120, dataPointText: '120km' },
+          { value: 145, dataPointText: '145km' },
+          { value: 98, dataPointText: '98km' },
+          { value: 178, dataPointText: '178km' },
+          { value: 134, dataPointText: '134km' },
+          { value: 156, dataPointText: '156km' },
+        ]
+      },
+      '1year': {
+        rideFrequency: [
+          { value: 15, label: 'Q1', frontColor: primaryColor },
+          { value: 22, label: 'Q2', frontColor: primaryColor },
+          { value: 18, label: 'Q3', frontColor: primaryColor },
+          { value: 25, label: 'Q4', frontColor: primaryColor },
+        ],
+        weeklyDistance: [
+          { value: 320, dataPointText: '320km' },
+          { value: 410, dataPointText: '410km' },
+          { value: 285, dataPointText: '285km' },
+          { value: 465, dataPointText: '465km' },
+        ]
       }
-    }
+    };
 
-    // Distance series (align to same buckets as frequency)
-    const weeklyDistance: Array<{ value: number; dataPointText: string }> = rideFrequency.map((bucket, idx) => {
-      let totalKm = 0;
-      inRange.forEach(r => {
-        const d = new Date(r.startTime);
-        let match = false;
-        if (slot === 'day') {
-          const h = d.getHours();
-          const ranges = [[6,8],[9,11],[12,14],[15,17],[18,20],[21,23]] as const;
-          match = h >= ranges[idx][0] && h <= ranges[idx][1];
-        } else if (slot === 'week') {
-          const day = (d.getDay() + 6) % 7;
-          match = day === idx;
-        } else if (slot === 'month') {
-          const weekIdx = Math.min(3, Math.floor((d.getDate() - 1) / 7));
-          match = weekIdx === idx;
-        } else if (slot === '3month' || slot === '6month') {
-          const monthsBack = slot === '3month' ? 3 : 6;
-          const refMonth = new Date(now.getFullYear(), now.getMonth() - (monthsBack - 1 - idx), 1).getMonth();
-          match = d.getMonth() === refMonth;
-        } else {
-          match = Math.floor(d.getMonth() / 3) === idx;
-        }
-        if (match) totalKm += (r.totalDistance || 0) / 1000;
-      });
-      return { value: +totalKm.toFixed(1), dataPointText: `${+totalKm.toFixed(1)}km` };
-    });
+    const trailPopularityData = [
+      { value: 35, label: 'Secrets', color: '#3B82F6' },
+      { value: 25, label: 'Dune', color: '#10B981' },
+      { value: 20, label: 'Coastal', color: '#F59E0B' },
+      { value: 15, label: 'Forest', color: '#EF4444' },
+      { value: 5, label: 'Others', color: '#8B5CF6' },
+    ];
 
-    // Trail popularity from actual distances
-    const trailDistance: Record<string, number> = {};
-    inRange.forEach((r) => {
-      const rd = r.routeDistances || {};
-      Object.keys(rd).forEach((k) => {
-        trailDistance[k] = (trailDistance[k] || 0) + (rd[k] || 0);
-      });
-    });
-    const totalTrailMeters = Object.values(trailDistance).reduce((a, b) => a + b, 0) || 1;
-    const sorted = Object.entries(trailDistance).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    const colors = ['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6'];
-    const trailPopularity = sorted.map(([id, dist], i) => {
-      const t = trailData.find(t => t.id === id);
-      const pct = Math.round((dist / totalTrailMeters) * 100);
-      return { value: pct, label: t?.name || id, color: colors[i % colors.length] };
-    });
-
-    return { rideFrequency, trailPopularity, weeklyDistance };
+    return {
+      rideFrequency: baseData[slot].rideFrequency,
+      trailPopularity: trailPopularityData,
+      weeklyDistance: baseData[slot].weeklyDistance
+    };
   };
 
-  useEffect(() => {
-    setChartData(generateDataForTimeSlot(timeSlot, rides));
-  }, [timeSlot, rides]);
+  useEffect(() => { 
+    setChartData(generateDataForTimeSlot(timeSlot)); 
+  }, [timeSlot]);
 
   useEffect(() => { 
     (async () => { 
@@ -307,7 +275,13 @@ function PersonalStatsScreen() {
           <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
             <View style={styles.headerContent}>
               <TouchableOpacity 
-                onPress={() => navigation.goBack()} 
+                onPress={() => {
+                  if (route?.params?.fromDashboard) {
+                    navigation.getParent()?.navigate('Dashboard');
+                  } else {
+                    navigation.goBack();
+                  }
+                }} 
                 style={styles.backButton}
               >
                 <LinearGradient

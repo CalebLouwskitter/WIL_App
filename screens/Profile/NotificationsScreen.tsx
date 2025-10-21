@@ -140,87 +140,89 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={palette.primary} />
-            <Text style={styles.loadingText}>Loading obstacles...</Text>
-          </View>
-        ) : obstacles.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Feather name="check-circle" size={48} color={textSecondaryColor} />
-            <Text style={styles.emptyText}>No obstacles to display</Text>
-            <Text style={styles.emptySubtext}>
-              {filter === 'active' 
-                ? 'All trails are clear!' 
-                : 'No obstacles found for this filter'}
-            </Text>
-          </View>
-        ) : (
-          obstacles.map((obstacle) => (
-            <View key={obstacle.id} style={styles.obstacleCard}>
-              {/* Icon and Title Row */}
-              <View style={styles.obstacleHeader}>
-                <View
-                  style={[
-                    styles.iconContainer,
-                    { backgroundColor: getSeverityColor(obstacle.severity) + '20' },
-                  ]}
-                >
-                  <Feather
-                    name={getObstacleIcon(obstacle.type)}
-                    size={24}
-                    color={getSeverityColor(obstacle.severity)}
-                  />
-                </View>
-                <View style={styles.obstacleInfo}>
-                  <Text style={styles.obstacleTitle}>{obstacle.title}</Text>
-                  <Text style={styles.obstacleType}>
-                    {obstacle.type.charAt(0).toUpperCase() + obstacle.type.slice(1)}
-                  </Text>
-                </View>
-                <View style={styles.severityBadge}>
-                  <Text
+        <View style={styles.boardPanel}>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={palette.primary} />
+              <Text style={styles.loadingText}>Loading obstacles...</Text>
+            </View>
+          ) : obstacles.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Feather name="check-circle" size={48} color={textSecondaryColor} />
+              <Text style={styles.emptyText}>No obstacles to display</Text>
+              <Text style={styles.emptySubtext}>
+                {filter === 'active' 
+                  ? 'All trails are clear!' 
+                  : 'No obstacles found for this filter'}
+              </Text>
+            </View>
+          ) : (
+            obstacles.map((obstacle) => (
+              <View key={obstacle.id} style={styles.obstacleCard}>
+                {/* Icon and Title Row */}
+                <View style={styles.obstacleHeader}>
+                  <View
                     style={[
-                      styles.severityText,
-                      { color: getSeverityColor(obstacle.severity) },
+                      styles.iconContainer,
+                      { backgroundColor: getSeverityColor(obstacle.severity) + '20' },
                     ]}
                   >
-                    {obstacle.severity.toUpperCase()}
+                    <Feather
+                      name={getObstacleIcon(obstacle.type)}
+                      size={24}
+                      color={getSeverityColor(obstacle.severity)}
+                    />
+                  </View>
+                  <View style={styles.obstacleInfo}>
+                    <Text style={styles.obstacleTitle}>{obstacle.title}</Text>
+                    <Text style={styles.obstacleType}>
+                      {obstacle.type.charAt(0).toUpperCase() + obstacle.type.slice(1)}
+                    </Text>
+                  </View>
+                  <View style={styles.severityBadge}>
+                    <Text
+                      style={[
+                        styles.severityText,
+                        { color: getSeverityColor(obstacle.severity) },
+                      ]}
+                    >
+                      {obstacle.severity.toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Description */}
+                {obstacle.description && (
+                  <Text style={styles.obstacleDescription} numberOfLines={2}>
+                    {obstacle.description}
                   </Text>
+                )}
+
+                {/* Footer Info */}
+                <View style={styles.obstacleFooter}>
+                  <View style={styles.footerLeft}>
+                    <Feather name="user" size={14} color={textSecondaryColor} />
+                    <Text style={styles.footerText}>
+                      {obstacle.userName || 'Anonymous'}
+                    </Text>
+                  </View>
+                  <View style={styles.footerRight}>
+                    <Feather name="clock" size={14} color={textSecondaryColor} />
+                    <Text style={styles.footerText}>{formatDate(obstacle.reportedAt)}</Text>
+                  </View>
                 </View>
+
+                {/* Status Badge */}
+                {obstacle.status === 'verified' && (
+                  <View style={styles.verifiedBadge}>
+                    <Feather name="check-circle" size={12} color="#4CAF50" />
+                    <Text style={styles.verifiedText}>Verified by community</Text>
+                  </View>
+                )}
               </View>
-
-              {/* Description */}
-              {obstacle.description && (
-                <Text style={styles.obstacleDescription} numberOfLines={2}>
-                  {obstacle.description}
-                </Text>
-              )}
-
-              {/* Footer Info */}
-              <View style={styles.obstacleFooter}>
-                <View style={styles.footerLeft}>
-                  <Feather name="user" size={14} color={textSecondaryColor} />
-                  <Text style={styles.footerText}>
-                    {obstacle.userName || 'Anonymous'}
-                  </Text>
-                </View>
-                <View style={styles.footerRight}>
-                  <Feather name="clock" size={14} color={textSecondaryColor} />
-                  <Text style={styles.footerText}>{formatDate(obstacle.reportedAt)}</Text>
-                </View>
-              </View>
-
-              {/* Status Badge */}
-              {obstacle.status === 'verified' && (
-                <View style={styles.verifiedBadge}>
-                  <Feather name="check-circle" size={12} color="#4CAF50" />
-                  <Text style={styles.verifiedText}>Verified by community</Text>
-                </View>
-              )}
-            </View>
-          ))
-        )}
+            ))
+          )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -288,13 +290,27 @@ const createStyles = (palette: any, textSecondaryColor: string) =>
       flex: 1,
     },
     scrollContent: {
-      padding: 16,
+      paddingHorizontal: 20,
+      paddingVertical: 24,
+    },
+    boardPanel: {
+      backgroundColor: palette.cardElevated || palette.card,
+      borderRadius: 20,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: palette.borderMuted || palette.border,
+      gap: 12,
+      shadowColor: palette.shadowStrong || 'rgba(15, 23, 42, 0.18)',
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.12,
+      shadowRadius: 24,
+      elevation: 6,
+      marginBottom: 32,
     },
     loadingContainer: {
-      flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 60,
+      paddingVertical: 48,
     },
     loadingText: {
       marginTop: 12,
@@ -319,17 +335,16 @@ const createStyles = (palette: any, textSecondaryColor: string) =>
       textAlign: 'center',
     },
     obstacleCard: {
-      backgroundColor: palette.card,
-      borderRadius: 12,
+      backgroundColor: palette.cardElevated || palette.card,
+      borderRadius: 16,
       padding: 16,
-      marginBottom: 12,
       borderWidth: 1,
-      borderColor: palette.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
+      borderColor: palette.borderMuted || palette.border,
+      shadowColor: palette.shadowStrong || 'rgba(15, 23, 42, 0.14)',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.12,
+      shadowRadius: 20,
+      elevation: 4,
     },
     obstacleHeader: {
       flexDirection: 'row',

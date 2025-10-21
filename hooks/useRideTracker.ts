@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import * as Location from 'expo-location';
 import type { LocationObject, LocationSubscription } from 'expo-location';
 import haversine from 'haversine';
@@ -276,6 +276,16 @@ export default function useRideTracker() {
     }
     return rideData;
   }, [rideData]);
+
+  // Ensure the location subscription is removed if the component using this hook unmounts
+  useEffect(() => {
+    return () => {
+      if (watchSub.current) {
+        watchSub.current.remove();
+        watchSub.current = null;
+      }
+    };
+  }, []);
 
   return { rideData, startRide, stopRide, currentSpeed };
 }

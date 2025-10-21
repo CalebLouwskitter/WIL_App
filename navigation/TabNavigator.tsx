@@ -2,6 +2,7 @@ import ProfileStack from './ProfileStack';
 import React, { ReactNode } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
+import { CommonActions } from '@react-navigation/native';
 
 //Icons import
 import { Feather } from '@expo/vector-icons';
@@ -57,6 +58,22 @@ const TabNavigator = () => {
           ),
           tabBarLabel: 'Map',
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            (navigation as any).dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [
+                  {
+                    name: 'Mapping',
+                    state: { index: 0, routes: [{ name: 'LiveTracking' }] },
+                  } as any,
+                ],
+              })
+            );
+          },
+        })}
       />
       <Tab.Screen
         name="Sos"
@@ -78,7 +95,7 @@ const TabNavigator = () => {
           tabBarIcon: ({ focused, color, size }) => (
             <Feather name="bar-chart-2" color={color} size={24} />
           ),
-          tabBarLabel: 'Analytics',
+          tabBarLabel: 'Stats',
         }}
       />
       
@@ -91,6 +108,22 @@ const TabNavigator = () => {
           ),
           tabBarLabel: 'Profile',
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            (navigation as any).dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [
+                  {
+                    name: 'ProfileStack',
+                    state: { index: 0, routes: [{ name: 'ProfileMain' }] },
+                  } as any,
+                ],
+              })
+            );
+          },
+        })}
       />
     </Tab.Navigator>
   );

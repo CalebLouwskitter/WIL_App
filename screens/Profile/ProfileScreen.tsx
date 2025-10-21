@@ -219,7 +219,7 @@ export default function ProfileScreen() {
                     </View>
                   )}
                   <View style={styles.cameraButton}>
-                                          <Icon name="camera" size={14} color="#1E40AF" />
+                    <Icon name="camera" size={14} color="#1E40AF" />
                   </View>
                 </TouchableOpacity>
 
@@ -252,7 +252,7 @@ export default function ProfileScreen() {
             <Text style={styles.sectionTitle}>Your Stats</Text>
             <TouchableOpacity 
               activeOpacity={0.7} 
-              onPress={() => handleNavigate('PersonalStats')} 
+              onPress={() => (navigation as any).navigate('Analytics', { screen: 'Stats' })} 
               disabled={navDisabled}
               style={styles.viewAllButton}
             >
@@ -382,7 +382,7 @@ export default function ProfileScreen() {
               <Text style={styles.ridesSectionSubtitle}>Your latest activity</Text>
             </View>
             <TouchableOpacity
-              onPress={() => (navigation as any).navigate('Analytics', { screen: 'RideStats' })}
+              onPress={() => (navigation as any).navigate('Analytics', { screen: 'RideHistory' })}
               activeOpacity={0.7}
               style={styles.ridesIconButton}
             >

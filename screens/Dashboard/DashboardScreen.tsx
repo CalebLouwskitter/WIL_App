@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View, Dimensions } from 'react-native';
 import MapView from 'react-native-maps';
 import Feather from 'react-native-vector-icons/Feather';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import SettingsModal from '../../components/Modals/SettingsModal';
 import NotificationsModal from '../../components/Modals/NotificationsModal';
@@ -19,6 +19,7 @@ const DASHBOARD_PROFILE_SCREENS = [
   'Settings',
   'PersonalStats',
   'AchievementsScreen',
+  'RideHistoryPage',
   'CreateHorse',
   'HorsesList',
   'AdminManagement',
@@ -32,8 +33,12 @@ const DashboardScreen = () => {
 
   const navigateToScreen = (screen: string) => {
     if (DASHBOARD_PROFILE_SCREENS.includes(screen)) {
-      const profileTarget = screen === 'ProfilePage' ? 'ProfileMain' : screen;
-      navigation.navigate('ProfileStack', { screen: profileTarget } as never);
+      const profileTarget = screen === 'ProfilePage' ? 'ProfileMain' : (screen === 'RideHistoryPage' ? 'HistoryScreen' : screen);
+      if (profileTarget === 'PersonalStats' || profileTarget === 'AchievementsScreen' || profileTarget === 'HistoryScreen' || profileTarget === 'CreateHorse') {
+        navigation.navigate('ProfileStack', { screen: profileTarget, params: { fromDashboard: true } } as never);
+      } else {
+        navigation.navigate('ProfileStack', { screen: profileTarget } as never);
+      }
       return;
     }
 
@@ -44,6 +49,11 @@ const DashboardScreen = () => {
 
     if (screen === 'ReportsPage') {
       navigation.navigate('Mapping', { screen: 'RideReviewScreen' } as never);
+      return;
+    }
+
+    if (screen === 'AnalyticsPage') {
+      navigation.navigate('Analytics' as never);
       return;
     }
 
@@ -156,6 +166,27 @@ const DashboardScreen = () => {
         <SettingsModal
           visible={settingsVisible}
           onClose={() => setSettingsVisible(false)}
+          onRequestFullSettings={() => {
+            setTimeout(() => {
+              (navigation as any).dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [
+                    {
+                      name: 'ProfileStack',
+                      state: {
+                        index: 1,
+                        routes: [
+                          { name: 'ProfileMain' },
+                          { name: 'Settings' },
+                        ],
+                      },
+                    },
+                  ],
+                })
+              );
+            }, 0);
+          }}
         />
       )}
 
