@@ -3,7 +3,7 @@ import { View, TouchableOpacity, StyleSheet, Text, Animated, Dimensions } from '
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import useRideTracker from '../../hooks/useRideTracker';
-import { saveRide, clearLocalRides } from '../../services/RideStorage';
+import { saveRide } from '../../services/RideStorage';
 import MapViewTracker from '../../components/MapViewTracker';
 import RideStatsCard from '../../components/RideStatsCard';
 import SettingsModal from '../../components/Modals/SettingsModal';
@@ -305,20 +305,6 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                     <Feather name="clock" size={24} color="white" />
                     <Text style={styles.actionButtonText}>Recent</Text>
                   </View>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-
-            {/* Dev: Clear local rides */}
-            <View style={[styles.devRow, { bottom: insets.bottom + 148 }]}>
-              <TouchableOpacity
-                style={styles.devButton}
-                onPress={async () => { await clearLocalRides(); }}
-                activeOpacity={0.9}
-              >
-                <LinearGradient colors={["#334155", "#1f2937"]} style={styles.devButtonGradient}>
-                  <Feather name="trash-2" size={16} color="#fff" />
-                  <Text style={styles.devButtonText}>Clear Local Rides</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
