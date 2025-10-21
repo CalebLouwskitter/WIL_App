@@ -33,7 +33,7 @@ const DashboardScreen = () => {
   const navigateToScreen = (screen: string) => {
     if (DASHBOARD_PROFILE_SCREENS.includes(screen)) {
       const profileTarget = screen === 'ProfilePage' ? 'ProfileMain' : screen;
-      if (profileTarget === 'PersonalStats') {
+      if (profileTarget === 'PersonalStats' || profileTarget === 'AchievementsScreen') {
         navigation.navigate('ProfileStack', { screen: profileTarget, params: { fromDashboard: true } } as never);
       } else {
         navigation.navigate('ProfileStack', { screen: profileTarget } as never);
