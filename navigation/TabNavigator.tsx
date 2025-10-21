@@ -58,6 +58,22 @@ const TabNavigator = () => {
           ),
           tabBarLabel: 'Map',
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            (navigation as any).dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [
+                  {
+                    name: 'Mapping',
+                    state: { index: 0, routes: [{ name: 'LiveTracking' }] },
+                  } as any,
+                ],
+              })
+            );
+          },
+        })}
       />
       <Tab.Screen
         name="Sos"
