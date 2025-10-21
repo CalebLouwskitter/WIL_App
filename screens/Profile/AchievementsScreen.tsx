@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, useColorScheme, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather as Icon } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 type Achievement = {
   id: string;
@@ -76,6 +76,7 @@ const CARD_WIDTH = (screenWidth - 52) / 2;
 
 export default function AchievementsScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -179,7 +180,13 @@ export default function AchievementsScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity 
-            onPress={() => navigation.goBack()} 
+            onPress={() => {
+              if (route?.params?.fromDashboard) {
+                navigation.getParent()?.navigate('Dashboard');
+              } else {
+                navigation.goBack();
+              }
+            }} 
             style={styles.backButton}
           >
             <Icon name="chevron-left" size={24} color="#0F172A" />

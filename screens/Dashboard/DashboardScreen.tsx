@@ -19,6 +19,7 @@ const DASHBOARD_PROFILE_SCREENS = [
   'Settings',
   'PersonalStats',
   'AchievementsScreen',
+  'RideHistoryPage',
   'CreateHorse',
   'HorsesList',
   'AdminManagement',
@@ -32,8 +33,12 @@ const DashboardScreen = () => {
 
   const navigateToScreen = (screen: string) => {
     if (DASHBOARD_PROFILE_SCREENS.includes(screen)) {
-      const profileTarget = screen === 'ProfilePage' ? 'ProfileMain' : screen;
-      navigation.navigate('ProfileStack', { screen: profileTarget } as never);
+      const profileTarget = screen === 'ProfilePage' ? 'ProfileMain' : (screen === 'RideHistoryPage' ? 'HistoryScreen' : screen);
+      if (profileTarget === 'PersonalStats' || profileTarget === 'AchievementsScreen' || profileTarget === 'HistoryScreen' || profileTarget === 'CreateHorse') {
+        navigation.navigate('ProfileStack', { screen: profileTarget, params: { fromDashboard: true } } as never);
+      } else {
+        navigation.navigate('ProfileStack', { screen: profileTarget } as never);
+      }
       return;
     }
 
@@ -44,6 +49,11 @@ const DashboardScreen = () => {
 
     if (screen === 'ReportsPage') {
       navigation.navigate('Mapping', { screen: 'RideReviewScreen' } as never);
+      return;
+    }
+
+    if (screen === 'AnalyticsPage') {
+      navigation.navigate('Analytics' as never);
       return;
     }
 

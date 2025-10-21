@@ -1,11 +1,12 @@
 import { useColorScheme, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { getRides } from 'services/RideStorage';
 import type { RideData } from 'hooks/useRideTracker';
 import { ReportDownload } from 'services/AnalyticsService';
+
 import {
   BarChart,
   LineChart,
@@ -32,6 +33,7 @@ interface ChartData {
 
 function PersonalStatsScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('month');
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -273,7 +275,13 @@ function PersonalStatsScreen() {
           <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
             <View style={styles.headerContent}>
               <TouchableOpacity 
-                onPress={() => navigation.goBack()} 
+                onPress={() => {
+                  if (route?.params?.fromDashboard) {
+                    navigation.getParent()?.navigate('Dashboard');
+                  } else {
+                    navigation.goBack();
+                  }
+                }} 
                 style={styles.backButton}
               >
                 <LinearGradient

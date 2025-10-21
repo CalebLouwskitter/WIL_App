@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { Feather as Icon } from '@expo/vector-icons';
 import { saveHorse } from '../../services/HorseStorage';
 import { useColorScheme } from 'react-native';
@@ -8,6 +8,7 @@ import { Colors } from '../../constants/colors';
 
 const CreateHorseScreen = () => {
   const nav = useNavigation<any>();
+  const route = useRoute<any>();
   const [name, setName] = useState('');
   const [breed, setBreed] = useState('');
   const [age, setAge] = useState<string>('');
@@ -41,7 +42,13 @@ const CreateHorseScreen = () => {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => nav.goBack()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => {
+            if (route?.params?.fromDashboard) {
+              nav.getParent()?.navigate('Dashboard');
+            } else {
+              nav.goBack();
+            }
+          }} style={styles.backBtn}>
             <Icon name="chevron-left" size={24} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Add Horse</Text>
