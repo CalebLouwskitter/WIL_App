@@ -95,7 +95,7 @@ const TabNavigator = () => {
           tabBarIcon: ({ focused, color, size }) => (
             <Feather name="bar-chart-2" color={color} size={24} />
           ),
-          tabBarLabel: 'Analytics',
+          tabBarLabel: 'Stats',
         }}
       />
       

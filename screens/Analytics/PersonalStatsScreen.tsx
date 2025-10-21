@@ -3,9 +3,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { getRides } from 'services/RideStorage';
-import type { RideData } from 'hooks/useRideTracker';
-import { ReportDownload } from 'services/AnalyticsService';
+import { getRides } from '../../services/RideStorage';
+import type { RideData } from '../../hooks/useRideTracker';
+import { ReportDownload } from '../../services/AnalyticsService';
 
 import {
   BarChart,

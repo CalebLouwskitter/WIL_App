@@ -158,6 +158,13 @@ export default function AdminManagementScreen() {
           onChangeText={setSearchQuery}
         />
       </View>
+      <TouchableOpacity 
+        style={styles.notificationButton}
+        onPress={() => (navigation as any).navigate('AdminNotificationManagement')}
+      >
+        <Ionicons name="notifications" size={20} color="#FFFFFF" />
+        <Text style={styles.notificationButtonText}>Manage Notifications</Text>
+      </TouchableOpacity>
       <FlatList
         data={filteredUsers}
         renderItem={({ item }) => {
@@ -346,5 +353,21 @@ const styles = StyleSheet.create({
   },
   chipRoleMember: {
     backgroundColor: '#6b7280',
+  },
+  notificationButton: {
+    backgroundColor: '#2563eb',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    gap: 8,
+  },
+  notificationButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
