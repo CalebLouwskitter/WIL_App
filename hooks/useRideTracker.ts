@@ -2,8 +2,9 @@ import { useRef, useState, useCallback } from 'react';
 import * as Location from 'expo-location';
 import type { LocationObject, LocationSubscription } from 'expo-location';
 import haversine from 'haversine';
-import { primaryPreviewRoutes } from '../constants/trails';
+import { trailData } from '../constants/trails';
 import { getActiveHorse } from '../services/HorseStorage';
+import { buildTrailsIndex, snapToTrails } from '../utils/routeSnapping';
 
 
 
@@ -40,6 +41,9 @@ export default function useRideTracker() {
   const [rideData, setRideData] = useState<RideData | null>(null);
   const watchSub = useRef<LocationSubscription | null>(null);
   const [currentSpeed, setCurrentSpeed] = useState(0);
+
+  // Precompute trail index for snapping
+  const trailsIndexRef = useRef(buildTrailsIndex(trailData));
 
 
 
@@ -121,50 +125,40 @@ export default function useRideTracker() {
 
 
 
-        // Compute overlap contribution for this newest segment
+        // Compute overlap contribution using snap-to-path for this newest segment
         const segmentDistances: Record<string, number> = {};
+        let nearestTrail: TrailProximity | null = null;
         if (path.length > 1) {
           const segStart = path[path.length - 2];
           const segEnd = usePoint;
-          primaryPreviewRoutes.forEach((route) => {
 
+          const snapStart = snapToTrails(segStart, trailsIndexRef.current);
+          const snapEnd = snapToTrails(segEnd, trailsIndexRef.current);
 
-            // naive proximity check to any waypoint (threshold 25m)
-            const near = route.routeWaypoints.some((w) => {
-              const d1 = haversine(w, segStart, { unit: 'meter' });
-              const d2 = haversine(w, segEnd, { unit: 'meter' });
-              return d1 < 25 || d2 < 25;
-            });
-            if (near) {
-              const segDist = haversine(segStart, segEnd, { unit: 'meter' });
-              segmentDistances[route.id] = (segmentDistances[route.id] || 0) + segDist;
+          const THRESHOLD = 35; // meters from trail to count towards it
+
+          // Determine nearest trail for UI from current point
+          if (snapEnd && snapEnd.distanceToTrail <= 60) {
+            nearestTrail = {
+              id: snapEnd.trailId,
+              name: snapEnd.trailName,
+              distance: snapEnd.distanceToTrail,
+              coordinate: { latitude: snapEnd.snapped.latitude, longitude: snapEnd.snapped.longitude },
+            };
+          }
+
+          // If both ends snap close to the SAME trail, attribute along-trail delta
+          if (
+            snapStart && snapEnd &&
+            snapStart.trailId === snapEnd.trailId &&
+            snapStart.distanceToTrail <= THRESHOLD &&
+            snapEnd.distanceToTrail <= THRESHOLD
+          ) {
+            const alongDelta = Math.abs(snapEnd.along - snapStart.along);
+            if (alongDelta > 0) {
+              segmentDistances[snapEnd.trailId] = (segmentDistances[snapEnd.trailId] || 0) + alongDelta;
             }
-          });
-        }
-
-
-
-        let nearestTrail: TrailProximity | null = null;
-        let nearestDistance = Infinity;
-        primaryPreviewRoutes.forEach((route) => {
-          route.routeWaypoints.forEach((w) => {
-            const dist = haversine(w, usePoint, { unit: 'meter' });
-            if (dist < nearestDistance) {
-              nearestDistance = dist;
-              nearestTrail = {
-                id: route.id,
-                name: route.name,
-                distance: dist,
-                coordinate: {
-                  latitude: w.latitude,
-                  longitude: w.longitude,
-                },
-              };
-            }
-          });
-        });
-        if (nearestDistance > 60) {
-          nearestTrail = null;
+          }
         }
 
         setRideData((prev) => {
