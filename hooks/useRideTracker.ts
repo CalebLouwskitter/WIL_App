@@ -28,6 +28,7 @@ export type TrailProximity = {
 export type RideData = {
   startTime: number;
   path: RidePoint[];
+  snappedPath?: RidePoint[];
   totalDistance: number; // meters
   elevationGain: number; // meters
   duration: number; // ms
@@ -35,6 +36,9 @@ export type RideData = {
   horseId?: string | null;
   horseName?: string | null;
   nearestTrail?: TrailProximity | null;
+  snappedCoordinate?: { latitude: number; longitude: number } | null;
+  snapDistance?: number | null; // meters to snapped point
+  snapRadius?: number | null; // current active stick radius in meters
 };
 
 export default function useRideTracker() {
@@ -44,6 +48,11 @@ export default function useRideTracker() {
 
   // Precompute trail index for snapping
   const trailsIndexRef = useRef(buildTrailsIndex(trailData));
+
+  // Sticky snapping state
+  const currentTrailIdRef = useRef<string | null>(null);
+  const pendingSwitchIdRef = useRef<string | null>(null);
+  const pendingCountRef = useRef<number>(0);
 
 
 
@@ -128,6 +137,11 @@ export default function useRideTracker() {
         // Compute overlap contribution using snap-to-path for this newest segment
         const segmentDistances: Record<string, number> = {};
         let nearestTrail: TrailProximity | null = null;
+        let snappedCoordinate: { latitude: number; longitude: number } | null = null;
+        let snapDistance: number | null = null;
+        const ENTER_DISTANCE = 12; // meters: enter when very close
+        const EXIT_DISTANCE = 18;  // meters: drop when slightly farther to avoid flicker
+        const ACTIVE_RADIUS = EXIT_DISTANCE; // what we display
         if (path.length > 1) {
           const segStart = path[path.length - 2];
           const segEnd = usePoint;
@@ -135,10 +149,11 @@ export default function useRideTracker() {
           const snapStart = snapToTrails(segStart, trailsIndexRef.current);
           const snapEnd = snapToTrails(segEnd, trailsIndexRef.current);
 
-          const THRESHOLD = 35; // meters from trail to count towards it
+          snappedCoordinate = snapEnd ? { latitude: snapEnd.snapped.latitude, longitude: snapEnd.snapped.longitude } : null;
+          snapDistance = snapEnd ? snapEnd.distanceToTrail : null;
 
           // Determine nearest trail for UI from current point
-          if (snapEnd && snapEnd.distanceToTrail <= 60) {
+          if (snapEnd && snapEnd.distanceToTrail <= EXIT_DISTANCE) {
             nearestTrail = {
               id: snapEnd.trailId,
               name: snapEnd.trailName,
@@ -147,16 +162,69 @@ export default function useRideTracker() {
             };
           }
 
-          // If both ends snap close to the SAME trail, attribute along-trail delta
-          if (
-            snapStart && snapEnd &&
-            snapStart.trailId === snapEnd.trailId &&
-            snapStart.distanceToTrail <= THRESHOLD &&
-            snapEnd.distanceToTrail <= THRESHOLD
-          ) {
-            const alongDelta = Math.abs(snapEnd.along - snapStart.along);
-            if (alongDelta > 0) {
-              segmentDistances[snapEnd.trailId] = (segmentDistances[snapEnd.trailId] || 0) + alongDelta;
+          // Sticky snapping with hysteresis
+          const cur = currentTrailIdRef.current;
+          if (snapEnd) {
+            // Decide candidate trail (nearest)
+            const candId = snapEnd.trailId;
+            const candNearEnd = snapEnd.distanceToTrail <= ENTER_DISTANCE;
+            const startNearCur = snapStart && cur && snapStart.trailId === cur && snapStart.distanceToTrail <= EXIT_DISTANCE;
+            const endNearCur = cur && snapEnd.trailId === cur && snapEnd.distanceToTrail <= EXIT_DISTANCE;
+
+            // Maintain or enter current trail
+            if (!cur) {
+              // No current trail: require both ends close to same candidate to start
+              if (
+                snapStart && candNearEnd && snapStart.trailId === candId && snapStart.distanceToTrail <= ENTER_DISTANCE
+              ) {
+                pendingSwitchIdRef.current = candId;
+                pendingCountRef.current += 1;
+                if (pendingCountRef.current >= 2) {
+                  currentTrailIdRef.current = candId;
+                  pendingSwitchIdRef.current = null;
+                  pendingCountRef.current = 0;
+                }
+              } else {
+                pendingSwitchIdRef.current = null;
+                pendingCountRef.current = 0;
+              }
+            } else {
+              // We have a current trail: stick while within EXIT_DISTANCE
+              if (endNearCur && startNearCur) {
+                // Attribute distance along current trail if both ends snap to it
+                if (snapStart && snapStart.trailId === cur) {
+                  const alongDelta = Math.abs(snapEnd.along - snapStart.along);
+                  if (alongDelta > 0) {
+                    segmentDistances[cur] = (segmentDistances[cur] || 0) + alongDelta;
+                  }
+                }
+                // clear pending
+                pendingSwitchIdRef.current = null;
+                pendingCountRef.current = 0;
+              } else {
+                // Consider switching if candidate is close enough for a few consecutive samples
+                if (candNearEnd) {
+                  if (pendingSwitchIdRef.current === candId) {
+                    pendingCountRef.current += 1;
+                  } else {
+                    pendingSwitchIdRef.current = candId;
+                    pendingCountRef.current = 1;
+                  }
+                  if (pendingCountRef.current >= 2) {
+                    currentTrailIdRef.current = candId;
+                    pendingSwitchIdRef.current = null;
+                    pendingCountRef.current = 0;
+                  }
+                } else {
+                  // Too far from any trail; do not attribute and do not switch
+                  pendingSwitchIdRef.current = null;
+                  pendingCountRef.current = 0;
+                  // If far from current beyond EXIT, allow dropping current
+                  if (!endNearCur) {
+                    currentTrailIdRef.current = null;
+                  }
+                }
+              }
             }
           }
         }
@@ -166,9 +234,25 @@ export default function useRideTracker() {
           Object.entries(segmentDistances).forEach(([k, v]) => {
             merged[k] = (merged[k] || 0) + v;
           });
+          // Build snappedPath: snap to trail when within EXIT_DISTANCE; else keep raw GPS
+          let nextSnapped: RidePoint[] = prev?.snappedPath ? [...prev.snappedPath] : [];
+          if (path.length > 0) {
+            const lastRaw = path[path.length - 1];
+            if (snappedCoordinate && snapDistance != null && snapDistance <= ACTIVE_RADIUS) {
+              nextSnapped.push({
+                latitude: snappedCoordinate.latitude,
+                longitude: snappedCoordinate.longitude,
+                altitude: lastRaw.altitude,
+                timestamp: lastRaw.timestamp,
+              });
+            } else {
+              nextSnapped.push(lastRaw);
+            }
+          }
           return {
             startTime,
             path: [...path],
+            snappedPath: nextSnapped,
             totalDistance,
             elevationGain,
             duration: Date.now() - startTime,
@@ -176,6 +260,9 @@ export default function useRideTracker() {
             horseId: activeHorse?.id ?? null,
             horseName: activeHorse?.name ?? null,
             nearestTrail,
+            snappedCoordinate,
+            snapDistance,
+            snapRadius: ACTIVE_RADIUS,
           };
         });
       }
