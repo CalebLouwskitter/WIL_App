@@ -155,27 +155,23 @@ export default function ProfileScreen() {
         
         {/* Header */}
         <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
+          <TouchableOpacity 
+            onPress={() => handleNavigate('Settings')}
+            activeOpacity={0.7}
+          >
+            <Icon name="settings" size={24} color="#000" />
+          </TouchableOpacity>
+
           <Text style={styles.headerTitle}>Profile</Text>
-          <View style={styles.headerIcons}>
-            <TouchableOpacity 
-              style={styles.iconButton}
-              activeOpacity={0.7} 
-              onPress={() => handleNavigate('Settings')} 
-              disabled={navDisabled}
-            >
-              <Icon name="settings" size={20} color="#64748B" />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.iconButton}
-              activeOpacity={0.7} 
-              onPress={() => handleNavigate('Notifications')} 
-              disabled={navDisabled}
-            >
-              <Icon name="bell" size={20} color="#64748B" />
-              <View style={styles.notificationDot} />
-            </TouchableOpacity>
-          </View>
+
+          <TouchableOpacity 
+            onPress={() => handleNavigate('Notifications')}
+            activeOpacity={0.7}
+          >
+            <Icon name="bell" size={24} color="#000" />
+          </TouchableOpacity>
         </Animated.View>
+
 
         {/* Enhanced User Profile Card */}
         <Animated.View style={[
@@ -451,60 +447,32 @@ const styles = StyleSheet.create({
     flex: 1 
   },
   
-  // Header
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between',
+   // Header
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingTop: 50,
+    paddingBottom: 0,
   },
   headerTitle: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: '700',
-    color: '#0F172A',
-    letterSpacing: -0.5,
+    color: '#000',
+    textAlign: 'center',
+    flex: 1,
   },
-  headerIcons: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#EF4444',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  
+
   // Profile Card
   profileCard: {
     marginHorizontal: 20,
     marginBottom: 24,
     borderRadius: 24,
+    borderBottomEndRadius: 24,
+    paddingBottom: 20,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
     elevation: 10,
   },
   profileCardGradient: {
