@@ -119,30 +119,16 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
         </View>
 
         <LinearGradient
-          colors={['rgba(15, 23, 42, 0.8)', 'transparent']}
+          colors={['rgba(15, 23, 42, 0.0)', 'transparent']}
           style={styles.topGradient}
           pointerEvents="none"
         />
-        <View style={[styles.header, { paddingTop: insets.top + 12 }]} pointerEvents="box-none">
-          <TouchableOpacity
-            style={styles.iconButton}
-            activeOpacity={0.7}
-            onPress={handleOpenSettings}
-          >
-            <BlurView intensity={80} tint="dark" style={styles.blurButton}>
-              <Feather name="settings" size={22} color="white" />
-            </BlurView>
+        <View style={[styles.topIcons, { paddingTop: insets.top + 45 }]}>
+          <TouchableOpacity activeOpacity={0.7} onPress={handleOpenSettings}>
+            <Feather name="settings" size={27} color="#374151" />
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.iconButton}
-            activeOpacity={0.7}
-            onPress={handleOpenNotifications}
-          >
-            <BlurView intensity={80} tint="dark" style={styles.blurButton}>
-              <Feather name="bell" size={22} color="white" />
-              <View style={styles.notificationDot} />
-            </BlurView>
+          <TouchableOpacity activeOpacity={0.7} onPress={handleOpenNotifications}>
+            <Feather name="bell" size={27} color="#374151" />
           </TouchableOpacity>
         </View>
 
@@ -344,52 +330,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0f172a',
   },
-  topGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 200,
-  },
-  header: {
+  topIcons: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
+    marginBottom: 16,
+    paddingHorizontal: 16,
     zIndex: 20,
   },
-  iconButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 18,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  blurButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 18,
-  },
-  notificationDot: {
+  topGradient: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#f43f5e',
-    borderWidth: 2,
-    borderColor: '#0f172a',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 200,
   },
   rideActiveContainer: {
     position: 'absolute',
