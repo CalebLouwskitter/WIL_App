@@ -87,6 +87,30 @@ const RideStatsScreen = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Global Analytics Card */}
+        <TouchableOpacity
+          style={[styles.globalInsightsCard, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('GlobalStats')}
+        >
+          <LinearGradient
+            colors={[theme.brandSecondary + '11', theme.brandSecondary + '05']}
+            style={styles.globalInsightsGradient}
+          >
+            <View style={styles.globalInsightsHeader}>
+              <View style={[styles.globalIconCircle, { backgroundColor: theme.brandSecondary + '22' }]}> 
+                <Feather name="globe" size={22} color={theme.brandSecondary} />
+              </View>
+              <View style={styles.globalInsightsText}>
+                <Text style={[styles.globalInsightsTitle, { color: theme.onSurface }]}>Global Analytics</Text>
+                <Text style={[styles.globalInsightsSubtitle, { color: theme.onSurfaceVariant }]}>See community stats and leaderboards.</Text>
+              </View>
+              <Feather name="chevron-right" size={20} color={theme.onSurfaceVariant} />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* Trail Insights Card */}
         <TouchableOpacity
           style={[styles.trailInsightsCard, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}
           activeOpacity={0.8}
@@ -101,13 +125,14 @@ const RideStatsScreen = () => {
                 <Feather name="trending-up" size={22} color={theme.brandPrimary} />
               </View>
               <View style={styles.trailInsightsText}>
-                <Text style={[styles.trailInsightsTitle, { color: theme.onSurface }]}>Trail Usage Insights</Text>
-                <Text style={[styles.trailInsightsSubtitle, { color: theme.onSurfaceVariant }]}>See which routes get the most activity.</Text>
+                <Text style={[styles.trailInsightsTitle, { color: theme.onSurface }]}>My Trail Usage</Text>
+                <Text style={[styles.trailInsightsSubtitle, { color: theme.onSurfaceVariant }]}>See your personal route activity.</Text>
               </View>
               <Feather name="chevron-right" size={20} color={theme.onSurfaceVariant} />
             </View>
           </LinearGradient>
         </TouchableOpacity>
+
         {rides.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View style={[styles.emptyIconCircle, { backgroundColor: theme.surfaceVariant }]}>
@@ -384,6 +409,42 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingBottom: 32,
+  },
+  globalInsightsCard: {
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  globalInsightsGradient: {
+    padding: 20,
+  },
+  globalInsightsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  globalIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  globalInsightsText: {
+    flex: 1,
+    marginLeft: 14,
+    marginRight: 12,
+    gap: 4,
+  },
+  globalInsightsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  globalInsightsSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   trailInsightsCard: {
     borderRadius: 20,

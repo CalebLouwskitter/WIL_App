@@ -200,6 +200,31 @@ const UserStatsScreen = () => {
         <View style={styles.actionsSection}>
           <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>Insights</Text>
           
+          {/* Global Analytics Card */}
+          <TouchableOpacity
+            style={[styles.actionCard, { backgroundColor: theme.surface }]}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('GlobalStats')}
+          >
+            <LinearGradient
+              colors={['#8B5CF611', '#8B5CF605']}
+              style={styles.actionCardGradient}
+            >
+              <View style={styles.actionCardContent}>
+                <View style={[styles.actionIconCircle, { backgroundColor: '#8B5CF622' }]}>
+                  <Feather name="globe" size={24} color="#8B5CF6" />
+                </View>
+                <View style={styles.actionTextContainer}>
+                  <Text style={[styles.actionTitle, { color: theme.onSurface }]}>Global Analytics</Text>
+                  <Text style={[styles.actionSubtitle, { color: theme.onSurfaceVariant }]}>
+                    Community stats and leaderboards
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={24} color={theme.onSurfaceVariant} />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.actionCard, { backgroundColor: theme.surface }]}
             activeOpacity={0.8}
