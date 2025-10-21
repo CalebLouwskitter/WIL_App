@@ -11,6 +11,7 @@ import HorsesListScreen from '../screens/Profile/HorsesListScreen';
 import AdminManagementScreen from '../screens/Profile/AdminManagementScreen';
 import NotificationsScreen from '../screens/Profile/NotificationsScreen';
 import ObservationsScreen from '../screens/Profile/ObservationsScreen';
+import HistoryScreen from '../screens/Profile/HostoryScreen';
 
 const Stack = createStackNavigator();
 
@@ -21,6 +22,7 @@ const ProfileStack = () => {
       <Stack.Screen name="PersonalStats" component={PersonalStatsScreen} />
       <Stack.Screen name="AchievementsScreen" component={AchievementsScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="HistoryScreen" component={HistoryScreen} />
       <Stack.Screen name="CreateHorse" component={CreateHorseScreen} />
       <Stack.Screen name="HorsesList" component={HorsesListScreen} />
       <Stack.Screen name="AdminManagement" component={AdminManagementScreen} />
