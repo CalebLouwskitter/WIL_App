@@ -43,6 +43,7 @@ import {
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { saveObservation } from '@/services/ObservationStorage';
+import { trailData } from '@/constants/trails';
 
 // Type definitions for geolocation
 interface GeolocationPosition {
@@ -144,6 +145,7 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
   const [selectedIssue, setSelectedIssue] = useState<string | null>(null);
   const [reportNotes, setReportNotes] = useState('');
   const [reportLocation, setReportLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [selectedTrailId, setSelectedTrailId] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isLoadingPhoto, setIsLoadingPhoto] = useState(false);
@@ -282,9 +284,9 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
 
   // Track unsaved changes
   useEffect(() => {
-    const hasChanges = !!(selectedWildlife || sightingNotes || sightingPhoto || selectedIssue || reportNotes || reportLocation);
+    const hasChanges = !!(selectedWildlife || sightingNotes || sightingPhoto || selectedIssue || reportNotes || reportLocation || selectedTrailId);
     setHasUnsavedChanges(hasChanges);
-  }, [selectedWildlife, sightingNotes, sightingPhoto, selectedIssue, reportNotes, reportLocation]);
+  }, [selectedWildlife, sightingNotes, sightingPhoto, selectedIssue, reportNotes, reportLocation, selectedTrailId]);
 
   // Handle back navigation with unsaved changes
   useEffect(() => {
@@ -598,7 +600,7 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
       setIsSubmitting(true);
 
       // Check if there's anything to save
-      if (!selectedWildlife && !selectedIssue && !sightingNotes && !reportNotes) {
+      if (!selectedWildlife && !selectedIssue && !sightingNotes && !reportNotes && !selectedTrailId) {
         if (onClose) {
           onClose();
         } else {
@@ -623,12 +625,15 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
       }
 
       // Add report data if exists
-      if (selectedIssue || reportNotes || reportLocation) {
+      if (selectedIssue || reportNotes || reportLocation || selectedTrailId) {
+        const chosenTrail = selectedTrailId ? trailData.find((trail) => trail.id === selectedTrailId) : undefined;
         observation.report = {
           issueType: selectedIssue ? TRAIL_ISSUES.find((i) => i.id === selectedIssue)?.label || 'Other' : 'Other',
           notes: reportNotes || '',
           severity: (selectedIssue === 'i_hazard' ? 'high' : 'medium') as 'low' | 'medium' | 'high' | 'critical',
           location: reportLocation || currentLocation || undefined,
+          trailId: selectedTrailId || undefined,
+          trailName: chosenTrail?.name,
         };
       }
 
@@ -652,6 +657,7 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
       setSelectedIssue(null);
       setReportNotes('');
       setReportLocation(currentLocation);
+      setSelectedTrailId(null);
       setHasUnsavedChanges(false);
     } catch (error) {
       console.error('Error saving observations:', error);
@@ -863,9 +869,9 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
           {/* Trail Reports Section */}
           {activeTab === 'report' && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Report Trail Conditions</Text>
+              <Text style={styles.sectionTitle}>Report an issue</Text>
               <Text style={styles.sectionDescription}>
-                Keep trails safe for all riders
+                Help maintain the trails by reporting any issues you encounter
               </Text>
 
               <View style={styles.issueGrid}>
@@ -895,7 +901,7 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
                 <TextInput
                   value={reportNotes}
                   onChangeText={setReportNotes}
-                  placeholder="Provide details about the issue..."
+                  placeholder="Describe the issue..."
                   placeholderTextColor={BRAND_COLORS.text.light}
                   style={styles.textInput}
                   multiline
@@ -904,54 +910,72 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
                 />
               </View>
 
+              <View style={styles.trailSelectorContainer}>
+                <Text style={styles.inputLabel}>Trail (optional)</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.trailChipsRow}
+                >
+                  {trailData.map((trail) => {
+                    const isSelected = trail.id === selectedTrailId;
+                    return (
+                      <TouchableOpacity
+                        key={trail.id}
+                        onPress={() => setSelectedTrailId(isSelected ? null : trail.id)}
+                        style={[styles.trailChip, isSelected && styles.trailChipSelected]}
+                      >
+                        <Text style={[styles.trailChipText, isSelected && styles.trailChipTextSelected]}>
+                          {trail.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
               <View style={styles.mapContainer}>
                 <Text style={styles.mapLabel}>📍 Mark Location on Map</Text>
                 <View style={styles.mapWrapper}>
                   <MapView
                     ref={mapRef}
-                    provider={PROVIDER_GOOGLE}
                     style={styles.map}
-                    showsUserLocation={true}
-                    showsMyLocationButton={true}
-                    followsUserLocation={true}
                     initialRegion={{
-                      latitude: currentLocation?.latitude ?? (rideData?.path?.[rideData.path.length - 1]?.latitude ?? 51.5074),
-                      longitude: currentLocation?.longitude ?? (rideData?.path?.[rideData.path.length - 1]?.longitude ?? -0.1278),
+                      latitude: currentLocation?.latitude || 0,
+                      longitude: currentLocation?.longitude || 0,
                       latitudeDelta: 0.008,
                       longitudeDelta: 0.008,
                     }}
-                    onPress={onMapPress}
+                    showsUserLocation={true}
+                    showsMyLocationButton={false}
+                    showsPointsOfInterest={false}
+                    showsBuildings={false}
+                    showsIndoors={false}
+                    showsTraffic={false}
+                    showsIndoorLevelPicker={false}
+                    loadingEnabled={true}
+                    loadingIndicatorColor="#2C5530"
+                    loadingBackgroundColor="#FAF9F7"
                   >
-                    {/* Show the ride path if available */}
-                    {rideData?.path && rideData.path.length > 0 && (
-                      <Polyline
-                        coordinates={rideData.path}
-                        strokeColor="rgba(44, 85, 48, 0.7)"
-                        strokeWidth={3}
-                      />
-                    )}
-                    
-                    {/* Show issue marker */}
                     {reportLocation && (
-                      <Marker 
-                        coordinate={reportLocation}
-                        title="Issue Location"
+                      <Marker
+                        coordinate={{
+                          latitude: reportLocation?.latitude || 0,
+                          longitude: reportLocation?.longitude || 0,
+                        }}
                         pinColor="#C73E1D"
                       >
                         <View style={styles.customMarker}>
-                          <Text style={styles.markerEmoji}>⚠️</Text>
+                          <Text style={styles.markerEmoji}>📍</Text>
                         </View>
                       </Marker>
                     )}
-                    
-                    {/* Show current location if different from report location */}
-                    {currentLocation && (!reportLocation || 
-                      (Math.abs(currentLocation.latitude - reportLocation.latitude) > 0.0001 ||
-                       Math.abs(currentLocation.longitude - reportLocation.longitude) > 0.0001)) && (
+                    {currentLocation && (
                       <Marker
-                        coordinate={currentLocation}
-                        title="Current Location"
-                        opacity={0.7}
+                        coordinate={{
+                          latitude: currentLocation?.latitude || 0,
+                          longitude: currentLocation?.longitude || 0,
+                        }}
                       >
                         <View style={styles.currentLocationMarker}>
                           <View style={styles.currentLocationDot} />
@@ -959,19 +983,14 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
                       </Marker>
                     )}
                   </MapView>
-                  <View style={styles.mapOverlay}>
-                    <Text style={styles.mapHint}>
-                      {reportLocation ? '📍 Issue marked - Tap map to move' : 'Tap the map to mark issue location'}
-                    </Text>
-                  </View>
                   <TouchableOpacity 
                     style={styles.currentLocationButton}
                     onPress={() => {
                       if (currentLocation) {
                         setReportLocation(currentLocation);
                         mapRef.current?.animateToRegion({
-                          latitude: currentLocation.latitude,
-                          longitude: currentLocation.longitude,
+                          latitude: currentLocation?.latitude || 0,
+                          longitude: currentLocation?.longitude || 0,
                           latitudeDelta: 0.008,
                           longitudeDelta: 0.008,
                         }, 1000);
@@ -985,36 +1004,36 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
             </View>
           )}
 
-          {/* Action Buttons */}
-          <View style={styles.actionContainer}>
-            <TouchableOpacity
-              style={[
-                styles.submitButton, 
-                (!selectedWildlife && !selectedIssue) && styles.submitButtonDisabled,
-                isSubmitting && styles.submitButtonLoading
-              ]}
-              onPress={submitAll}
-              disabled={(!selectedWildlife && !selectedIssue) || isSubmitting}
-            >
-              <Text style={styles.submitButtonText}>
-                {isSubmitting ? 'Saving...' : 'Save Observations'}
-              </Text>
-            </TouchableOpacity>
+        {/* Action Buttons */}
+        <View style={styles.actionContainer}>
+          <TouchableOpacity
+            style={[
+              styles.submitButton,
+              (!selectedWildlife && !selectedIssue) && styles.submitButtonDisabled,
+              isSubmitting && styles.submitButtonLoading
+            ]}
+            onPress={submitAll}
+            disabled={(!selectedWildlife && !selectedIssue) || isSubmitting}
+          >
+            <Text style={styles.submitButtonText}>
+              {isSubmitting ? 'Saving...' : 'Save Observations'}
+            </Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.skipButton} 
-              onPress={handleClose}
-              disabled={isSubmitting}
-            >
-              <Text style={styles.skipButtonText}>Skip for Now</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity 
+            style={styles.skipButton} 
+            onPress={handleClose}
+            disabled={isSubmitting}
+          >
+            <Text style={styles.skipButtonText}>Skip for Now</Text>
+          </TouchableOpacity>
+        </View>
 
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      </Animated.View>
-    </KeyboardAvoidingView>
-  );
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </Animated.View>
+  </KeyboardAvoidingView>
+);
 }
 
 const styles = StyleSheet.create({
@@ -1382,6 +1401,34 @@ const styles = StyleSheet.create({
   retakePhotoText: {
     fontSize: 12,
     fontWeight: '600',
+    color: '#2C5530',
+  },
+
+  trailSelectorContainer: {
+    marginTop: 20,
+  },
+  trailChipsRow: {
+    paddingVertical: 8,
+    gap: 8,
+  },
+  trailChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#F0F0F0',
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
+  },
+  trailChipSelected: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#2C5530',
+  },
+  trailChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#5A5A5A',
+  },
+  trailChipTextSelected: {
     color: '#2C5530',
   },
 

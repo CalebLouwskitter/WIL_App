@@ -236,6 +236,8 @@ export interface ReportDTO {
 	location?: { latitude: number; longitude: number };
 	photoUrl?: string;
 	rideId?: string; // Associated ride if report was made during a ride
+	trailId?: string;
+	trailName?: string;
 	createdAt: TimestampMs;
 	updatedAt: TimestampMs;
 }
@@ -366,6 +368,8 @@ export function newReport(partial: Partial<ReportDTO> & { id: UUID; type: Report
 		location: undefined,
 		photoUrl: undefined,
 		rideId: undefined,
+		trailId: undefined,
+		trailName: undefined,
 		createdAt: ts,
 		updatedAt: ts,
 		...partial,

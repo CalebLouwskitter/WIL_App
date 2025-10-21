@@ -4,15 +4,34 @@ import MapView, { Marker, Polyline, PROVIDER_DEFAULT, Region } from 'react-nativ
 import * as Location from 'expo-location';
 import type { RidePoint, TrailProximity } from '../hooks/useRideTracker';
 import { primaryPreviewRoutes } from '../constants/trails';
-import ObstacleView from '../screens/Mapping/ObstacleView';
-import { getObstaclesInArea, verifyObstacle, type Obstacle } from '../services/ObstacleService';
 import { Colors } from '@/constants/colors';
 import Feather from 'react-native-vector-icons/Feather';
+import { getObservations, type RideObservation } from '@/services/ObservationStorage';
+import { getTrailUsageStats, type TrailUsageStats } from '@/services/TrailAnalyticsService';
+import ObstacleView from '../screens/Mapping/ObstacleView';
+import { getObstaclesInArea, verifyObstacle, type Obstacle } from '../services/ObstacleService';
 import type { ObstacleSeverity, ObstacleType } from '../services/Data';
 import ProfilePictureService from '../services/ProfilePictureService';
 import useOnlineUsers from '../hooks/useOnlineUsers';
 import { auth } from '../services/firebase';
 import { getDeviceId } from '../services/OnlineUserService';
+
+const applyOpacity = (hexColor: string, opacity: number) => {
+  const hex = hexColor.replace('#', '').trim();
+  if (hex.length === 3) {
+    const r = parseInt(hex[0] + hex[0], 16);
+    const g = parseInt(hex[1] + hex[1], 16);
+    const b = parseInt(hex[2] + hex[2], 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+  if (hex.length === 6) {
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+  return hexColor;
+};
 
 // Renders the main MapView with three responsibilities:
 // 1) Draw static preview routes (A–C).
@@ -48,6 +67,8 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const { users } = useOnlineUsers();
   const [myDeviceId, setMyDeviceId] = useState<string | null>(null);
+  const [observations, setObservations] = useState<RideObservation[]>([]);
+  const [trailUsage, setTrailUsage] = useState<Record<string, TrailUsageStats>>({});
   const filteredObstacles = React.useMemo(() => {
     const f = (obstacleFilters || {});
     let list = obstacles;
@@ -63,6 +84,24 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
     }
     return list;
   }, [obstacles, obstacleFilters]);
+
+  const maxTrailDistance = React.useMemo(() => {
+    return Object.values(trailUsage).reduce((max, stats) => Math.max(max, stats.totalDistance), 0);
+  }, [trailUsage]);
+
+  const getTrailStrokeStyle = React.useCallback(
+    (trailId: string, fallbackColor: string) => {
+      const stats = trailUsage[trailId];
+      if (!stats || maxTrailDistance <= 0) {
+        return { strokeWidth: 3, strokeColor: fallbackColor };
+      }
+      const weight = Math.min(1, stats.totalDistance / maxTrailDistance);
+      const width = 3 + weight * 6;
+      const opacity = 0.35 + weight * 0.65;
+      return { strokeWidth: width, strokeColor: applyOpacity(fallbackColor, opacity) };
+    },
+    [trailUsage, maxTrailDistance]
+  );
 
   // When the path grows, recenter on the most recent point with a tight delta
   // (gives a max-zoomed-in feel so nearby objects are visible).
@@ -165,6 +204,23 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
     };
   }, [region?.latitude, region?.longitude]);
 
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await getObservations();
+        if (mounted) {
+          setObservations(data);
+        }
+      } catch (error) {
+        console.warn('Failed to load observations:', error);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   // Load user's avatar for map marker
   useEffect(() => {
     let mounted = true;
@@ -186,7 +242,26 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
         if (mounted) setMyDeviceId(id);
       } catch {}
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const stats = await getTrailUsageStats();
+        if (mounted) {
+          setTrailUsage(stats);
+        }
+      } catch (error) {
+        console.warn('Failed to load trail usage stats:', error);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const start = path && path[0];
@@ -227,14 +302,18 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
       ref={mapRef}
     >
       {/* Static preview routes (A-C) */}
-      {primaryPreviewRoutes.map((route) => (
-        <Polyline
-          key={route.id}
-          coordinates={route.routeWaypoints.map((p) => ({ latitude: p.latitude, longitude: p.longitude }))}
-          strokeWidth={3}
-          strokeColor={route.color || palette.textOnDark}
-        />
-      ))}
+      {primaryPreviewRoutes.map((route) => {
+        const baseColor = route.color || palette.textOnDark;
+        const { strokeWidth, strokeColor } = getTrailStrokeStyle(route.id, baseColor);
+        return (
+          <Polyline
+            key={route.id}
+            coordinates={route.routeWaypoints.map((p) => ({ latitude: p.latitude, longitude: p.longitude }))}
+            strokeWidth={strokeWidth}
+            strokeColor={strokeColor}
+          />
+        );
+      })}
       {path && path.length > 0 && (
         <>
           <Polyline
@@ -298,6 +377,30 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
             </View>
           </Marker>
         ))}
+      {observations.map((obs) => {
+        const sightingLocation = obs.sighting?.location;
+        const reportLocation = obs.report?.location;
+        return (
+          <React.Fragment key={obs.id}>
+            {sightingLocation && (
+              <Marker
+                coordinate={{ latitude: sightingLocation.latitude, longitude: sightingLocation.longitude }}
+                title={obs.sighting?.wildlifeType || 'Wildlife Sighting'}
+                description={obs.sighting?.notes}
+                pinColor="#10B981"
+              />
+            )}
+            {reportLocation && (
+              <Marker
+                coordinate={{ latitude: reportLocation.latitude, longitude: reportLocation.longitude }}
+                title={obs.report?.issueType || 'Trail Report'}
+                description={obs.report?.notes}
+                pinColor="#F97316"
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
       {nearestTrail && (
         <Marker
           coordinate={nearestTrail.coordinate}

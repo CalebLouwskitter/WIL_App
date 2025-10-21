@@ -168,6 +168,13 @@ export default function ObservationsScreen({ navigation }: Props) {
               {observation.report.notes && (
                 <Text style={styles.notes}>{observation.report.notes}</Text>
               )}
+              {observation.report.trailName && (
+                <View style={styles.trailRow}>
+                  <Feather name="map" size={14} color="#2C5530" />
+                  <Text style={styles.trailLabel}>Trail:</Text>
+                  <Text style={styles.trailValue}>{observation.report.trailName}</Text>
+                </View>
+              )}
               {observation.report.location && (
                 <View style={styles.locationRow}>
                   <Feather name="map-pin" size={14} color="#8A8A8A" />
@@ -428,7 +435,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 8,
+    marginTop: 6,
+  },
+  trailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  trailLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2C5530',
+  },
+  trailValue: {
+    fontSize: 13,
+    color: '#1A1A1A',
   },
   locationText: {
     fontSize: 12,
