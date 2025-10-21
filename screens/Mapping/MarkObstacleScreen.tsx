@@ -59,8 +59,16 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
   const getCurrentLocation = async () => {
     setGettingLocation(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
+      let permission = await Location.getForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        if (!permission.canAskAgain) {
+          Alert.alert('Permission Denied', 'Location permission is required to mark obstacles.');
+          return;
+        }
+        permission = await Location.requestForegroundPermissionsAsync();
+      }
+
+      if (permission.status !== 'granted') {
         Alert.alert('Permission Denied', 'Location permission is required to mark obstacles.');
         return;
       }
