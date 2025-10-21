@@ -3,7 +3,7 @@ import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 
 import ProfileScreen from '../screens/Profile/ProfileScreen';
-import PersonalStatsScreen from '../screens/Profile/PersonalStatsScreen';
+import PersonalStatsScreen from '../screens/Analytics/PersonalStatsScreen';
 import AchievementsScreen from '../screens/Profile/AchievementsScreen';
 import SettingsScreen from '../screens/Profile/SettingsScreen';
 import CreateHorseScreen from '../screens/Profile/CreateHorseScreen';
