@@ -37,6 +37,13 @@ const config: ExpoConfig = {
     },
     infoPlist: {
       NSLocationWhenInUseUsageDescription: 'This app uses your location to display your position on the map and for ride tracking.',
+      NSLocationAlwaysAndWhenInUseUsageDescription: 'This app needs access to your location even when not in use to track rides in the background.',
+      NSLocationAlwaysUsageDescription: 'This app needs access to your location to track rides even when the app is in the background.',
+      NSCameraUsageDescription: 'This app needs access to your camera to take photos for your profile and horses.',
+      NSPhotoLibraryUsageDescription: 'This app needs access to your photo library to select photos for your profile and horses.',
+      NSPhotoLibraryAddUsageDescription: 'This app needs permission to save photos to your photo library.',
+      NSMicrophoneUsageDescription: 'This app does not use the microphone.',
+      UIBackgroundModes: ['location'],
     },
     bundleIdentifier: 'com.sbhra.app',
   },
