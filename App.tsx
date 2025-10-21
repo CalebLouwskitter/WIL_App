@@ -9,11 +9,15 @@ import { useCurrentUser } from './hooks/useCurrentUser';
 import PendingApprovalScreen from './screens/Auth/PendingApprovalScreen';
 import { logFirebaseStatus } from './services/firebaseConnectionCheck';
 import { StatusBar } from 'expo-status-bar';
+import { useNotifications } from './hooks/useNotifications';
 
 export default function App() {
   const { user, initializing, isAuthenticated } = useFirebaseAuth();
   const { profile, loading } = useCurrentUser();
   const allowBypass = !FIREBASE_ENABLED; // allow full app if firebase not configured
+
+  // Register for push notifications when user is logged in
+  useNotifications(user?.uid);
 
   // Log Firebase connection status on app start (dev only)
   useEffect(() => {

@@ -23,6 +23,7 @@ const config: ExpoConfig = {
   icon: './assets/icons/icon.png',
   userInterfaceStyle: 'light',
   newArchEnabled: true,
+  owner: 'your-expo-username', // Replace with your Expo username or leave blank
   splash: {
     image: './assets/icons/splash-icon.png',
     resizeMode: 'contain',
@@ -37,6 +38,7 @@ const config: ExpoConfig = {
     infoPlist: {
       NSLocationWhenInUseUsageDescription: 'This app uses your location to display your position on the map and for ride tracking.',
     },
+    bundleIdentifier: 'com.sbhra.app',
   },
   android: {
     adaptiveIcon: {
@@ -44,6 +46,7 @@ const config: ExpoConfig = {
       backgroundColor: '#ffffff',
     },
     edgeToEdgeEnabled: true,
+    package: 'com.sbhra.app',
     // Google Maps Android SDK key
     config: {
       googleMaps: {
@@ -53,12 +56,17 @@ const config: ExpoConfig = {
     permissions: [
       'android.permission.ACCESS_COARSE_LOCATION',
       'android.permission.ACCESS_FINE_LOCATION',
+      'android.permission.POST_NOTIFICATIONS',
     ],
   },
   web: {
     favicon: './assets/images/favicon.png',
   },
   extra: {
+    // Expo project configuration
+    eas: {
+      projectId: '1234abcd-5678-90ef-ghij-klmnopqrstuv', // Replace with your actual Expo project ID from eas.json or expo.dev
+    },
     // Expose Firebase config to the app via Constants.expoConfig.extra
     FIREBASE_API_KEY: process.env.FIREBASE_API_KEY ?? '',
     FIREBASE_AUTH_DOMAIN: process.env.FIREBASE_AUTH_DOMAIN ?? '',
