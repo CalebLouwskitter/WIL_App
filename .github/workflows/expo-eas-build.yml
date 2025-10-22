@@ -32,7 +32,7 @@ jobs:
       - name: Configure Expo tooling
         uses: expo/expo-github-action@v8
         with:
-          expo-version: 7.x
+          expo-version: latest
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
           expo-cache: true
@@ -61,7 +61,7 @@ jobs:
       - name: Configure Expo tooling
         uses: expo/expo-github-action@v8
         with:
-          expo-version: 7.x
+          expo-version: latest
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
           expo-cache: true
