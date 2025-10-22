@@ -33,12 +33,14 @@ jobs:
         uses: expo/expo-github-action@v8
         with:
           expo-version: latest
-          eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
           expo-cache: true
 
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
       - name: Run Android EAS build
-        run: npx eas build --platform android --non-interactive
+        run: eas build --platform android --non-interactive
 
   ios:
     name: iOS Build
@@ -62,9 +64,11 @@ jobs:
         uses: expo/expo-github-action@v8
         with:
           expo-version: latest
-          eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
           expo-cache: true
 
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
       - name: Run iOS EAS build
-        run: npx eas build --platform ios --non-interactive
+        run: eas build --platform ios --non-interactive
