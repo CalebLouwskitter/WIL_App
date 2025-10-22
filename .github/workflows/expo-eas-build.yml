@@ -32,13 +32,18 @@ jobs:
       - name: Configure Expo tooling
         uses: expo/expo-github-action@v8
         with:
-          expo-version: 7.x
-          eas-version: latest
+          expo-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
           expo-cache: true
 
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Verify EAS authentication
+        run: eas whoami
+
       - name: Run Android EAS build
-        run: npx eas build --platform android --non-interactive
+        run: eas build --platform android --non-interactive
 
   ios:
     name: iOS Build
@@ -61,10 +66,15 @@ jobs:
       - name: Configure Expo tooling
         uses: expo/expo-github-action@v8
         with:
-          expo-version: 7.x
-          eas-version: latest
+          expo-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
           expo-cache: true
 
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Verify EAS authentication
+        run: eas whoami
+
       - name: Run iOS EAS build
-        run: npx eas build --platform ios --non-interactive
+        run: eas build --platform ios --non-interactive
