@@ -1,0 +1,70 @@
+name: Expo EAS Builds
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: expo-eas-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  android:
+    name: Android Build
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Expo tooling
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: 7.x
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          expo-cache: true
+
+      - name: Run Android EAS build
+        run: npx eas build --platform android --non-interactive
+
+  ios:
+    name: iOS Build
+    runs-on: macos-13
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Expo tooling
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: 7.x
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          expo-cache: true
+
+      - name: Run iOS EAS build
+        run: npx eas build --platform ios --non-interactive

@@ -1,6 +1,7 @@
-import { ref, get } from 'firebase/database';
-import { auth, database } from './FirebaseConfig';
+import { collection, getDocs } from 'firebase/firestore';
+import { auth, firestore, FIREBASE_ENABLED } from './FirebaseConfig';
 import type { RideData } from '../hooks/useRideTracker';
+import { Converters, COLLECTIONS, type RideDTO, ridePointFromDTO } from './Data';
 
 export interface GlobalRideStats {
   totalRides: number;
@@ -30,49 +31,50 @@ export interface GlobalTrailUsage {
 }
 
 /**
- * Fetch all rides from all users in Firebase Realtime Database
+ * Fetch all rides from all users in Firebase Firestore
  */
 export const getAllUserRides = async (): Promise<RideData[]> => {
   try {
-    // Check if user is authenticated
+    if (!FIREBASE_ENABLED || !firestore) {
+      console.error('[GlobalAnalytics] Firebase Firestore not initialized');
+      return [];
+    }
+
     if (!auth?.currentUser) {
       console.warn('[GlobalAnalytics] User not authenticated');
       return [];
     }
 
-    // Check if database is initialized
-    if (!database) {
-      console.error('[GlobalAnalytics] Firebase Realtime Database not initialized');
+    const ridesRef = collection(firestore, COLLECTIONS.rides).withConverter(Converters.ride);
+    const snapshot = await getDocs(ridesRef);
+
+    if (snapshot.empty) {
+      console.log('[GlobalAnalytics] No rides data found in Firestore');
       return [];
     }
 
-    const ridesRef = ref(database, 'rides');
-    const snapshot = await get(ridesRef);
+    const allRides: RideData[] = snapshot.docs.reduce((acc: RideData[], docSnap) => {
+      const ride = docSnap.data() as RideDTO;
+      acc.push({
+        startTime: ride.startTime,
+        path: (ride.path || []).map(ridePointFromDTO),
+        totalDistance: ride.totalDistance || 0,
+        elevationGain: ride.elevationGain || 0,
+        duration: ride.duration || 0,
+        routeDistances: ride.routeDistances || undefined,
+        horseId: ride.horseId ?? undefined,
+        horseName: ride.horseName ?? undefined,
+        snappedPath: undefined,
+        nearestTrail: undefined,
+        snappedCoordinate: undefined,
+        snapDistance: undefined,
+        snapRadius: undefined,
+        userId: ride.userId,
+      } as RideData & { userId: string });
+      return acc;
+    }, []);
 
-    if (!snapshot.exists()) {
-      console.log('[GlobalAnalytics] No rides data found in database');
-      return [];
-    }
-
-    const allRides: RideData[] = [];
-    const ridesData = snapshot.val();
-
-    // Iterate through all users
-    Object.keys(ridesData).forEach(userId => {
-      const userRides = ridesData[userId];
-      
-      // Iterate through each user's rides
-      Object.values(userRides).forEach((ride: any) => {
-        if (ride && typeof ride === 'object') {
-          allRides.push({
-            ...ride,
-            userId, // Add userId to track which user
-          });
-        }
-      });
-    });
-
-    console.log(`[GlobalAnalytics] Fetched ${allRides.length} rides from ${Object.keys(ridesData).length} users`);
+    console.log(`[GlobalAnalytics] Fetched ${allRides.length} rides from Firestore`);
     return allRides;
   } catch (error) {
     console.error('[GlobalAnalytics] Error fetching all rides:', error);
