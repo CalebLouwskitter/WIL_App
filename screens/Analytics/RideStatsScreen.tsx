@@ -49,90 +49,24 @@ const RideStatsScreen = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.surface }]}>
-        <View style={styles.headerRow}>
-          <View style={styles.headerContent}>
-            <View style={styles.headerIcon}>
-              <Feather name="activity" size={24} color={theme.brandPrimary} />
-            </View>
-            <View>
-              <Text style={[styles.headerTitle, { color: theme.onSurface }]}>Ride History</Text>
-              <Text style={[styles.headerSubtitle, { color: theme.onSurfaceVariant }]}>
-                {rides.length} {rides.length === 1 ? 'ride' : 'rides'} completed
-              </Text>
-            </View>
-          </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={styles.headerActionButton}
-              onPress={() => setSettingsVisible(true)}
-            >
-              <Feather name="settings" size={24} color={theme.icon} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={styles.headerActionButton}
-              onPress={() => setNotificationsVisible(true)}
-            >
-              <Feather name="bell" size={24} color={theme.icon} />
-            </TouchableOpacity>
-          </View>
-        </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}> 
+      {/* Simple Back Header */}
+      <View style={[styles.simpleHeader, { backgroundColor: 'transparent' }]}> 
+        <TouchableOpacity 
+          style={styles.headerBack} 
+          activeOpacity={0.7} 
+          onPress={() => navigation.navigate('ProfileMain')}
+        >
+          <Feather name="arrow-left" size={24} color={theme.onSurface} />
+        </TouchableOpacity>
+        <Text style={[styles.simpleHeaderTitle, { color: theme.onSurface }]}>Ride History</Text>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Global Analytics Card */}
-        <TouchableOpacity
-          style={[styles.globalInsightsCard, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('GlobalStats')}
-        >
-          <LinearGradient
-            colors={[theme.brandSecondary + '11', theme.brandSecondary + '05']}
-            style={styles.globalInsightsGradient}
-          >
-            <View style={styles.globalInsightsHeader}>
-              <View style={[styles.globalIconCircle, { backgroundColor: theme.brandSecondary + '22' }]}> 
-                <Feather name="globe" size={22} color={theme.brandSecondary} />
-              </View>
-              <View style={styles.globalInsightsText}>
-                <Text style={[styles.globalInsightsTitle, { color: theme.onSurface }]}>Global Analytics</Text>
-                <Text style={[styles.globalInsightsSubtitle, { color: theme.onSurfaceVariant }]}>See community stats and leaderboards.</Text>
-              </View>
-              <Feather name="chevron-right" size={20} color={theme.onSurfaceVariant} />
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
-
-        {/* Trail Insights Card */}
-        <TouchableOpacity
-          style={[styles.trailInsightsCard, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('TrailStats')}
-        >
-          <LinearGradient
-            colors={[theme.brandPrimary + '11', theme.brandPrimary + '05']}
-            style={styles.trailInsightsGradient}
-          >
-            <View style={styles.trailInsightsHeader}>
-              <View style={[styles.trailIconCircle, { backgroundColor: theme.brandPrimary + '22' }]}> 
-                <Feather name="trending-up" size={22} color={theme.brandPrimary} />
-              </View>
-              <View style={styles.trailInsightsText}>
-                <Text style={[styles.trailInsightsTitle, { color: theme.onSurface }]}>My Trail Usage</Text>
-                <Text style={[styles.trailInsightsSubtitle, { color: theme.onSurfaceVariant }]}>See your personal route activity.</Text>
-              </View>
-              <Feather name="chevron-right" size={20} color={theme.onSurfaceVariant} />
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
-
         {rides.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View style={[styles.emptyIconCircle, { backgroundColor: theme.surfaceVariant }]}>
@@ -358,19 +292,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerRow: {
+  simpleHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 12,
+    // No bottom border to avoid white bar
+  },
+  headerBack: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  simpleHeaderTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  headerSpacer: {
+    width: 40,
   },
   headerContent: {
     flexDirection: 'row',

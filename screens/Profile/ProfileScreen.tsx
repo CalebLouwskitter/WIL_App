@@ -243,7 +243,7 @@ export default function ProfileScreen() {
             <Text style={styles.sectionTitle}>Your Stats</Text>
             <TouchableOpacity 
               activeOpacity={0.7} 
-              onPress={() => (navigation as any).navigate('Analytics', { screen: 'Stats' })} 
+              onPress={() => handleNavigate('PersonalStats')} 
               disabled={navDisabled}
               style={styles.viewAllButton}
             >
@@ -373,7 +373,7 @@ export default function ProfileScreen() {
               <Text style={styles.ridesSectionSubtitle}>Your latest activity</Text>
             </View>
             <TouchableOpacity
-              onPress={() => (navigation as any).navigate('Analytics', { screen: 'RideHistory' })}
+              onPress={() => handleNavigate('RideHistory')}
               activeOpacity={0.7}
               style={styles.ridesIconButton}
             >
@@ -393,7 +393,7 @@ export default function ProfileScreen() {
                   key={r.startTime}
                   style={styles.rideCard}
                   activeOpacity={0.8}
-                  onPress={() => (navigation as any).navigate('Analytics', { screen: 'RideDetail', params: { startTime: r.startTime } })}
+                  onPress={() => (navigation as any).navigate('ProfileStack' as never, { screen: 'RideDetail', params: { startTime: r.startTime } } as never)}
                 >
                   <View style={styles.rideIconWrapper}>
                     <Icon name="navigation" size={20} color="#3B82F6" />

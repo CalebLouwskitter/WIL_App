@@ -331,6 +331,7 @@ const createStyles = (palette: any, insets: EdgeInsets) =>
     scrollContent: {
       paddingHorizontal: 24,
       paddingBottom: 24,
+      paddingTop: 8,
       gap: 16,
     },
     filterContainer: {

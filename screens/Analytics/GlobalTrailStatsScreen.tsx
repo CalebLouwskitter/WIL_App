@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme, ActivityIndicator, RefreshControl } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+
 import { 
   getGlobalRideStats, 
   getUserRideStats, 
@@ -13,6 +14,8 @@ import {
 } from '../../services/GlobalAnalyticsService';
 import { resolvePalette } from '../../constants/colors';
 import { auth } from '../../services/FirebaseConfig';
+import SettingsModal from '../../components/Modals/SettingsModal';
+import NotificationsModal from '../../components/Modals/NotificationsModal';
 
 const GlobalTrailStatsScreen = () => {
   const [globalStats, setGlobalStats] = useState<GlobalRideStats | null>(null);
@@ -20,6 +23,8 @@ const GlobalTrailStatsScreen = () => {
   const [trailUsage, setTrailUsage] = useState<GlobalTrailUsage[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  const [notificationsVisible, setNotificationsVisible] = useState(false);
   const navigation = useNavigation<any>();
   const colorScheme = useColorScheme();
   const theme = resolvePalette(colorScheme);
@@ -65,17 +70,39 @@ const GlobalTrailStatsScreen = () => {
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
-        <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.borderMuted }]}>
-          <TouchableOpacity style={styles.headerBack} activeOpacity={0.7} onPress={() => navigation.goBack()}>
-            <Feather name="arrow-left" size={24} color={theme.onSurface} />
+        <View style={styles.topIcons}>
+          <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)}>
+            <Feather name="settings" size={27} color="#374151" />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.onSurface }]}>Global Analytics</Text>
-          <View style={styles.headerSpacer} />
+          <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)}>
+            <Feather name="bell" size={27} color="#374151" />
+          </TouchableOpacity>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.brandPrimary} />
           <Text style={[styles.loadingText, { color: theme.onSurfaceVariant }]}>Loading global data...</Text>
         </View>
+        <SettingsModal
+          visible={settingsVisible}
+          onClose={() => setSettingsVisible(false)}
+          onRequestFullSettings={() => {
+            setSettingsVisible(false);
+            setTimeout(() => {
+              (navigation as any).dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [
+                    {
+                      name: 'ProfileStack',
+                      state: { index: 1, routes: [{ name: 'ProfileMain' }, { name: 'Settings' }] },
+                    } as any,
+                  ],
+                })
+              );
+            }, 0);
+          }}
+        />
+        <NotificationsModal visible={notificationsVisible} onClose={() => setNotificationsVisible(false)} />
       </SafeAreaView>
     );
   }
@@ -84,13 +111,12 @@ const GlobalTrailStatsScreen = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
-      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.borderMuted }]}>
-        <TouchableOpacity style={styles.headerBack} activeOpacity={0.7} onPress={() => navigation.goBack()}>
-          <Feather name="arrow-left" size={24} color={theme.onSurface} />
+      <View style={styles.topIcons}>
+        <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)}>
+          <Feather name="settings" size={27} color="#374151" />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.onSurface }]}>Global Analytics</Text>
-        <TouchableOpacity style={styles.headerAction} activeOpacity={0.7} onPress={onRefresh}>
-          <Feather name="refresh-cw" size={20} color={theme.onSurface} />
+        <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)}>
+          <Feather name="bell" size={27} color="#374151" />
         </TouchableOpacity>
       </View>
 
@@ -287,6 +313,27 @@ const GlobalTrailStatsScreen = () => {
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
+      <SettingsModal
+        visible={settingsVisible}
+        onClose={() => setSettingsVisible(false)}
+        onRequestFullSettings={() => {
+          setSettingsVisible(false);
+          setTimeout(() => {
+            (navigation as any).dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [
+                  {
+                    name: 'ProfileStack',
+                    state: { index: 1, routes: [{ name: 'ProfileMain' }, { name: 'Settings' }] },
+                  } as any,
+                ],
+              })
+            );
+          }, 0);
+        }}
+      />
+      <NotificationsModal visible={notificationsVisible} onClose={() => setNotificationsVisible(false)} />
     </SafeAreaView>
   );
 };
@@ -295,35 +342,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
+  topIcons: {
     flexDirection: 'row',
-    alignItems: 'center',
+    paddingTop: 45,
+    justifyContent: 'space-between',
+    marginBottom: 16,
     paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerBack: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  headerAction: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerSpacer: {
-    width: 40,
   },
   loadingContainer: {
     flex: 1,

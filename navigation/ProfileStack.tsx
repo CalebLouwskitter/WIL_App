@@ -10,6 +10,8 @@ import CreateHorseScreen from '../screens/Profile/CreateHorseScreen';
 import HorsesListScreen from '../screens/Profile/HorsesListScreen';
 import AdminManagementScreen from '../screens/Profile/AdminManagementScreen';
 import ObservationsScreen from '../screens/Profile/ObservationsScreen';
+import RideStatsScreen from '../screens/Analytics/RideStatsScreen';
+import RideViewMoreScreen from '../screens/Analytics/RideViewMoreScreen';
 
 const Stack = createStackNavigator();
 
@@ -24,6 +26,8 @@ const ProfileStack = () => {
       <Stack.Screen name="HorsesList" component={HorsesListScreen} />
       <Stack.Screen name="AdminManagement" component={AdminManagementScreen} />
       <Stack.Screen name="Observations" component={ObservationsScreen} />
+      <Stack.Screen name="RideHistory" component={RideStatsScreen} />
+      <Stack.Screen name="RideDetail" component={RideViewMoreScreen} />
       {/* Add more profile screens as needed */}
     </Stack.Navigator>
   );
@@ -37,6 +41,8 @@ export type ProfileStackParamList = {
   HorsesList: undefined;
   AdminManagement: undefined;
   Observations: undefined;
+  RideHistory: undefined;
+  RideDetail: { startTime: number };
 };
 
 export default ProfileStack;
