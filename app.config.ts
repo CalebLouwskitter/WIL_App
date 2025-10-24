@@ -17,13 +17,13 @@ const iosMapsApiKey = process.env.IOS_GOOGLE_MAPS_API_KEY ?? process.env.GOOGLE_
 
 const config: ExpoConfig = {
   name: 'SBHRA_App',
-  slug: 'SBHRA_App',
+  slug: 'Sardina-Bay-Horse-App',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/icons/icon.png',
   userInterfaceStyle: 'light',
   newArchEnabled: true,
-  owner: 'your-expo-username', // Replace with your Expo username or leave blank
+  owner: 'caleblouwskiter', // Expo account owner
   splash: {
     image: './assets/icons/splash-icon.png',
     resizeMode: 'contain',
@@ -72,7 +72,7 @@ const config: ExpoConfig = {
   extra: {
     // Expo project configuration
     eas: {
-      projectId: '1234abcd-5678-90ef-ghij-klmnopqrstuv', // Replace with your actual Expo project ID from eas.json or expo.dev
+      projectId: 'a87bb906-5013-439d-92d2-fd915b65e342', // Expo project ID from expo.dev
     },
     // Expose Firebase config to the app via Constants.expoConfig.extra
     FIREBASE_API_KEY: process.env.FIREBASE_API_KEY ?? '',

@@ -39,7 +39,11 @@ export async function getDeviceId() {
   return getOrCreateDeviceId();
 }
 
-export async function startLocationBroadcast() {
+type StartLocationBroadcastOptions = {
+  isRiding?: boolean;
+};
+
+export async function startLocationBroadcast({ isRiding = false }: StartLocationBroadcastOptions = {}) {
   if (!FIREBASE_ENABLED || !auth?.currentUser) {
     console.warn('Firebase not enabled or user not authenticated');
     return;
@@ -74,7 +78,7 @@ export async function startLocationBroadcast() {
           longitude: location.coords.longitude,
         },
         lastSeen: Date.now(),
-        isRiding: true,
+        isRiding,
         updatedAt: Timestamp.now(),
       }, { merge: true });
 

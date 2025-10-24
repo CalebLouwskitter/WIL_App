@@ -63,7 +63,7 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
     };
 
     initLocation();
-    startLocationBroadcast();
+    startLocationBroadcast({ isRiding: false });
 
     return () => {
       cancelled = true;

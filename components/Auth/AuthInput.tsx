@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity, useColorScheme, KeyboardTypeOptions } from 'react-native';
 import { Colors } from '@/constants/colors'; // adjust path as needed
 import { Ionicons } from '@expo/vector-icons';
 
@@ -11,6 +11,8 @@ type AuthInputProps = {
   secureTextEntry?: boolean;
   onToggleVisibility?: () => void;
   isPasswordVisible?: boolean;
+  keyboardType?: KeyboardTypeOptions;
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
 };
 
 const AuthInput = ({
@@ -21,6 +23,8 @@ const AuthInput = ({
   secureTextEntry = false,
   onToggleVisibility,
   isPasswordVisible = false,
+  keyboardType,
+  autoCapitalize,
 }: AuthInputProps) => {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
@@ -36,6 +40,8 @@ const AuthInput = ({
           placeholder={placeholder}
           placeholderTextColor={colors.placeholder}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
         />
         {secureTextEntry && (
           <TouchableOpacity onPress={onToggleVisibility} style={styles.icon}>
