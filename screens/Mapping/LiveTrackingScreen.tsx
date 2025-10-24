@@ -378,10 +378,8 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
       <NotificationsModal
         visible={notificationsVisible}
         onClose={() => setNotificationsVisible(false)}
-        onRequestNotificationsScreen={() =>
-          nav.navigate('ProfileStack' as never, { screen: 'Notifications' } as never)
-        }
       />
+
     </>
   );
 };
