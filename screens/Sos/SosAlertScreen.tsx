@@ -11,6 +11,10 @@ import {
 } from 'react-native';
 import * as Location from 'expo-location';
 import { PanGestureHandler, State, HandlerStateChangeEvent, PanGestureHandlerEventPayload } from 'react-native-gesture-handler';
+import { useSos } from '../../contexts/SosContext';
+import { useCurrentUser } from '../../hooks/useCurrentUser';
+import useFirebaseAuth from '../../hooks/useFirebaseAuth';
+import { auth } from '../../services/firebase';
 
 const HOLD_THRESHOLD = -150;
 const SNAP_VALUE = -200;
@@ -23,11 +27,15 @@ const SosAlertScreen = () => {
   const [helpSent, setHelpSent] = useState(false);
   const [activated, setActivated] = useState(false);
   const [countdown, setCountdown] = useState(COUNTDOWN_START);
+  const { state: sosState, activate, clear } = useSos();
+  const { profile } = useCurrentUser();
+  const { user } = useFirebaseAuth();
 
   const translateY = useRef(new Animated.Value(0)).current;
   const translateYJS = useRef(new Animated.Value(0)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
   const dragY = useRef(0);
+  const activatorNameRef = useRef<string | null>(null);
   const activatedRef = useRef(false);
 
   const resetToInitialState = () => {
@@ -53,6 +61,11 @@ const SosAlertScreen = () => {
         if (!activatedRef.current && ty <= HOLD_THRESHOLD) {
           activatedRef.current = true;
           setActivated(true);
+          // Capture profile name immediately on activation
+          const bestName = (auth?.currentUser?.displayName as string | undefined) ?? profile?.displayName ?? null;
+          activatorNameRef.current = (bestName ?? '').trim() || null;
+          // Immediately activate global SOS so Dashboard shows the name right away
+          activate(activatorNameRef.current);
           Animated.timing(translateY, {
             toValue: SNAP_VALUE,
             duration: 120,
@@ -79,6 +92,8 @@ const SosAlertScreen = () => {
           activatedRef.current = false;
           setActivated(false);
           setCountdown(COUNTDOWN_START);
+          // User released before help sent; clear global SOS banner
+          clear();
           Animated.spring(translateY, { 
             toValue: 0, 
             useNativeDriver: true,
@@ -129,7 +144,6 @@ const SosAlertScreen = () => {
           if (prev <= 1) {
             if (timer) clearInterval(timer);
             setHelpSent(true);
-            sendLocationToWhatsApp();
             return 0;
           }
           return prev - 1;
@@ -140,6 +154,28 @@ const SosAlertScreen = () => {
       if (timer) clearInterval(timer);
     };
   }, [activated, helpSent]);
+
+  // Trigger side-effects after helpSent commits to true
+  useEffect(() => {
+    if (helpSent) {
+      const derivedName =
+        activatorNameRef.current ??
+        (auth?.currentUser?.displayName as string | undefined) ??
+        profile?.displayName ??
+        null;
+      activate((derivedName ?? '').trim() || null);
+      sendLocationToWhatsApp();
+    }
+  }, [helpSent, activate, profile?.displayName, profile?.email, user?.displayName, user?.email]);
+
+  // Backfill activator name if SOS is active but name wasn't available yet
+  useEffect(() => {
+    if (sosState.active && !sosState.name) {
+      const derivedName = (auth?.currentUser?.displayName as string | undefined) ?? profile?.displayName ?? null;
+      const sanitized = (derivedName ?? '').trim();
+      if (sanitized.length) activate(sanitized);
+    }
+  }, [sosState.active, sosState.name, activate, profile?.displayName, profile?.email, user?.displayName, user?.email]);
 
   const animatedButtonStyle = {
     transform: [
@@ -206,7 +242,13 @@ const SosAlertScreen = () => {
             </Text>
           </View>
         ) : (
-          <TouchableOpacity style={styles.cancelButton} onPress={resetToInitialState}>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => {
+              clear();
+              resetToInitialState();
+            }}
+          >
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
         )}
