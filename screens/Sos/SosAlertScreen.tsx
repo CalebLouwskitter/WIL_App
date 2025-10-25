@@ -15,6 +15,7 @@ import { useSos } from '../../contexts/SosContext';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 import useFirebaseAuth from '../../hooks/useFirebaseAuth';
 import { auth } from '../../services/firebase';
+import { useFocusEffect } from '@react-navigation/native';
 
 const HOLD_THRESHOLD = -150;
 const SNAP_VALUE = -200;
@@ -37,6 +38,7 @@ const SosAlertScreen = () => {
   const dragY = useRef(0);
   const activatorNameRef = useRef<string | null>(null);
   const activatedRef = useRef(false);
+  const activatedThisSessionRef = useRef(false);
 
   const resetToInitialState = () => {
     activatedRef.current = false;
@@ -65,6 +67,7 @@ const SosAlertScreen = () => {
           const bestName = (auth?.currentUser?.displayName as string | undefined) ?? profile?.displayName ?? null;
           activatorNameRef.current = (bestName ?? '').trim() || null;
           // Immediately activate global SOS so Dashboard shows the name right away
+          activatedThisSessionRef.current = true;
           activate(activatorNameRef.current);
           Animated.timing(translateY, {
             toValue: SNAP_VALUE,
@@ -92,8 +95,11 @@ const SosAlertScreen = () => {
           activatedRef.current = false;
           setActivated(false);
           setCountdown(COUNTDOWN_START);
-          // User released before help sent; clear global SOS banner
-          clear();
+          // User released before help sent. Only clear global SOS if this session initiated activation.
+          if (activatedThisSessionRef.current) {
+            clear();
+            activatedThisSessionRef.current = false;
+          }
           Animated.spring(translateY, { 
             toValue: 0, 
             useNativeDriver: true,
@@ -177,6 +183,31 @@ const SosAlertScreen = () => {
     }
   }, [sosState.active, sosState.name, activate, profile?.displayName, profile?.email, user?.displayName, user?.email]);
 
+  // Sync local UI when SOS is cleared elsewhere; do not auto-mark helpSent on first activation
+  useEffect(() => {
+    if (!sosState.active) {
+      resetToInitialState();
+      activatedThisSessionRef.current = false;
+    }
+  }, [sosState.active]);
+
+  // Also ensure state is synced whenever the screen gains focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (sosState.active) {
+        // Only auto-show Cancel when returning to the screen and this session did not initiate the alert
+        if (!activatedThisSessionRef.current && !helpSent) {
+          setActivated(true);
+          setHelpSent(true);
+        }
+      } else {
+        resetToInitialState();
+        activatedThisSessionRef.current = false;
+      }
+      return () => {};
+    }, [sosState.active, helpSent])
+  );
+
   const animatedButtonStyle = {
     transform: [
       {
@@ -247,6 +278,7 @@ const SosAlertScreen = () => {
             onPress={() => {
               clear();
               resetToInitialState();
+              activatedThisSessionRef.current = false;
             }}
           >
             <Text style={styles.cancelButtonText}>Cancel</Text>
