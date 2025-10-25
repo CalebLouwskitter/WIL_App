@@ -111,22 +111,24 @@ const GlobalTrailStatsScreen = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
-      <View style={styles.topIcons}>
-        <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)}>
-          <Feather name="settings" size={27} color="#374151" />
-        </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)}>
-          <Feather name="bell" size={27} color="#374151" />
-        </TouchableOpacity>
-      </View>
-
       <ScrollView 
-        contentContainerStyle={styles.content} 
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brandPrimary} />
         }
       >
+        {/* Top icons moved inside ScrollView to scroll with content */}
+        <View style={styles.topIcons}>
+          <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)}>
+            <Feather name="settings" size={27} color="#374151" />
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)}>
+            <Feather name="bell" size={27} color="#374151" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.contentInner}>
         {/* Global Overview */}
         <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}>
           <View style={styles.sectionHeader}>
@@ -312,6 +314,7 @@ const GlobalTrailStatsScreen = () => {
         </View>
 
         <View style={styles.bottomSpacing} />
+        </View>
       </ScrollView>
       <SettingsModal
         visible={settingsVisible}
@@ -360,7 +363,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   content: {
-    padding: 16,
+    paddingBottom: 16,
+  },
+  contentInner: {
+    paddingHorizontal: 16,
   },
   section: {
     borderRadius: 16,

@@ -237,6 +237,27 @@ export default function ProfileScreen() {
           </LinearGradient>
         </Animated.View>
 
+        {/* Settings Widget */}
+        <View style={styles.settingsWidget}>
+          <TouchableOpacity
+            style={styles.settingsCard}
+            activeOpacity={0.85}
+            onPress={() => handleNavigate('Settings')}
+            disabled={navDisabled}
+          >
+            <View style={styles.settingsCardContent}>
+              <View style={[styles.secondaryIconCircle, { backgroundColor: '#D1FAE5' }]}>
+                <Icon name="settings" size={22} color="#10B981" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.secondaryButtonText}>Settings</Text>
+                <Text style={styles.settingsSubtitle}>Open full settings</Text>
+              </View>
+              <Icon name="chevron-right" size={20} color="#94A3B8" />
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* Stats Section */}
         <View style={styles.statsSection}>
           <View style={styles.sectionHeader}>
@@ -765,6 +786,56 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  },
+
+  // Settings Widget
+  settingsWidget: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+  },
+  settingsCard: {
+    borderRadius: 18,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 4,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  settingsCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  settingsCardGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  settingsIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 2,
+    letterSpacing: -0.2,
+  },
+  settingsSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
   },
 
   // Actions

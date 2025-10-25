@@ -177,67 +177,67 @@ export default function AchievementsScreen() {
         colors={['#F8FAFC', '#F1F5F9'] as const}
         style={styles.gradient}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity 
-            onPress={() => {
-              if (route?.params?.fromDashboard) {
-                navigation.getParent()?.navigate('Dashboard');
-              } else {
-                navigation.goBack();
-              }
-            }} 
-            style={styles.backButton}
-          >
-            <Icon name="chevron-left" size={24} color="#0F172A" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Achievements</Text>
-          <View style={styles.backButton} />
-        </View>
-
-        {/* Progress Summary */}
-        <Animated.View 
-          style={[
-            styles.summaryCard,
-            { 
-              opacity: fadeAnim,
-              transform: [{ scale: fadeAnim }]
-            }
-          ]}
-        >
-          <LinearGradient
-            colors={['#3B82F6', '#2563EB'] as const}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.summaryGradient}
-          >
-            <View style={styles.summaryLeft}>
-              <Text style={styles.summaryTitle}>Your Progress</Text>
-              <Text style={styles.summarySubtitle}>
-                {totalProgress.completed} of {totalProgress.total} achievements unlocked
-              </Text>
-              <View style={styles.summaryProgressBar}>
-                <View 
-                  style={[
-                    styles.summaryProgressFill, 
-                    { width: `${totalProgress.percentage}%` }
-                  ]} 
-                />
-              </View>
-            </View>
-            <View style={styles.summaryRight}>
-              <View style={styles.percentageCircle}>
-                <Text style={styles.percentageText}>{totalProgress.percentage}</Text>
-                <Text style={styles.percentageSymbol}>%</Text>
-              </View>
-            </View>
-          </LinearGradient>
-        </Animated.View>
-
-        <ScrollView 
-          showsVerticalScrollIndicator={false} 
+        <ScrollView
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
+          {/* Header */}
+          <View style={[styles.header, { paddingHorizontal: 0 }]}>
+            <TouchableOpacity 
+              onPress={() => {
+                if (route?.params?.fromDashboard) {
+                  navigation.getParent()?.navigate('Dashboard');
+                } else {
+                  navigation.goBack();
+                }
+              }} 
+              style={styles.backButton}
+            >
+              <Icon name="chevron-left" size={24} color="#0F172A" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Achievements</Text>
+            <View style={styles.headerSpacer} />
+          </View>
+
+          {/* Progress Summary */}
+          <Animated.View 
+            style={[
+              styles.summaryCard,
+              { 
+                opacity: fadeAnim,
+                transform: [{ scale: fadeAnim }]
+              }
+            ]}
+          >
+            <LinearGradient
+              colors={['#3B82F6', '#2563EB'] as const}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.summaryGradient}
+            >
+              <View style={styles.summaryLeft}>
+                <Text style={styles.summaryTitle}>Your Progress</Text>
+                <Text style={styles.summarySubtitle}>
+                  {totalProgress.completed} of {totalProgress.total} achievements unlocked
+                </Text>
+                <View style={styles.summaryProgressBar}>
+                  <View 
+                    style={[
+                      styles.summaryProgressFill, 
+                      { width: `${totalProgress.percentage}%` }
+                    ]} 
+                  />
+                </View>
+              </View>
+              <View style={styles.summaryRight}>
+                <View style={styles.percentageCircle}>
+                  <Text style={styles.percentageText}>{totalProgress.percentage}</Text>
+                  <Text style={styles.percentageSymbol}>%</Text>
+                </View>
+              </View>
+            </LinearGradient>
+          </Animated.View>
+
           {/* Unlocked Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -339,6 +339,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0F172A',
     letterSpacing: -0.3,
+  },
+  headerSpacer: {
+    width: 44,
+    height: 44,
   },
 
   // Summary Card
