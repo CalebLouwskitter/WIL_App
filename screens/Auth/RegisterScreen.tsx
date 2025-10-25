@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, useColorScheme, Image } from 'react-native';
 import { Colors } from '../../constants/colors';
 import AuthHeader from '../../components/Auth/AuthHeader';
 import AuthInput from '../../components/Auth/AuthInput';
@@ -47,6 +47,15 @@ const RegisterScreen = ({ navigation }: { navigation: any }) => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.white }]}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
+        {/* Logo */}
+        <View style={styles.logoContainer}>
+          <Image 
+            source={require('../../assets/images/logo.png')} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </View>
+
         <AuthHeader activeTab="SignUp" onTabPress={() => navigation.navigate('Login')} />
 
         <AuthInput
@@ -101,6 +110,15 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     padding: 20,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 30,
+  },
+  logo: {
+    width: 120,
+    height: 120,
   },
   forgotPasswordContainer: {
     flexDirection: 'row',
