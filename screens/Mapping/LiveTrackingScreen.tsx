@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, StyleSheet, Text, Animated, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import useRideTracker from '../../hooks/useRideTracker';
+import { useBackgroundRideTracker } from '../../components/backgroundServices';
 import { saveRide } from '../../services/RideStorage';
 import MapViewTracker from '../../components/MapViewTracker';
 import RideStatsCard from '../../components/RideStatsCard';
@@ -14,12 +14,22 @@ import { getActiveHorse } from '../../services/HorseStorage';
 import { useFocusEffect, useNavigation, CommonActions } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { startLocationBroadcast, stopLocationBroadcast } from '../../services/OnlineUserService';
+import { Alert, Linking } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
 const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
-  const { rideData, startRide, stopRide, currentSpeed } = useRideTracker();
-  const [isRiding, setIsRiding] = useState(false);
+  // Background-capable ride tracker with persistent state
+  const {
+    rideData,
+    status,
+    currentSpeed,
+    startRide,
+    stopRide,
+    isBackgroundEnabled,
+    error,
+  } = useBackgroundRideTracker();
+
   const [isConfirmingStart, setIsConfirmingStart] = useState(false);
 
   const [activeHorseName, setActiveHorseName] = useState<string | null>(null);
@@ -29,15 +39,20 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const insets = useSafeAreaInsets();
   const nav = useNavigation<any>();
 
+  // Derive riding state from background tracker status
+  const isRiding = status === 'active_foreground' || status === 'active_background';
+  const isInBackground = status === 'active_background';
+
+  // Animation states
+  const pulseAnim = useState(new Animated.Value(1))[0];
+  const scaleAnim = useState(new Animated.Value(0.95))[0];
+
   useEffect(() => {
-    startLocationBroadcast();
+    startLocationBroadcast({ isRiding: false });
     return () => {
       stopLocationBroadcast();
     };
   }, []);
-
-  const pulseAnim = useState(new Animated.Value(1))[0];
-  const scaleAnim = useState(new Animated.Value(0.95))[0];
 
   useEffect(() => {
     Animated.loop(
@@ -75,27 +90,74 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const handleStart = async () => {
     const horse = await getActiveHorse();
     if (!horse) {
-      navigation.navigate('SelectHorse');
+      Alert.alert(
+        'No Horse Selected',
+        'Please select a horse before starting your ride.',
+        [
+          {
+            text: 'Select Horse',
+            onPress: () => navigation.navigate('SelectHorse'),
+          },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      
+      );
       return;
     }
-    setIsRiding(true);
+
     try {
-      await startRide();
-      startLocationBroadcast();
+      // Start ride with background tracking and horse information
+      const success = await startRide(horse.id, horse.name);
+      
+      if (!success) {
+        // Handle permission or initialization errors
+        Alert.alert(
+          'Failed to Start Ride',
+          error || 'Could not start location tracking. Please check permissions.',
+          [
+            {
+              text: 'Check Permissions',
+              onPress: () => Linking.openSettings(),
+            },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
+        return;
+      }
+
+      // Start online location broadcast with riding status
+      startLocationBroadcast({ isRiding: true });
     } catch (e) {
-      console.warn(e);
-      setIsRiding(false);
+      console.error('Failed to start ride:', e);
+      Alert.alert(
+        'Error',
+        'An unexpected error occurred while starting the ride.'
+      );
     }
   };
 
   const handleStop = async () => {
-    stopLocationBroadcast();
-    const finalRide = stopRide();
-    if (finalRide) {
-      await saveRide(finalRide);
-      navigation.navigate('RideReviewScreen', { ride: finalRide });
-    }
-    setIsRiding(false);
+    Alert.alert(
+      'End Ride?',
+      'Are you sure you want to end this ride?',
+      [
+        { text: 'Continue Riding', style: 'cancel' },
+        {
+          text: 'End Ride',
+          style: 'destructive',
+          onPress: async () => {
+            stopLocationBroadcast();
+            
+            const finalRide = await stopRide();
+            
+            if (finalRide) {
+              await saveRide(finalRide);
+              navigation.navigate('RideReviewScreen', { ride: finalRide });
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleOpenSettings = () => {
@@ -109,6 +171,31 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   return (
     <>
       <View style={styles.container}>
+        {/* Background Status Banner */}
+        {isInBackground && (
+          <View style={styles.backgroundBanner}>
+            <Feather name="navigation" size={16} color="#fff" />
+            <Text style={styles.backgroundText}>
+              Ride tracking in background
+            </Text>
+          </View>
+        )}
+
+        {/* Permission Warning Banner */}
+        {!isBackgroundEnabled && !isRiding && (
+          <View style={styles.warningBanner}>
+            <Feather name="alert-circle" size={16} color="#ff9500" />
+            <Text style={styles.warningText}>
+              Background tracking disabled. Enable for best experience.
+            </Text>
+            <TouchableOpacity
+              onPress={() => Linking.openSettings()}
+              style={styles.warningButton}
+            >
+              <Text style={styles.warningButtonText}>Enable</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         <View style={StyleSheet.absoluteFillObject}>
           <MapViewTracker
             path={rideData?.snappedPath ?? rideData?.path}
@@ -654,6 +741,57 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
     fontSize: 12,
+  },
+  // Background status banner
+  backgroundBanner: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#4A90E2',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 100,
+    gap: 8,
+  },
+  backgroundText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Permission warning banner
+  warningBanner: {
+    position: 'absolute',
+    top: 50,
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(255, 149, 0, 0.9)',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 99,
+    gap: 8,
+  },
+  warningText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
+  },
+  warningButton: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  warningButtonText: {
+    color: '#ff9500',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });
 

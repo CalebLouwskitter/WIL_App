@@ -7,23 +7,50 @@
     "icon": "./assets/icons/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "scheme": "sbhraapp",
     "splash": {
       "image": "./assets/icons/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "SBHRA needs your location to track your horse rides even when the app is in the background.",
+        "NSLocationWhenInUseUsageDescription": "SBHRA needs your location to track your horse rides.",
+        "UIBackgroundModes": [
+          "location"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/icons/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow SBHRA to use your location to track horse rides.",
+          "locationAlwaysPermission": "Allow SBHRA to use your location to track horse rides even when the app is closed or not in use.",
+          "locationWhenInUsePermission": "Allow SBHRA to use your location to track horse rides.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
+    ]
   }
 }

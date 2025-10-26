@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { ActivityIndicator, View, Platform } from 'react-native';
+import { ActivityIndicator, View, Platform, Alert } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import AppNavigator from './navigation/AppNavigator';
 import AuthNavigator from './navigation/AuthNavigator';
@@ -10,7 +10,7 @@ import PendingApprovalScreen from './screens/Auth/PendingApprovalScreen';
 import { logFirebaseStatus } from './services/firebaseConnectionCheck';
 import { StatusBar } from 'expo-status-bar';
 import { useNotifications } from './hooks/useNotifications';
-import { SosProvider } from './contexts/SosContext';
+import { recoverActiveRide, BackgroundLocationService, RideStateManager } from './components/backgroundServices';
 
 export default function App() {
   const { user, initializing, isAuthenticated } = useFirebaseAuth();
@@ -25,6 +25,37 @@ export default function App() {
     if (__DEV__) {
       logFirebaseStatus();
     }
+  }, []);
+
+  // Recover interrupted rides on startup
+  useEffect(() => {
+    (async () => {
+      try {
+        const { hasActiveRide } = await recoverActiveRide();
+        if (hasActiveRide) {
+          Alert.alert(
+            'Resume Ride?',
+            'A previous ride was detected. Would you like to continue tracking it?',
+            [
+              {
+                text: 'Discard',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await BackgroundLocationService.stop();
+                    await RideStateManager.clearRideState();
+                  } catch {}
+                },
+              },
+              {
+                text: 'Continue',
+                style: 'default',
+              },
+            ]
+          );
+        }
+      } catch {}
+    })();
   }, []);
 
   // Attempt to hide Android navigation bar globally (requires expo-navigation-bar)

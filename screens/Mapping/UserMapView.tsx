@@ -5,10 +5,6 @@ import MapView, { PROVIDER_DEFAULT } from 'react-native-maps';
 import { DEFAULT_REGION } from '../../services/MapsService';
 
 /**
- * 
- * 
- * 
- * 
  * UI-only Map View
  * - Dark map canvas (placeholder View)
  * - Top overlay actions (settings, notifications with dot)

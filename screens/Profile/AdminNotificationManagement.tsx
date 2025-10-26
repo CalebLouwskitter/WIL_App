@@ -38,6 +38,20 @@ export default function AdminNotificationManagement() {
   const [showForm, setShowForm] = useState(false);
   const [showDemoModal, setShowDemoModal] = useState(false);
 
+  // Guard: only admins may access this screen
+  useEffect(() => {
+    if (profile && profile.role !== 'admin') {
+      Alert.alert('Access denied', 'You do not have permission to view this screen.', [
+        { text: 'OK', onPress: () => (navigation as any).goBack() },
+      ]);
+    }
+    if (profile === null) {
+      // Not authenticated or profile not loaded: navigate back
+      // Avoid double alerts; just go back silently
+      (navigation as any).goBack();
+    }
+  }, [profile, navigation]);
+
   useEffect(() => {
     loadNotifications();
     
