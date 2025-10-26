@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, TextInput, Alert, ActivityIndicator, Image } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, useColorScheme, Image } from 'react-native';
+import { Colors } from '../../constants/colors';
+import AuthHeader from '../../components/Auth/AuthHeader';
+import AuthInput from '../../components/Auth/AuthInput';
+import AuthButton from '../../components/Auth/AuthButton';
+import SocialButton from '../../components/Auth/SocialButton';
 import { loginUser, logoutUser } from '../../services/auth';
 import { getUser } from '../../services/FirebaseUserService';
 
@@ -70,12 +74,37 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {/* Logo */}
         <View style={styles.logoContainer}>
-          <Image
-            source={require('../../assets/icons/SBHRA 1.png')}
+          <Image 
+            source={require('../../assets/images/logo.png')} 
             style={styles.logo}
             resizeMode="contain"
           />
         </View>
+
+        <AuthHeader activeTab="Login" onTabPress={() => navigation.navigate('Register')} />
+
+        <AuthInput
+          label="Your Email"
+          value={email}
+          onChangeText={(text) => {
+            setEmail(text);
+            if (error) setError('');
+          }}
+          placeholder="help@gmail.com"
+        />
+
+        <AuthInput
+          label="Password"
+          value={password}
+          onChangeText={(text) => {
+            setPassword(text);
+            if (error) setError('');
+          }}
+          placeholder="••••••••••"
+          secureTextEntry={!isPasswordVisible}
+          isPasswordVisible={isPasswordVisible}
+          onToggleVisibility={() => setIsPasswordVisible(!isPasswordVisible)}
+        />
 
         {/* Tab Selector */}
         <View style={styles.tabContainer}>
@@ -174,24 +203,18 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
-  },
+  container: { flex: 1 },
+  scrollContainer: { padding: 20 },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginTop: 20,
+    marginBottom: 30,
   },
   logo: {
     width: 120,
     height: 120,
   },
-  tabContainer: {
+  forgotPasswordContainer: {
     flexDirection: 'row',
     backgroundColor: '#F5F5F5',
     borderRadius: 8,

@@ -13,9 +13,6 @@ const AuthHeader = ({ activeTab, onTabPress }: AuthHeaderProps) => {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.logoContainer, { backgroundColor: colors.primaryContainer }]}>
-        <Text style={[styles.logoPlaceholder, { color: colors.secondary }]}>[Logo]</Text>
-      </View>
       <View style={[styles.tabsContainer, { borderColor: colors.lightGrey }]}>
         <TouchableOpacity
           style={[
@@ -56,17 +53,6 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     marginBottom: 20,
-  },
-  logoContainer: {
-    width: 150,
-    height: 150,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 75,
-    marginBottom: 20,
-  },
-  logoPlaceholder: {
-    fontSize: 18,
   },
   tabsContainer: {
     flexDirection: 'row',

@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, TextInput, Alert, ActivityIndicator, Image } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, useColorScheme, Image } from 'react-native';
+import { Colors } from '../../constants/colors';
+import AuthHeader from '../../components/Auth/AuthHeader';
+import AuthInput from '../../components/Auth/AuthInput';
+import AuthButton from '../../components/Auth/AuthButton';
+import SocialButton from '../../components/Auth/SocialButton';
 import { registerUser } from '../../services/auth';
 
 const RegisterScreen = ({ navigation }: { navigation: any }) => {
@@ -54,12 +58,31 @@ const RegisterScreen = ({ navigation }: { navigation: any }) => {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {/* Logo */}
         <View style={styles.logoContainer}>
-          <Image
-            source={require('../../assets/icons/SBHRA 1.png')}
+          <Image 
+            source={require('../../assets/images/logo.png')} 
             style={styles.logo}
             resizeMode="contain"
           />
         </View>
+
+        <AuthHeader activeTab="SignUp" onTabPress={() => navigation.navigate('Login')} />
+
+        <AuthInput
+          label="Your Email"
+          value={email}
+          onChangeText={setEmail}
+          placeholder="contacthelp@gmail.com"
+        />
+
+        <AuthInput
+          label="Password"
+          value={password}
+          onChangeText={setPassword}
+          placeholder="••••••••••"
+          secureTextEntry
+          isPasswordVisible={isPasswordVisible}
+          onToggleVisibility={() => setIsPasswordVisible(!isPasswordVisible)}
+        />
 
         {/* Tab Selector */}
         <View style={styles.tabContainer}>
@@ -169,13 +192,14 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginTop: 20,
+    marginBottom: 30,
   },
   logo: {
     width: 120,
     height: 120,
   },
-  tabContainer: {
+  forgotPasswordContainer: {
     flexDirection: 'row',
     backgroundColor: '#F5F5F5',
     borderRadius: 8,

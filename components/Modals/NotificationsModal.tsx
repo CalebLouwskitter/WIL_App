@@ -6,7 +6,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  FlatList,
   ActivityIndicator,
+  RefreshControl,
   TouchableWithoutFeedback,
   useColorScheme,
 } from 'react-native';
@@ -27,37 +29,43 @@ const NotificationsModal: React.FC<Props> = ({ visible, onClose, onRequestNotifi
   const palette = Colors[scheme ?? 'light'];
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'active' | 'resolved'>('active');
 
   const styles = useMemo(() => createStyles(palette, insets), [palette, insets]);
 
   useEffect(() => {
-    if (!visible) {
-      return;
-    }
+    if (!visible) return;
 
     let mounted = true;
     (async () => {
       setLoading(true);
       try {
-        const data = await getObstacles({ limit: 10 });
-        if (mounted) {
-          setObstacles(data);
-        }
-      } catch (e) {
-        if (mounted) {
-          setObstacles([]);
-        }
+        const status = filter === 'all' ? undefined : filter;
+        const data = await getObstacles({ status, limit: 50 });
+        if (mounted) setObstacles(data);
+      } catch {
+        if (mounted) setObstacles([]);
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
     })();
 
     return () => {
       mounted = false;
     };
-  }, [visible]);
+  }, [visible, filter]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const status = filter === 'all' ? undefined : filter;
+      const data = await getObstacles({ status, limit: 50 });
+      setObstacles(data);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const renderObstacleCard = (obstacle: Obstacle) => {
     const severityColor = getSeverityColor(obstacle.severity, palette);
@@ -113,11 +121,21 @@ const NotificationsModal: React.FC<Props> = ({ visible, onClose, onRequestNotifi
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <View style={styles.container}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+      presentationStyle="overFullScreen"
+    >
+      <View style={styles.overlay} pointerEvents="box-none">
+        {/* Background close layer */}
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={styles.backdrop} pointerEvents="auto" />
+        </TouchableWithoutFeedback>
+        {/* Foreground content */}
+        <View style={styles.container} pointerEvents="auto">
               <View style={styles.header}>
                 <View style={styles.headerLeft}>
                   <View style={styles.headerIcon}>
@@ -130,11 +148,29 @@ const NotificationsModal: React.FC<Props> = ({ visible, onClose, onRequestNotifi
                 </TouchableOpacity>
               </View>
 
-              <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-              >
+              {/* Filters */}
+              <View style={styles.filterContainer}>
+                <TouchableOpacity
+                  style={[styles.filterTab, filter === 'all' && styles.filterTabActive]}
+                  onPress={() => setFilter('all')}
+                >
+                  <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>All</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.filterTab, filter === 'active' && styles.filterTabActive]}
+                  onPress={() => setFilter('active')}
+                >
+                  <Text style={[styles.filterText, filter === 'active' && styles.filterTextActive]}>Active</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.filterTab, filter === 'resolved' && styles.filterTabActive]}
+                  onPress={() => setFilter('resolved')}
+                >
+                  <Text style={[styles.filterText, filter === 'resolved' && styles.filterTextActive]}>Resolved</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.listArea}>
                 {loading ? (
                   <View style={styles.emptyState}>
                     <ActivityIndicator size="small" color={palette.brandPrimary || '#2563EB'} />
@@ -147,10 +183,27 @@ const NotificationsModal: React.FC<Props> = ({ visible, onClose, onRequestNotifi
                     <Text style={[styles.emptySubLabel, { color: palette.placeholder || '#9CA3AF' }]}>No new reports in the last day</Text>
                   </View>
                 ) : (
-                  obstacles.map(renderObstacleCard)
+                  <FlatList
+                    style={styles.scrollView}
+                    contentContainerStyle={styles.scrollContent}
+                    data={obstacles}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => renderObstacleCard(item)}
+                    showsVerticalScrollIndicator
+                    scrollEnabled
+                    directionalLockEnabled
+                    scrollEventThrottle={16}
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    keyboardShouldPersistTaps="handled"
+                    nestedScrollEnabled
+                    removeClippedSubviews={false}
+                    keyboardDismissMode="on-drag"
+                  />
                 )}
-              </ScrollView>
+              </View>
 
+              {/* Hide full-screen redirect by default; keep optional for reuse */}
               {onRequestNotificationsScreen ? (
                 <TouchableOpacity
                   style={[styles.viewAllButton, { backgroundColor: palette.brandPrimary || '#2563EB' }]}
@@ -160,9 +213,7 @@ const NotificationsModal: React.FC<Props> = ({ visible, onClose, onRequestNotifi
                 </TouchableOpacity>
               ) : null}
             </View>
-          </TouchableWithoutFeedback>
         </View>
-      </TouchableWithoutFeedback>
     </Modal>
   );
 };
@@ -219,12 +270,20 @@ const createStyles = (palette: any, insets: EdgeInsets) =>
   StyleSheet.create({
     overlay: {
       flex: 1,
-      backgroundColor: 'rgba(15, 23, 42, 0.55)',
+      backgroundColor: 'transparent',
       justifyContent: 'center',
       alignItems: 'center',
       paddingTop: insets.top + 16,
       paddingBottom: insets.bottom + 16,
       paddingHorizontal: 20,
+    },
+    backdrop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(15, 23, 42, 0.55)',
     },
     container: {
       width: '100%',
@@ -232,6 +291,12 @@ const createStyles = (palette: any, insets: EdgeInsets) =>
       borderRadius: 24,
       backgroundColor: palette.background || '#FFFFFF',
       overflow: 'hidden',
+      // Fixed panel height to prevent size changes across filters
+      minHeight: 560,
+      maxHeight: 560,
+      flexDirection: 'column',
+      flexShrink: 0,
+      zIndex: 1,
     },
     header: {
       flexDirection: 'row',
@@ -261,12 +326,43 @@ const createStyles = (palette: any, insets: EdgeInsets) =>
       padding: 4,
     },
     scrollView: {
-      maxHeight: 420,
+      flex: 1,
     },
     scrollContent: {
       paddingHorizontal: 24,
       paddingBottom: 24,
+      paddingTop: 8,
       gap: 16,
+    },
+    filterContainer: {
+      flexDirection: 'row',
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingBottom: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: palette.border || 'rgba(148, 163, 184, 0.25)',
+    },
+    filterTab: {
+      flex: 1,
+      paddingVertical: 8,
+      borderRadius: 10,
+      backgroundColor: palette.card || '#F8FAFC',
+      alignItems: 'center',
+    },
+    filterTabActive: {
+      backgroundColor: palette.brandPrimary || '#2563EB',
+    },
+    filterText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: palette.placeholder || '#64748B',
+    },
+    filterTextActive: {
+      color: palette.onPrimary || '#FFFFFF',
+    },
+    listArea: {
+      flex: 1,
+      minHeight: 0,
     },
     card: {
       borderRadius: 18,

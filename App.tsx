@@ -81,17 +81,19 @@ export default function App() {
     );
   }
   return (
-    <NavigationContainer>
-      <StatusBar style="dark" hidden={false} translucent backgroundColor="transparent" />
-      {allowBypass ? (
-        <AppNavigator />
-      ) : !isAuthenticated ? (
-        <AuthNavigator />
-      ) : profile?.status === 'approved' ? (
-        <AppNavigator />
-      ) : (
-        <PendingApprovalScreen status={(profile?.status as any) ?? 'unknown'} />
-      )}
-    </NavigationContainer>
+    <SosProvider>
+      <NavigationContainer>
+        <StatusBar style="dark" hidden={false} translucent backgroundColor="transparent" />
+        {allowBypass ? (
+          <AppNavigator />
+        ) : !isAuthenticated ? (
+          <AuthNavigator />
+        ) : profile?.status === 'approved' ? (
+          <AppNavigator />
+        ) : (
+          <PendingApprovalScreen status={(profile?.status as any) ?? 'unknown'} />
+        )}
+      </NavigationContainer>
+    </SosProvider>
   );
 }

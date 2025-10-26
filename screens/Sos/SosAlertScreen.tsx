@@ -11,6 +11,11 @@ import {
 } from 'react-native';
 import * as Location from 'expo-location';
 import { PanGestureHandler, State, HandlerStateChangeEvent, PanGestureHandlerEventPayload } from 'react-native-gesture-handler';
+import { useSos } from '../../contexts/SosContext';
+import { useCurrentUser } from '../../hooks/useCurrentUser';
+import useFirebaseAuth from '../../hooks/useFirebaseAuth';
+import { auth } from '../../services/firebase';
+import { useFocusEffect } from '@react-navigation/native';
 
 const HOLD_THRESHOLD = -150;
 const SNAP_VALUE = -200;
@@ -23,12 +28,17 @@ const SosAlertScreen = () => {
   const [helpSent, setHelpSent] = useState(false);
   const [activated, setActivated] = useState(false);
   const [countdown, setCountdown] = useState(COUNTDOWN_START);
+  const { state: sosState, activate, clear } = useSos();
+  const { profile } = useCurrentUser();
+  const { user } = useFirebaseAuth();
 
   const translateY = useRef(new Animated.Value(0)).current;
   const translateYJS = useRef(new Animated.Value(0)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
   const dragY = useRef(0);
+  const activatorNameRef = useRef<string | null>(null);
   const activatedRef = useRef(false);
+  const activatedThisSessionRef = useRef(false);
 
   const resetToInitialState = () => {
     activatedRef.current = false;
@@ -53,6 +63,12 @@ const SosAlertScreen = () => {
         if (!activatedRef.current && ty <= HOLD_THRESHOLD) {
           activatedRef.current = true;
           setActivated(true);
+          // Capture profile name immediately on activation
+          const bestName = (auth?.currentUser?.displayName as string | undefined) ?? profile?.displayName ?? null;
+          activatorNameRef.current = (bestName ?? '').trim() || null;
+          // Immediately activate global SOS so Dashboard shows the name right away
+          activatedThisSessionRef.current = true;
+          activate(activatorNameRef.current);
           Animated.timing(translateY, {
             toValue: SNAP_VALUE,
             duration: 120,
@@ -79,6 +95,11 @@ const SosAlertScreen = () => {
           activatedRef.current = false;
           setActivated(false);
           setCountdown(COUNTDOWN_START);
+          // User released before help sent. Only clear global SOS if this session initiated activation.
+          if (activatedThisSessionRef.current) {
+            clear();
+            activatedThisSessionRef.current = false;
+          }
           Animated.spring(translateY, { 
             toValue: 0, 
             useNativeDriver: true,
@@ -129,7 +150,6 @@ const SosAlertScreen = () => {
           if (prev <= 1) {
             if (timer) clearInterval(timer);
             setHelpSent(true);
-            sendLocationToWhatsApp();
             return 0;
           }
           return prev - 1;
@@ -140,6 +160,53 @@ const SosAlertScreen = () => {
       if (timer) clearInterval(timer);
     };
   }, [activated, helpSent]);
+
+  // Trigger side-effects after helpSent commits to true
+  useEffect(() => {
+    if (helpSent) {
+      const derivedName =
+        activatorNameRef.current ??
+        (auth?.currentUser?.displayName as string | undefined) ??
+        profile?.displayName ??
+        null;
+      activate((derivedName ?? '').trim() || null);
+      sendLocationToWhatsApp();
+    }
+  }, [helpSent, activate, profile?.displayName, profile?.email, user?.displayName, user?.email]);
+
+  // Backfill activator name if SOS is active but name wasn't available yet
+  useEffect(() => {
+    if (sosState.active && !sosState.name) {
+      const derivedName = (auth?.currentUser?.displayName as string | undefined) ?? profile?.displayName ?? null;
+      const sanitized = (derivedName ?? '').trim();
+      if (sanitized.length) activate(sanitized);
+    }
+  }, [sosState.active, sosState.name, activate, profile?.displayName, profile?.email, user?.displayName, user?.email]);
+
+  // Sync local UI when SOS is cleared elsewhere; do not auto-mark helpSent on first activation
+  useEffect(() => {
+    if (!sosState.active) {
+      resetToInitialState();
+      activatedThisSessionRef.current = false;
+    }
+  }, [sosState.active]);
+
+  // Also ensure state is synced whenever the screen gains focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (sosState.active) {
+        // Only auto-show Cancel when returning to the screen and this session did not initiate the alert
+        if (!activatedThisSessionRef.current && !helpSent) {
+          setActivated(true);
+          setHelpSent(true);
+        }
+      } else {
+        resetToInitialState();
+        activatedThisSessionRef.current = false;
+      }
+      return () => {};
+    }, [sosState.active, helpSent])
+  );
 
   const animatedButtonStyle = {
     transform: [
@@ -206,7 +273,14 @@ const SosAlertScreen = () => {
             </Text>
           </View>
         ) : (
-          <TouchableOpacity style={styles.cancelButton} onPress={resetToInitialState}>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => {
+              clear();
+              resetToInitialState();
+              activatedThisSessionRef.current = false;
+            }}
+          >
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
         )}

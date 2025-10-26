@@ -6,6 +6,7 @@ import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import SettingsModal from '../../components/Modals/SettingsModal';
 import NotificationsModal from '../../components/Modals/NotificationsModal';
+import { useSos } from '../../contexts/SosContext';
 
 type RootNavigationProp = StackNavigationProp<any>;
 
@@ -30,6 +31,7 @@ const DashboardScreen = () => {
   const navigation = useNavigation<RootNavigationProp>();
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const { state: sosState } = useSos();
 
   const navigateToScreen = (screen: string) => {
     if (DASHBOARD_PROFILE_SCREENS.includes(screen)) {
@@ -94,20 +96,24 @@ const DashboardScreen = () => {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.emergencyAlert}>
-            <View style={styles.alertLeft}>
-              <Text style={styles.alertIcon}>⚠️</Text>
-              <Text style={styles.alertText}>John Needs Help!</Text>
+          {sosState.active && (
+            <View style={styles.emergencyAlert}>
+              <View style={styles.alertLeft}>
+                <Text style={styles.alertIcon}>⚠️</Text>
+                <Text style={styles.alertText}>
+                  {(sosState.name ?? 'User')} Needs Help!
+                </Text>
+              </View>
+              <View style={styles.alertButtons}>
+                <TouchableOpacity style={styles.trackButton}>
+                  <Text style={styles.buttonText}>Track</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.callButton}>
+                  <Text style={styles.buttonText}>📞 Call</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.alertButtons}>
-              <TouchableOpacity style={styles.trackButton}>
-                <Text style={styles.buttonText}>Track</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.callButton}>
-                <Text style={styles.buttonText}>📞 Call</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          )}
 
           <TouchableOpacity
             style={styles.mapWidgetContainer}

@@ -12,6 +12,8 @@ import { Colors } from '../../constants/colors';
 import { FIREBASE_ENABLED, auth } from '../../services/firebase';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 import ProfilePictureService from '../../services/ProfilePictureService';
+import SettingsModal from '../../components/Modals/SettingsModal';
+import NotificationsModal from '../../components/Modals/NotificationsModal';
 
 type ProfileScreenNavigationProp = StackNavigationProp<ProfileStackParamList, 'ProfileMain'>;
 
@@ -29,6 +31,8 @@ export default function ProfileScreen() {
   const [navDisabled, setNavDisabled] = useState(false);
   const scheme = useColorScheme();
   const colors = Colors[scheme ?? 'light'];
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  const [notificationsVisible, setNotificationsVisible] = useState(false);
   
   const [profilePictureUri, setProfilePictureUri] = useState<string | null>(null);
   const [loadingPicture, setLoadingPicture] = useState(false);
@@ -153,24 +157,15 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         
-        {/* Header */}
-        <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
-          <TouchableOpacity 
-            onPress={() => handleNavigate('Settings')}
-            activeOpacity={0.7}
-          >
-            <Icon name="settings" size={24} color="#000" />
+        {/* Top Icons (Dashboard-style) */}
+        <View style={[styles.topIcons, { paddingHorizontal: 16 }]}>        
+          <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)}>
+            <Icon name="settings" size={27} color="#374151" />
           </TouchableOpacity>
-
-          <Text style={styles.headerTitle}>Profile</Text>
-
-          <TouchableOpacity 
-            onPress={() => handleNavigate('Notifications')}
-            activeOpacity={0.7}
-          >
-            <Icon name="bell" size={24} color="#000" />
+          <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)}>
+            <Icon name="bell" size={27} color="#374151" />
           </TouchableOpacity>
-        </Animated.View>
+        </View>
 
 
         {/* Enhanced User Profile Card */}
@@ -242,13 +237,34 @@ export default function ProfileScreen() {
           </LinearGradient>
         </Animated.View>
 
+        {/* Settings Widget */}
+        <View style={styles.settingsWidget}>
+          <TouchableOpacity
+            style={styles.settingsCard}
+            activeOpacity={0.85}
+            onPress={() => handleNavigate('Settings')}
+            disabled={navDisabled}
+          >
+            <View style={styles.settingsCardContent}>
+              <View style={[styles.secondaryIconCircle, { backgroundColor: '#D1FAE5' }]}>
+                <Icon name="settings" size={22} color="#10B981" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.secondaryButtonText}>Settings</Text>
+                <Text style={styles.settingsSubtitle}>Open full settings</Text>
+              </View>
+              <Icon name="chevron-right" size={20} color="#94A3B8" />
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* Stats Section */}
         <View style={styles.statsSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Your Stats</Text>
             <TouchableOpacity 
               activeOpacity={0.7} 
-              onPress={() => (navigation as any).navigate('Analytics', { screen: 'Stats' })} 
+              onPress={() => handleNavigate('PersonalStats')} 
               disabled={navDisabled}
               style={styles.viewAllButton}
             >
@@ -378,7 +394,7 @@ export default function ProfileScreen() {
               <Text style={styles.ridesSectionSubtitle}>Your latest activity</Text>
             </View>
             <TouchableOpacity
-              onPress={() => (navigation as any).navigate('Analytics', { screen: 'RideHistory' })}
+              onPress={() => handleNavigate('RideHistory')}
               activeOpacity={0.7}
               style={styles.ridesIconButton}
             >
@@ -398,7 +414,7 @@ export default function ProfileScreen() {
                   key={r.startTime}
                   style={styles.rideCard}
                   activeOpacity={0.8}
-                  onPress={() => (navigation as any).navigate('Analytics', { screen: 'RideDetail', params: { startTime: r.startTime } })}
+                  onPress={() => (navigation as any).navigate('ProfileStack' as never, { screen: 'RideDetail', params: { startTime: r.startTime } } as never)}
                 >
                   <View style={styles.rideIconWrapper}>
                     <Icon name="navigation" size={20} color="#3B82F6" />
@@ -431,6 +447,26 @@ export default function ProfileScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {settingsVisible && (
+        <SettingsModal
+          visible={settingsVisible}
+          onClose={() => setSettingsVisible(false)}
+          onRequestFullSettings={() => {
+            setSettingsVisible(false);
+            setTimeout(() => {
+              (navigation as any).navigate('Settings');
+            }, 0);
+          }}
+        />
+      )}
+
+      {notificationsVisible && (
+        <NotificationsModal
+          visible={notificationsVisible}
+          onClose={() => setNotificationsVisible(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -443,19 +479,22 @@ const styles = StyleSheet.create({
     flex: 1, 
     backgroundColor: '#F8FAFC'
   },
+  
   scrollView: { 
     flex: 1 
   },
   
    // Header
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 0,
+    display: 'none',
   },
+  topIcons: {
+    flexDirection: 'row',
+    paddingTop: 45,
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
@@ -747,6 +786,56 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  },
+
+  // Settings Widget
+  settingsWidget: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+  },
+  settingsCard: {
+    borderRadius: 18,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 4,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  settingsCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  settingsCardGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  settingsIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 2,
+    letterSpacing: -0.2,
+  },
+  settingsSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
   },
 
   // Actions

@@ -9,9 +9,10 @@ import SettingsScreen from '../screens/Profile/SettingsScreen';
 import CreateHorseScreen from '../screens/Profile/CreateHorseScreen';
 import HorsesListScreen from '../screens/Profile/HorsesListScreen';
 import AdminManagementScreen from '../screens/Profile/AdminManagementScreen';
-import NotificationsScreen from '../screens/Profile/NotificationsScreen';
 import ObservationsScreen from '../screens/Profile/ObservationsScreen';
 import AdminNotificationManagement from '../screens/Profile/AdminNotificationManagement';
+import RideStatsScreen from '../screens/Analytics/RideStatsScreen';
+import RideViewMoreScreen from '../screens/Analytics/RideViewMoreScreen';
 
 const Stack = createStackNavigator();
 
@@ -28,6 +29,8 @@ const ProfileStack = () => {
       <Stack.Screen name="AdminNotificationManagement" component={AdminNotificationManagement} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="Observations" component={ObservationsScreen} />
+      <Stack.Screen name="RideHistory" component={RideStatsScreen} />
+      <Stack.Screen name="RideDetail" component={RideViewMoreScreen} />
       {/* Add more profile screens as needed */}
     </Stack.Navigator>
   );
@@ -43,6 +46,8 @@ export type ProfileStackParamList = {
   AdminNotificationManagement: undefined;
   Notifications: undefined;
   Observations: undefined;
+  RideHistory: undefined;
+  RideDetail: { startTime: number };
 };
 
 export default ProfileStack;

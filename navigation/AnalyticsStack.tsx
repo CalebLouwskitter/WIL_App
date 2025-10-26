@@ -21,8 +21,8 @@ const Stack = createStackNavigator<AnalyticsStackParamList>();
 const AnalyticsStack = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Stats" component={UserStatsScreen} />
-      <Stack.Screen name="DetailedStats" component={PersonalStatsScreen} />
+      <Stack.Screen name="Stats" component={GlobalTrailStatsScreen} />
+      <Stack.Screen name="DetailedStats" component={UserStatsScreen} />
       <Stack.Screen name="RideHistory" component={RideStatsScreen} />
       <Stack.Screen name="RideDetail" component={RideViewMoreScreen} />
       <Stack.Screen name="TrailStats" component={TrailStatsScreen} />

@@ -93,9 +93,9 @@ const TabNavigator = () => {
         component={AnalyticsStack}
         options={{
           tabBarIcon: ({ focused, color, size }) => (
-            <Feather name="bar-chart-2" color={color} size={24} />
+            <Feather name="trending-up" color={color} size={24} />
           ),
-          tabBarLabel: 'Stats',
+          tabBarLabel: 'Analytics',
         }}
       />
       
