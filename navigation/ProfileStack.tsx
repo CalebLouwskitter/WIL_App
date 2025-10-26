@@ -13,6 +13,7 @@ import ObservationsScreen from '../screens/Profile/ObservationsScreen';
 import AdminNotificationManagement from '../screens/Profile/AdminNotificationManagement';
 import RideStatsScreen from '../screens/Analytics/RideStatsScreen';
 import RideViewMoreScreen from '../screens/Analytics/RideViewMoreScreen';
+import NotificationsScreen from '../screens/Profile/NotificationsScreen';
 
 const Stack = createStackNavigator();
 

@@ -11,6 +11,7 @@ import { logFirebaseStatus } from './services/firebaseConnectionCheck';
 import { StatusBar } from 'expo-status-bar';
 import { useNotifications } from './hooks/useNotifications';
 import { recoverActiveRide, BackgroundLocationService, RideStateManager } from './components/backgroundServices';
+import { SosProvider } from './contexts/SosContext';
 
 export default function App() {
   const { user, initializing, isAuthenticated } = useFirebaseAuth();

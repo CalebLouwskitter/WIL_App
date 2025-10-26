@@ -3,17 +3,20 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { saveFCMToken } from '../services/FirebaseNotificationService';
+import { NOTIFICATIONS_ENABLED } from '../constants/config';
 
 // Configure how notifications are handled when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+if (NOTIFICATIONS_ENABLED) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 export function useNotifications(userId?: string) {
   const [expoPushToken, setExpoPushToken] = useState('');
@@ -22,6 +25,7 @@ export function useNotifications(userId?: string) {
   const responseListener = useRef<Notifications.Subscription | undefined>(undefined);
 
   useEffect(() => {
+    if (!NOTIFICATIONS_ENABLED) return () => {};
     // Register for push notifications and get token
     registerForPushNotificationsAsync().then(token => {
       if (token) {
