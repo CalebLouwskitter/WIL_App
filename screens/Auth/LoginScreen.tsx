@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, useColorScheme, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Image, Alert, ActivityIndicator, useColorScheme } from 'react-native';
 import { Colors } from '../../constants/colors';
 import AuthHeader from '../../components/Auth/AuthHeader';
 import AuthInput from '../../components/Auth/AuthInput';
 import AuthButton from '../../components/Auth/AuthButton';
-import SocialButton from '../../components/Auth/SocialButton';
 import { loginUser, logoutUser } from '../../services/auth';
 import { getUser } from '../../services/FirebaseUserService';
 
@@ -14,6 +13,9 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const scheme = useColorScheme();
+  const palette = Colors[scheme ?? 'light'];
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -81,7 +83,10 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
           />
         </View>
 
-        <AuthHeader activeTab="Login" onTabPress={() => navigation.navigate('Register')} />
+        <AuthHeader
+          activeTab="Login"
+          onTabPress={(tab) => (tab === 'SignUp' ? navigation.navigate('Register') : undefined)}
+        />
 
         <AuthInput
           label="Your Email"
@@ -101,94 +106,27 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
             if (error) setError('');
           }}
           placeholder="••••••••••"
-          secureTextEntry={!isPasswordVisible}
+          secureTextEntry
           isPasswordVisible={isPasswordVisible}
           onToggleVisibility={() => setIsPasswordVisible(!isPasswordVisible)}
         />
 
-        {/* Tab Selector */}
-        <View style={styles.tabContainer}>
-          <View style={[styles.tab, styles.tabActive]}>
-            <Text style={styles.tabTextActive}>Log In</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.tab}
-            onPress={() => navigation.navigate('Register')}
-          >
-            <Text style={styles.tabTextInactive}>Sign Up</Text>
+        {/* Error and Forgot Password */}
+        <View style={styles.errorForgotContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+            <Text style={styles.forgotText}>Forgot password?</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Form */}
-        <View style={styles.formContainer}>
-          {/* Email Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Your Email</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (error) setError('');
-              }}
-              placeholder="help@gmail.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+        {/* Continue Button */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={palette.primary} />
           </View>
-
-          {/* Password Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordInputContainer}>
-              <TextInput
-                style={styles.passwordInput}
-                value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  if (error) setError('');
-                }}
-                placeholder="••••••••"
-                secureTextEntry={!isPasswordVisible}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <TouchableOpacity
-                style={styles.eyeIcon}
-                onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-              >
-                <Ionicons
-                  name={isPasswordVisible ? 'eye-outline' : 'eye-off-outline'}
-                  size={20}
-                  color="#999"
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Error and Forgot Password */}
-          <View style={styles.errorForgotContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-              <Text style={styles.forgotText}>Forgot password?</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Continue Button */}
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#6B7FED" />
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={[styles.continueButton, styles.continueButtonLogin]}
-              onPress={handleLogin}
-            >
-              <Text style={styles.continueButtonText}>Continue</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        ) : (
+          <AuthButton title="Continue" onPress={handleLogin} isPrimary={true} />
+        )}
 
         {/* Bottom Link */}
         <View style={styles.bottomLinkContainer}>
@@ -203,8 +141,15 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollContainer: { padding: 20 },
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 40,
+  },
   logoContainer: {
     alignItems: 'center',
     marginTop: 20,

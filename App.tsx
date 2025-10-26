@@ -10,8 +10,9 @@ import PendingApprovalScreen from './screens/Auth/PendingApprovalScreen';
 import { logFirebaseStatus } from './services/firebaseConnectionCheck';
 import { StatusBar } from 'expo-status-bar';
 import { useNotifications } from './hooks/useNotifications';
-import { recoverActiveRide, BackgroundLocationService, RideStateManager } from './components/backgroundServices';
 import { SosProvider } from './contexts/SosContext';
+import { RideRecoveryProvider } from './contexts/RideRecoveryContext';
+import { RideRecoveryHandler } from './components/RideRecoveryHandler';
 
 export default function App() {
   const { user, initializing, isAuthenticated } = useFirebaseAuth();
@@ -28,36 +29,7 @@ export default function App() {
     }
   }, []);
 
-  // Recover interrupted rides on startup
-  useEffect(() => {
-    (async () => {
-      try {
-        const { hasActiveRide } = await recoverActiveRide();
-        if (hasActiveRide) {
-          Alert.alert(
-            'Resume Ride?',
-            'A previous ride was detected. Would you like to continue tracking it?',
-            [
-              {
-                text: 'Discard',
-                style: 'destructive',
-                onPress: async () => {
-                  try {
-                    await BackgroundLocationService.stop();
-                    await RideStateManager.clearRideState();
-                  } catch {}
-                },
-              },
-              {
-                text: 'Continue',
-                style: 'default',
-              },
-            ]
-          );
-        }
-      } catch {}
-    })();
-  }, []);
+  // Ride recovery is now handled by RideRecoveryHandler component
 
   // Attempt to hide Android navigation bar globally (requires expo-navigation-bar)
   useEffect(() => {
@@ -82,19 +54,22 @@ export default function App() {
     );
   }
   return (
-    <SosProvider>
-      <NavigationContainer>
-        <StatusBar style="dark" hidden={false} translucent backgroundColor="transparent" />
-        {allowBypass ? (
-          <AppNavigator />
-        ) : !isAuthenticated ? (
-          <AuthNavigator />
-        ) : profile?.status === 'approved' ? (
-          <AppNavigator />
-        ) : (
-          <PendingApprovalScreen status={(profile?.status as any) ?? 'unknown'} />
-        )}
-      </NavigationContainer>
-    </SosProvider>
+    <RideRecoveryProvider>
+      <SosProvider>
+        <NavigationContainer>
+          <StatusBar style="dark" hidden={false} translucent backgroundColor="transparent" />
+          <RideRecoveryHandler />
+          {allowBypass ? (
+            <AppNavigator />
+          ) : !isAuthenticated ? (
+            <AuthNavigator />
+          ) : profile?.status === 'approved' ? (
+            <AppNavigator />
+          ) : (
+            <PendingApprovalScreen status={(profile?.status as any) ?? 'unknown'} />
+          )}
+        </NavigationContainer>
+      </SosProvider>
+    </RideRecoveryProvider>
   );
 }

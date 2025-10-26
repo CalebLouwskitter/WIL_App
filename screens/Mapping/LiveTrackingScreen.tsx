@@ -8,6 +8,7 @@ import MapViewTracker from '../../components/MapViewTracker';
 import RideStatsCard from '../../components/RideStatsCard';
 import SettingsModal from '../../components/Modals/SettingsModal';
 import NotificationsModal from '../../components/Modals/NotificationsModal';
+import { useRideRecovery } from '../../contexts/RideRecoveryContext';
 
 import Feather from 'react-native-vector-icons/Feather';
 import { getActiveHorse } from '../../services/HorseStorage';
@@ -35,9 +36,13 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const [activeHorseName, setActiveHorseName] = useState<string | null>(null);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const [showResumeBanner, setShowResumeBanner] = useState(false);
 
   const insets = useSafeAreaInsets();
   const nav = useNavigation<any>();
+  
+  // Ride recovery context
+  const { hasRecoverableRide, isResumed, clearRecoveryState, recoveredRideData, checkForRecoverableRide, markAsResumed } = useRideRecovery();
 
   // Derive riding state from background tracker status
   const isRiding = status === 'active_foreground' || status === 'active_background';
@@ -53,6 +58,18 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
       stopLocationBroadcast();
     };
   }, []);
+
+  // Show resume banner when ride is resumed
+  useEffect(() => {
+    if (isResumed && isRiding) {
+      setShowResumeBanner(true);
+      // Auto-hide after 5 seconds
+      const timer = setTimeout(() => {
+        setShowResumeBanner(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [isResumed, isRiding]);
 
   useEffect(() => {
     Animated.loop(
@@ -150,6 +167,9 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             
             const finalRide = await stopRide();
             
+            // Clear recovery state since ride is complete
+            clearRecoveryState();
+            
             if (finalRide) {
               await saveRide(finalRide);
               navigation.navigate('RideReviewScreen', { ride: finalRide });
@@ -166,6 +186,47 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
 
   const handleOpenNotifications = () => {
     setNotificationsVisible(true);
+  };
+
+  const handleManualResumeCheck = async () => {
+    try {
+      // Re-check for recoverable rides
+      await checkForRecoverableRide();
+      
+      if (hasRecoverableRide && recoveredRideData) {
+        Alert.alert(
+          'Resume Ride?',
+          `Found an interrupted ride with ${(recoveredRideData.totalDistance / 1000).toFixed(2)} km tracked. Resume?`,
+          [
+            {
+              text: 'Discard',
+              style: 'destructive',
+              onPress: async () => {
+                const { BackgroundLocationService, RideStateManager } = await import('../../components/backgroundServices');
+                await BackgroundLocationService.stop();
+                await RideStateManager.clearRideState();
+                clearRecoveryState();
+              },
+            },
+            {
+              text: 'Resume',
+              style: 'default',
+              onPress: async () => {
+                const { recoverActiveRide } = await import('../../components/backgroundServices');
+                await recoverActiveRide();
+                markAsResumed();
+                startLocationBroadcast({ isRiding: true });
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert('No Interrupted Rides', 'No interrupted rides found to resume.');
+      }
+    } catch (error) {
+      console.error('Manual resume check failed:', error);
+      Alert.alert('Error', 'Failed to check for interrupted rides.');
+    }
   };
 
   return (
@@ -196,6 +257,20 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Resume Ride Banner */}
+        {showResumeBanner && (
+          <View style={styles.resumeBanner}>
+            <Feather name="rotate-ccw" size={16} color="#fff" />
+            <Text style={styles.resumeText}>
+              Ride resumed successfully
+            </Text>
+            <TouchableOpacity onPress={() => setShowResumeBanner(false)}>
+              <Feather name="x" size={16} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={StyleSheet.absoluteFillObject}>
           <MapViewTracker
             path={rideData?.snappedPath ?? rideData?.path}
@@ -381,6 +456,25 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                 </LinearGradient>
               </TouchableOpacity>
             </View>
+
+            {/* Manual Resume Button */}
+            {hasRecoverableRide && !isRiding && (
+              <TouchableOpacity
+                style={[styles.resumeCheckButton, { bottom: insets.bottom + 68 }]}
+                onPress={handleManualResumeCheck}
+                activeOpacity={0.9}
+              >
+                <BlurView intensity={80} tint="dark" style={styles.resumeCheckBlur}>
+                  <LinearGradient
+                    colors={['rgba(16, 185, 129, 0.3)', 'rgba(16, 185, 129, 0.2)']}
+                    style={styles.resumeCheckGradient}
+                  >
+                    <Feather name="rotate-ccw" size={16} color="#6ee7b7" />
+                    <Text style={styles.resumeCheckText}>Resume Interrupted Ride</Text>
+                  </LinearGradient>
+                </BlurView>
+              </TouchableOpacity>
+            )}
 
             <View style={[styles.activeHorseBar, { bottom: insets.bottom + 12 }]}>
               <BlurView intensity={80} tint="dark" style={styles.activeHorseBlur}>
@@ -792,6 +886,52 @@ const styles = StyleSheet.create({
     color: '#ff9500',
     fontSize: 12,
     fontWeight: '700',
+  },
+  // Resume ride banner
+  resumeBanner: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#10b981',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 101,
+    gap: 8,
+  },
+  resumeText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  // Manual resume check button
+  resumeCheckButton: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  resumeCheckBlur: {
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderRadius: 16,
+  },
+  resumeCheckGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  resumeCheckText: {
+    color: '#6ee7b7',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
 
