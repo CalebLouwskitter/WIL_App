@@ -63,6 +63,9 @@ const config: ExpoConfig = {
     permissions: [
       'android.permission.ACCESS_COARSE_LOCATION',
       'android.permission.ACCESS_FINE_LOCATION',
+      'android.permission.ACCESS_BACKGROUND_LOCATION',
+      'android.permission.FOREGROUND_SERVICE',
+      'android.permission.FOREGROUND_SERVICE_LOCATION',
       'android.permission.POST_NOTIFICATIONS',
     ],
   },
@@ -82,6 +85,21 @@ const config: ExpoConfig = {
     FIREBASE_MESSAGING_SENDER_ID: process.env.FIREBASE_MESSAGING_SENDER_ID ?? '',
     FIREBASE_APP_ID: process.env.FIREBASE_APP_ID ?? '',
   },
+  plugins: [
+    [
+      'expo-location',
+      {
+        locationAlwaysAndWhenInUsePermission:
+          'Allow SBHRA to use your location to track horse rides.',
+        locationAlwaysPermission:
+          'Allow SBHRA to use your location to track horse rides even when the app is closed or not in use.',
+        locationWhenInUsePermission:
+          'Allow SBHRA to use your location to track horse rides.',
+        isAndroidBackgroundLocationEnabled: true,
+        isAndroidForegroundServiceEnabled: true,
+      },
+    ],
+  ],
 };
 
 export default config;

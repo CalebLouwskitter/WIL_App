@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -10,10 +10,12 @@ import {
   TouchableWithoutFeedback,
   useColorScheme,
 } from 'react-native';
+import { Linking } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets, type EdgeInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
 import { useUnits } from '../../hooks/useUnits';
+import { BackgroundLocationService } from '../backgroundServices';
 
 type Props = {
   visible: boolean;
@@ -28,6 +30,7 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
   const { isMetric, toggle } = useUnits();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [locationTracking, setLocationTracking] = useState(true);
+  const [backgroundEnabled, setBackgroundEnabled] = useState<boolean>(false);
 
   const styles = useMemo(() => createStyles(palette, insets), [palette, insets]);
 
@@ -35,6 +38,19 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
     onClose();
     onRequestFullSettings?.();
   };
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const has = await BackgroundLocationService.hasPermissions();
+        if (mounted) setBackgroundEnabled(has);
+      } catch {}
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [visible]);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
@@ -124,6 +140,42 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
                           : palette.surfaceVariant || palette.surface || '#FFFFFF'
                       }
                     />
+                  </View>
+                </View>
+
+                <View
+                  style={[
+                    styles.card,
+                    { backgroundColor: palette.cardElevated || palette.surface || '#FFFFFF' },
+                  ]}
+                >
+                  <Text style={[styles.cardTitle, { color: palette.secondary || palette.text }]}>Background tracking</Text>
+                  <View style={styles.permissionRow}>
+                    <View style={styles.permissionStatus}>
+                      <View style={[styles.statusDot, { backgroundColor: backgroundEnabled ? '#10b981' : '#f59e0b' }]} />
+                      <Text style={[styles.permissionText, { color: palette.text }]}>
+                        {backgroundEnabled ? 'Enabled' : 'Disabled'}
+                      </Text>
+                    </View>
+                    <View style={styles.permissionActions}>
+                      <TouchableOpacity
+                        style={[styles.smallBtn, { backgroundColor: palette.brandPrimary || '#2563EB' }]}
+                        onPress={async () => {
+                          const ok = await BackgroundLocationService.requestPermissions();
+                          setBackgroundEnabled(ok);
+                        }}
+                        activeOpacity={0.9}
+                      >
+                        <Text style={[styles.smallBtnText, { color: palette.onPrimary || '#FFFFFF' }]}>Request</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.smallBtn, { backgroundColor: palette.surface || '#FFFFFF', borderWidth: 1, borderColor: palette.border || 'rgba(148,163,184,0.25)' }]}
+                        onPress={() => Linking.openSettings()}
+                        activeOpacity={0.9}
+                      >
+                        <Text style={[styles.smallBtnText, { color: palette.text }]}>Open Settings</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
 
@@ -269,6 +321,41 @@ const createStyles = (palette: any, insets: EdgeInsets) =>
     },
     fullButtonText: {
       fontSize: 15,
+      fontWeight: '700',
+    },
+    // Background tracking section
+    permissionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    permissionStatus: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    statusDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+    },
+    permissionText: {
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    permissionActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    smallBtn: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+    },
+    smallBtnText: {
+      fontSize: 13,
       fontWeight: '700',
     },
   });
