@@ -51,6 +51,32 @@ export function useBackgroundRideTracker(): UseBackgroundRideTrackerResult {
     checkBackgroundPermission();
   }, []);
 
+  // Initialize from persisted active ride on mount (e.g., after resume)
+  useEffect(() => {
+    (async () => {
+      try {
+        const hasActive = await RideStateManager.hasActiveRide();
+        if (hasActive) {
+          const data = await RideStateManager.toRideData();
+          if (data) {
+            setRideData(data);
+          }
+          // Set appropriate status based on app foreground/background
+          const appState = AppState.currentState;
+          setStatus(appState === 'active' ? 'active_foreground' : 'active_background');
+
+          // Make sure background tracking is running
+          const running = await BackgroundLocationService.isTaskRunning();
+          if (!running) {
+            await BackgroundLocationService.start();
+          }
+        }
+      } catch (e) {
+        // noop: keep defaults
+      }
+    })();
+  }, []);
+
   // Subscribe to ride state changes
   useEffect(() => {
     const unsubscribe = RideStateManager.subscribe(async (state) => {
@@ -58,6 +84,13 @@ export function useBackgroundRideTracker(): UseBackgroundRideTrackerResult {
         const rideData = await RideStateManager.toRideData();
         setRideData(rideData);
         setCurrentSpeed(state.currentSpeed * 3.6); // m/s to km/h
+        // Ensure status reflects an active ride
+        setStatus(AppState.currentState === 'active' ? 'active_foreground' : 'active_background');
+      } else {
+        // No active ride
+        setRideData(null);
+        setCurrentSpeed(0);
+        setStatus('idle');
       }
     });
 
