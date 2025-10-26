@@ -412,7 +412,8 @@ export const rideConverter: FirestoreDataConverter<RideDTO> = {
 	toFirestore: (ride: RideDTO) => {
 		const data = { ...ride };
 		delete (data as any).id; // Use document ID for ride ID
-		return data;
+		// Firestore rejects undefined; strip them (e.g., routeDistances)
+		return stripUndefined(data as any) as any;
 	},
 	fromFirestore: (snapshot: QueryDocumentSnapshot, options: SnapshotOptions): RideDTO => {
 		const data = snapshot.data(options);
