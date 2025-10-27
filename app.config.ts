@@ -23,6 +23,7 @@ const config: ExpoConfig = {
   icon: './assets/icons/icon.png',
   userInterfaceStyle: 'light',
   newArchEnabled: true,
+  scheme: 'sbhraapp',
   owner: 'caleblouwskiter', // Expo account owner
   splash: {
     image: './assets/icons/splash-icon.png',

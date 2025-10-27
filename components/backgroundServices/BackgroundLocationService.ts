@@ -10,7 +10,6 @@
 
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
-import { Platform } from 'react-native';
 import { RideStateManager } from './RideStateManager';
 import haversine from 'haversine';
 import type { RidePoint } from '../../hooks/useRideTracker';
@@ -41,29 +40,38 @@ const MAX_STEP_METERS = 60;
 const MAX_SPEED_MPS = 15;
 const SMOOTH_ALPHA = 0.3;
 
+// Global guard to prevent duplicate task definition during Fast Refresh
+const BG_TASK_DEFINED_KEY = '__sbhra_bg_location_task_defined__';
+
 /**
  * Define the background location task
  * This function runs in the background when location updates are received
  */
-TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
-  if (error) {
-    console.error('[BackgroundLocation] Task error:', error);
-    return;
-  }
-
-  if (data) {
-    const { locations } = data as { locations: Location.LocationObject[] };
-    
-    // Process each location update
-    for (const location of locations) {
-      try {
-        await processLocationUpdate(location);
-      } catch (err) {
-        console.error('[BackgroundLocation] Error processing location:', err);
+{
+  const g: any = globalThis as any;
+  if (!g[BG_TASK_DEFINED_KEY]) {
+    TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
+      if (error) {
+        console.error('[BackgroundLocation] Task error:', error);
+        return;
       }
-    }
+
+      if (data) {
+        const { locations } = data as { locations: Location.LocationObject[] };
+        
+        // Process each location update
+        for (const location of locations) {
+          try {
+            await processLocationUpdate(location);
+          } catch (err) {
+            console.error('[BackgroundLocation] Error processing location:', err);
+          }
+        }
+      }
+    });
+    g[BG_TASK_DEFINED_KEY] = true;
   }
-});
+}
 
 /**
  * Process a single location update
@@ -201,6 +209,22 @@ export class BackgroundLocationService {
         }
       }
 
+      // Check that device location services are enabled (system toggle)
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) {
+        console.error('[BackgroundLocation] Location services are disabled at the system level');
+        return false;
+      }
+
+      // Check that background location is available on this device/platform
+      if (typeof (Location as any).isBackgroundLocationAvailableAsync === 'function') {
+        const bgAvailable = await (Location as any).isBackgroundLocationAvailableAsync();
+        if (!bgAvailable) {
+          console.error('[BackgroundLocation] Background location is not available on this device');
+          return false;
+        }
+      }
+
       // Start background location updates
       await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, BACKGROUND_LOCATION_CONFIG);
       
@@ -238,5 +262,17 @@ export class BackgroundLocationService {
     return {
       isRunning: this.isRunning,
     };
+  }
+
+  /**
+   * Get accurate runtime status by querying TaskManager/Location
+   */
+  static async getStatusAsync() {
+    const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);
+    const hasStarted = isRegistered
+      ? await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)
+      : false;
+    const hasPerms = await this.hasPermissions();
+    return { isRegistered, hasStarted, hasPermissions: hasPerms };
   }
 }

@@ -29,9 +29,10 @@ export const RideRecoveryProvider: React.FC<{ children: React.ReactNode }> = ({ 
    */
   const checkForRecoverableRide = useCallback(async () => {
     try {
-      const hasActive = await RideStateManager.hasActiveRide();
-      
-      if (hasActive) {
+      // Run crash recovery first; this clears stale rides (>1h without updates)
+      const recovered = await RideStateManager.recoverFromCrash();
+
+      if (recovered) {
         const rideData = await RideStateManager.toRideData();
         setHasRecoverableRide(true);
         setRecoveredRideData(rideData);
