@@ -11,6 +11,7 @@ import HorsesListScreen from '../screens/Profile/HorsesListScreen';
 import AdminManagementScreen from '../screens/Profile/AdminManagementScreen';
 import ObservationsScreen from '../screens/Profile/ObservationsScreen';
 import AdminNotificationManagement from '../screens/Profile/AdminNotificationManagement';
+import AdminObstacleManagement from '../screens/Profile/AdminObstacleManagement';
 import RideStatsScreen from '../screens/Analytics/RideStatsScreen';
 import RideViewMoreScreen from '../screens/Analytics/RideViewMoreScreen';
 import NotificationsScreen from '../screens/Profile/NotificationsScreen';
@@ -28,6 +29,7 @@ const ProfileStack = () => {
       <Stack.Screen name="HorsesList" component={HorsesListScreen} />
       <Stack.Screen name="AdminManagement" component={AdminManagementScreen} />
       <Stack.Screen name="AdminNotificationManagement" component={AdminNotificationManagement} />
+      <Stack.Screen name="AdminObstacleManagement" component={AdminObstacleManagement} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="Observations" component={ObservationsScreen} />
       <Stack.Screen name="RideHistory" component={RideStatsScreen} />
@@ -45,6 +47,7 @@ export type ProfileStackParamList = {
   HorsesList: undefined;
   AdminManagement: undefined;
   AdminNotificationManagement: undefined;
+  AdminObstacleManagement: undefined;
   Notifications: undefined;
   Observations: undefined;
   RideHistory: undefined;

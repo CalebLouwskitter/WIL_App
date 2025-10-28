@@ -159,11 +159,18 @@ export default function AdminManagementScreen() {
         />
       </View>
       <TouchableOpacity 
-        style={styles.notificationButton}
+        style={styles.adminActionButton}
         onPress={() => (navigation as any).navigate('AdminNotificationManagement')}
       >
         <Ionicons name="notifications" size={20} color="#FFFFFF" />
-        <Text style={styles.notificationButtonText}>Manage Notifications</Text>
+        <Text style={styles.adminActionButtonText}>Manage Notifications</Text>
+      </TouchableOpacity>
+      <TouchableOpacity 
+        style={[styles.adminActionButton, styles.obstacleActionButton]}
+        onPress={() => (navigation as any).navigate('AdminObstacleManagement')}
+      >
+        <Ionicons name="warning" size={20} color="#FFFFFF" />
+        <Text style={styles.adminActionButtonText}>Manage Obstacles</Text>
       </TouchableOpacity>
       <FlatList
         data={filteredUsers}
@@ -354,7 +361,7 @@ const styles = StyleSheet.create({
   chipRoleMember: {
     backgroundColor: '#6b7280',
   },
-  notificationButton: {
+  adminActionButton: {
     backgroundColor: '#2563eb',
     flexDirection: 'row',
     alignItems: 'center',
@@ -365,9 +372,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 8,
   },
-  notificationButtonText: {
+  adminActionButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  obstacleActionButton: {
+    backgroundColor: '#dc2626',
   },
 });

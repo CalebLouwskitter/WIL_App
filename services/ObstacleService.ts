@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FIREBASE_ENABLED, auth, app } from './firebase';
 import { COLLECTIONS, Converters, newObstacle, type ObstacleDTO, type ObstacleType, type ObstacleSeverity, type ObstacleStatus, userProfileConverter } from './Data';
-import { getFirestore, collection, doc, setDoc, getDocs, getDoc, query, orderBy as fsOrderBy, where as fsWhere, GeoPoint, limit as fsLimit, arrayUnion, updateDoc } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, getDocs, getDoc, query, orderBy as fsOrderBy, where as fsWhere, GeoPoint, limit as fsLimit, arrayUnion, updateDoc, deleteDoc } from 'firebase/firestore';
 
 export type Obstacle = {
   id: string;
@@ -243,6 +243,51 @@ export async function updateObstacleStatus(obstacleId: string, status: ObstacleS
     }
   } catch (e) {
     console.warn('Failed to update obstacle in Firestore:', e);
+  }
+}
+
+export async function removeObstacle(obstacleId: string) {
+  const uid = FIREBASE_ENABLED ? auth?.currentUser?.uid : undefined;
+  const userKey = storageKey(uid);
+  const globalKey = globalStorageKey;
+
+  // Clean local per-user cache
+  try {
+    const existingUser = await AsyncStorage.getItem(userKey);
+    if (existingUser) {
+      const list: Obstacle[] = JSON.parse(existingUser);
+      const filtered = list.filter(o => o.id !== obstacleId);
+      if (filtered.length !== list.length) {
+        await AsyncStorage.setItem(userKey, JSON.stringify(filtered));
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to update local user obstacles cache:', e);
+  }
+
+  // Clean local global cache (if used)
+  try {
+    const existingGlobal = await AsyncStorage.getItem(globalKey);
+    if (existingGlobal) {
+      const list: Obstacle[] = JSON.parse(existingGlobal);
+      const filtered = list.filter(o => o.id !== obstacleId);
+      if (filtered.length !== list.length) {
+        await AsyncStorage.setItem(globalKey, JSON.stringify(filtered));
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to update local global obstacles cache:', e);
+  }
+
+  // Delete from Firestore when enabled
+  try {
+    if (FIREBASE_ENABLED && app) {
+      const db = getFirestore(app as any);
+      const ref = doc(collection(db, COLLECTIONS.obstacles), obstacleId);
+      await deleteDoc(ref);
+    }
+  } catch (e) {
+    console.warn('Failed to delete obstacle from Firestore:', e);
   }
 }
 
