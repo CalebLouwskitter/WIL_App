@@ -11,7 +11,7 @@ import { buildTrailsIndex, snapToTrails } from '../utils/routeSnapping';
 export type RidePoint = {
   latitude: number;
   longitude: number;
-  altitude: number;
+  altitude: number | null;
   timestamp: number;
 };
 
@@ -87,7 +87,7 @@ export default function useRideTracker() {
         const point: RidePoint = {
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
-          altitude: loc.coords.altitude ?? 0,
+          altitude: loc.coords.altitude ?? null,
           timestamp: Date.now(),
         };
 
@@ -121,13 +121,17 @@ export default function useRideTracker() {
               ...point,
               latitude: prev.latitude * (1 - SMOOTH_ALPHA) + point.latitude * SMOOTH_ALPHA,
               longitude: prev.longitude * (1 - SMOOTH_ALPHA) + point.longitude * SMOOTH_ALPHA,
-              altitude: prev.altitude * (1 - SMOOTH_ALPHA) + (point.altitude ?? 0) * SMOOTH_ALPHA,
+              altitude: point.altitude !== null && prev.altitude !== null
+                ? prev.altitude * (1 - SMOOTH_ALPHA) + point.altitude * SMOOTH_ALPHA
+                : point.altitude,
             };
           }
           
-          // Elevation calculation
-          const elevationChange = point.altitude - prev.altitude;
-          if (elevationChange > 0) elevationGain += elevationChange;
+          // Elevation calculation - only if we have valid altitude data and moved enough distance
+          if (point.altitude !== null && prev.altitude !== null && d > 5) {
+            const elevationChange = point.altitude - prev.altitude;
+            if (elevationChange > 0) elevationGain += elevationChange;
+          }
         }
         path.push(usePoint);
 

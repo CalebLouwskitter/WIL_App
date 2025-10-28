@@ -42,7 +42,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const nav = useNavigation<any>();
   
   // Ride recovery context
-  const { hasRecoverableRide, isResumed, clearRecoveryState, recoveredRideData, checkForRecoverableRide, markAsResumed } = useRideRecovery();
+  const { hasRecoverableRide, isResumed, alertShown, clearRecoveryState, recoveredRideData, checkForRecoverableRide, markAsResumed } = useRideRecovery();
 
   // Derive riding state from background tracker status
   const isRiding = status === 'active_foreground' || status === 'active_background';
@@ -457,8 +457,8 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
               </TouchableOpacity>
             </View>
 
-            {/* Manual Resume Button */}
-            {hasRecoverableRide && !isRiding && (
+            {/* Manual Resume Button - only show if automatic alert wasn't displayed */}
+            {hasRecoverableRide && !isRiding && !alertShown && (
               <TouchableOpacity
                 style={[styles.resumeCheckButton, { bottom: insets.bottom + 68 }]}
                 onPress={handleManualResumeCheck}

@@ -73,6 +73,9 @@ const BG_TASK_DEFINED_KEY = '__sbhra_bg_location_task_defined__';
   }
 }
 
+// Track if we're already stopping to prevent race conditions
+let isStopping = false;
+
 /**
  * Process a single location update
  */
@@ -81,22 +84,24 @@ async function processLocationUpdate(location: Location.LocationObject) {
   const rideState = await RideStateManager.getRideState();
   
   if (!rideState || !rideState.isActive) {
-    // No active ride, stop background tracking
-    await BackgroundLocationService.stop();
+    // No active ride, stop background tracking (with race condition guard)
+    if (!isStopping) {
+      isStopping = true;
+      await BackgroundLocationService.stop();
+      isStopping = false;
+    }
     return;
   }
 
   const point: RidePoint = {
     latitude: location.coords.latitude,
     longitude: location.coords.longitude,
-    altitude: location.coords.altitude ?? 0,
+    altitude: location.coords.altitude ?? null,
     timestamp: Date.now(),
   };
 
   // Apply noise filtering
   const path = rideState.path || [];
-  let usePoint = point;
-  let shouldSkip = false;
 
   if (path.length > 0) {
     const prev = path[path.length - 1];
@@ -104,33 +109,51 @@ async function processLocationUpdate(location: Location.LocationObject) {
     const d = haversine(prev, point, { unit: 'meter' });
     const speed = d / dt;
 
+    // Check filtering thresholds
+    let shouldSkip = false;
+    let skipReason = '';
+
     // Ignore tiny jitter
     if (d < MIN_STEP_METERS) {
       shouldSkip = true;
+      skipReason = `distance too small (${d.toFixed(2)}m < ${MIN_STEP_METERS}m)`;
     }
     
     // Ignore unrealistic jumps
-    if (d > MAX_STEP_METERS || speed > MAX_SPEED_MPS) {
+    if (d > MAX_STEP_METERS) {
       shouldSkip = true;
+      skipReason = `distance too large (${d.toFixed(2)}m > ${MAX_STEP_METERS}m)`;
+    }
+    
+    if (speed > MAX_SPEED_MPS) {
+      shouldSkip = true;
+      skipReason = `speed too high (${speed.toFixed(2)}m/s > ${MAX_SPEED_MPS}m/s)`;
     }
 
-    if (!shouldSkip) {
-      // Light exponential smoothing for small moves
-      if (d < 20) {
-        usePoint = {
-          ...point,
-          latitude: prev.latitude * (1 - SMOOTH_ALPHA) + point.latitude * SMOOTH_ALPHA,
-          longitude: prev.longitude * (1 - SMOOTH_ALPHA) + point.longitude * SMOOTH_ALPHA,
-          altitude: prev.altitude * (1 - SMOOTH_ALPHA) + (point.altitude ?? 0) * SMOOTH_ALPHA,
-        };
-      }
-      
-      // Update ride state with new point
-      await RideStateManager.addLocationPoint(usePoint, d, speed);
+    if (shouldSkip) {
+      console.log(`[BackgroundLocation] Skipped point - ${skipReason}`);
+      return;
     }
-  } else if (!shouldSkip) {
-    // First point
-    await RideStateManager.addLocationPoint(usePoint, 0, 0);
+
+    // Light exponential smoothing for small moves
+    let usePoint = point;
+    if (d < 20) {
+      usePoint = {
+        latitude: prev.latitude * (1 - SMOOTH_ALPHA) + point.latitude * SMOOTH_ALPHA,
+        longitude: prev.longitude * (1 - SMOOTH_ALPHA) + point.longitude * SMOOTH_ALPHA,
+        altitude: point.altitude !== null && prev.altitude !== null
+          ? prev.altitude * (1 - SMOOTH_ALPHA) + point.altitude * SMOOTH_ALPHA
+          : point.altitude,
+        timestamp: point.timestamp,
+      };
+    }
+    
+    // Update ride state with new point
+    await RideStateManager.addLocationPoint(usePoint, d, speed);
+  } else {
+    // First point - always add without filtering
+    console.log('[BackgroundLocation] Adding first GPS point');
+    await RideStateManager.addLocationPoint(point, 0, 0);
   }
 }
 

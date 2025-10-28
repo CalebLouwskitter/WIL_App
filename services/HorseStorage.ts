@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FIREBASE_ENABLED, auth, app } from './firebase';
-import { COLLECTIONS, Converters, newHorse, listDocs, type HorseDTO } from './Data';
+import { COLLECTIONS, Converters, newHorse, listDocs, type HorseDTO, getOrCreateUserProfile } from './Data';
 // Direct Firestore imports for nested subcollection usage
 import { getFirestore, collection, doc, setDoc, getDocs, query, orderBy as fsOrderBy, where as fsWhere, deleteDoc } from 'firebase/firestore';
 
@@ -35,6 +35,7 @@ export async function saveHorse(horse: Omit<Horse, 'id' | 'createdAt' | 'userId'
     if (FIREBASE_ENABLED && app && auth?.currentUser?.uid) {
       const uid = auth.currentUser.uid;
       const db = getFirestore(app as any);
+      await getOrCreateUserProfile(auth.currentUser);
       const dto: HorseDTO = newHorse({
         id: newHorseObj.id,
         userId: uid,
@@ -108,6 +109,29 @@ export async function getHorses() {
               createdAt: h.createdAt,
               userId: h.userId,
             } as Horse));
+        }
+        if (horses.length === 0) {
+          const key = storageKey(uid);
+          const existing = await AsyncStorage.getItem(key);
+          const localList: Horse[] = existing ? JSON.parse(existing) : [];
+          if (localList.length > 0) {
+            try {
+              for (const lh of localList) {
+                const dto: HorseDTO = newHorse({
+                  id: lh.id,
+                  userId: uid,
+                  name: lh.name,
+                  breed: lh.breed,
+                  age: lh.age,
+                  notes: lh.notes,
+                  createdAt: lh.createdAt,
+                });
+                const ref = doc(collection(db, COLLECTIONS.users, uid, 'horses'), dto.id).withConverter(Converters?.horse as any);
+                await setDoc(ref, dto as any, { merge: false });
+              }
+            } catch {}
+            return localList.sort((a, b) => b.createdAt - a.createdAt);
+          }
         }
       }
 

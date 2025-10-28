@@ -428,7 +428,8 @@ export const horseConverter: FirestoreDataConverter<HorseDTO> = {
 	toFirestore: (horse: HorseDTO) => {
 		const data = { ...horse };
 		delete (data as any).id;
-		return data;
+		// Firestore rejects undefined; align with rideConverter behavior
+		return stripUndefined(data as any) as any;
 	},
 	fromFirestore: (snapshot: QueryDocumentSnapshot, options: SnapshotOptions): HorseDTO => {
 		const data = snapshot.data(options);

@@ -12,8 +12,10 @@ interface RideRecoveryState {
   hasRecoverableRide: boolean;
   recoveredRideData: RideData | null;
   isResumed: boolean;
+  alertShown: boolean;
   checkForRecoverableRide: () => Promise<void>;
   markAsResumed: () => void;
+  markAlertShown: () => void;
   clearRecoveryState: () => void;
 }
 
@@ -23,6 +25,7 @@ export const RideRecoveryProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [hasRecoverableRide, setHasRecoverableRide] = useState(false);
   const [recoveredRideData, setRecoveredRideData] = useState<RideData | null>(null);
   const [isResumed, setIsResumed] = useState(false);
+  const [alertShown, setAlertShown] = useState(false);
 
   /**
    * Check if there's a ride that can be recovered
@@ -57,12 +60,21 @@ export const RideRecoveryProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   /**
+   * Mark that the automatic alert has been shown
+   */
+  const markAlertShown = useCallback(() => {
+    setAlertShown(true);
+    console.log('[RideRecovery] Automatic alert marked as shown');
+  }, []);
+
+  /**
    * Clear recovery state (ride discarded or completed)
    */
   const clearRecoveryState = useCallback(() => {
     setHasRecoverableRide(false);
     setRecoveredRideData(null);
     setIsResumed(false);
+    setAlertShown(false);
     console.log('[RideRecovery] Recovery state cleared');
   }, []);
 
@@ -75,8 +87,10 @@ export const RideRecoveryProvider: React.FC<{ children: React.ReactNode }> = ({ 
     hasRecoverableRide,
     recoveredRideData,
     isResumed,
+    alertShown,
     checkForRecoverableRide,
     markAsResumed,
+    markAlertShown,
     clearRecoveryState,
   };
 

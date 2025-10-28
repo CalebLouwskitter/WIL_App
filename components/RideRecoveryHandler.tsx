@@ -12,16 +12,17 @@ import { recoverActiveRide, BackgroundLocationService, RideStateManager } from '
 
 export const RideRecoveryHandler: React.FC = () => {
   const navigation = useNavigation<any>();
-  const { hasRecoverableRide, markAsResumed, clearRecoveryState } = useRideRecovery();
+  const { hasRecoverableRide, markAsResumed, markAlertShown, clearRecoveryState } = useRideRecovery();
   const alertShown = useRef(false);
 
   useEffect(() => {
     // Only show alert once per app session
     if (hasRecoverableRide && !alertShown.current) {
       alertShown.current = true;
+      markAlertShown(); // Mark in context to prevent duplicate UI
       showRecoveryAlert();
     }
-  }, [hasRecoverableRide]);
+  }, [hasRecoverableRide, markAlertShown]);
 
   const showRecoveryAlert = () => {
     Alert.alert(
@@ -56,7 +57,7 @@ export const RideRecoveryHandler: React.FC = () => {
               markAsResumed();
               
               // Navigate to LiveTrackingScreen
-              // Use a timeout to ensure navigation is ready
+              // Use a timeout to ensure navigation stack is ready (especially on slower devices)
               setTimeout(() => {
                 try {
                   navigation.navigate('Mapping', {
@@ -64,8 +65,13 @@ export const RideRecoveryHandler: React.FC = () => {
                   });
                 } catch (navError) {
                   console.warn('[RideRecoveryHandler] Navigation error:', navError);
+                  // If navigation fails, alert the user
+                  Alert.alert(
+                    'Navigation Error',
+                    'Please navigate to the Mapping tab manually to continue your ride.'
+                  );
                 }
-              }, 100);
+              }, 500);
               
               console.log('[RideRecoveryHandler] Ride resumed');
             } catch (error) {
