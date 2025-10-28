@@ -12,7 +12,7 @@ import { useRideRecovery } from '../../contexts/RideRecoveryContext';
 
 import Feather from 'react-native-vector-icons/Feather';
 import { getActiveHorse } from '../../services/HorseStorage';
-import { useFocusEffect, useNavigation, CommonActions } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, CommonActions, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { startLocationBroadcast, stopLocationBroadcast } from '../../services/OnlineUserService';
 import { Alert, Linking } from 'react-native';
@@ -39,6 +39,9 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const [showResumeBanner, setShowResumeBanner] = useState(false);
 
   const insets = useSafeAreaInsets();
+  const route = useRoute<any>();
+  const followSosDisplayName: string | undefined = route?.params?.followSosDisplayName;
+
   const nav = useNavigation<any>();
   
   // Ride recovery context
@@ -277,6 +280,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             nearestTrail={rideData?.nearestTrail}
             snappedCoordinate={rideData?.snappedCoordinate ?? null}
             snapRadius={rideData?.snapRadius ?? null}
+            followUserDisplayName={followSosDisplayName}
           />
         </View>
 

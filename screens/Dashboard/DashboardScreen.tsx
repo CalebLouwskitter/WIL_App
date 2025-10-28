@@ -105,11 +105,16 @@ const DashboardScreen = () => {
                 </Text>
               </View>
               <View style={styles.alertButtons}>
-                <TouchableOpacity style={styles.trackButton}>
+                <TouchableOpacity
+                  style={styles.trackButton}
+                  onPress={() =>
+                    (navigation as any).navigate('Mapping', {
+                      screen: 'LiveTracking',
+                      params: { followSosDisplayName: sosState.name },
+                    })
+                  }
+                >
                   <Text style={styles.buttonText}>Track</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.callButton}>
-                  <Text style={styles.buttonText}>📞 Call</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -248,12 +253,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   trackButton: {
-    backgroundColor: 'white',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 16,
-  },
-  callButton: {
     backgroundColor: 'white',
     paddingHorizontal: 12,
     paddingVertical: 4,

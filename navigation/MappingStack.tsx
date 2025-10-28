@@ -8,7 +8,7 @@ import OnlineUsersScreen from '../screens/Mapping/OnlineUsers';
 import type { RideData } from '@/hooks/useRideTracker';
 
 export type MappingStackParamList = {
-  LiveTracking: undefined;
+  LiveTracking: { followSosDisplayName?: string } | undefined;
   SelectHorse: undefined;
   RideReviewScreen: { rideData?: RideData; rideId?: string } | undefined;
   MarkObstacle: { location?: { latitude: number; longitude: number } } | undefined;

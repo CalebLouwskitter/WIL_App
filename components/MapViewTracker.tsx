@@ -49,6 +49,7 @@ type Props = {
     types?: ObstacleType[];
     showResolved?: boolean;
   };
+  followUserDisplayName?: string | undefined;
 };
 
 // Fallback large region so the map renders immediately while we resolve a more precise region.
@@ -59,7 +60,7 @@ const WORLD_REGION: Region = {
   longitudeDelta: 60,
 };
 
-export default function MapViewTracker({ path, mapType = 'standard', nearestTrail, snappedCoordinate, snapRadius, obstacleFilters }: Props) {
+export default function MapViewTracker({ path, mapType = 'standard', nearestTrail, snappedCoordinate, snapRadius, obstacleFilters, followUserDisplayName }: Props) {
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme ?? 'light'];
   const [region, setRegion] = useState<Region | null>(null);
@@ -108,6 +109,7 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
   // When the path grows, recenter on the most recent point with a tight delta
   // (gives a max-zoomed-in feel so nearby objects are visible).
   useEffect(() => {
+    if (followUserDisplayName) return; // don't auto-center on own path when following another user
     if (path && path.length > 0) {
       const last = path[path.length - 1];
       if (path.length > 1) {
@@ -131,6 +133,22 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
       });
     }
   }, [path?.length]);
+
+  // If a follow target is provided, center the map on that user's live location whenever it updates
+  useEffect(() => {
+    if (!followUserDisplayName) return;
+    const target = users
+      .filter(u => Date.now() - (u.lastSeen || 0) <= 5 * 60 * 1000)
+      .find(u => (u.displayName || '').trim() === followUserDisplayName);
+    if (target) {
+      setRegion({
+        latitude: target.location.latitude,
+        longitude: target.location.longitude,
+        latitudeDelta: 0.002,
+        longitudeDelta: 0.002,
+      });
+    }
+  }, [followUserDisplayName, users]);
 
   // Animate the camera whenever the region updates to create a 3D nearby-objects look:
   // - high pitch (55º)
