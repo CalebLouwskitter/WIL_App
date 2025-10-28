@@ -74,12 +74,14 @@ export class RideStateManager {
     // Update distance
     state.totalDistance += distanceDelta;
     
-    // Update elevation gain
-    if (state.path.length > 1) {
+    // Update elevation gain - only if we have valid altitude and moved enough distance
+    if (state.path.length > 1 && distanceDelta > 5) {
       const prevPoint = state.path[state.path.length - 2];
-      const elevationChange = point.altitude - prevPoint.altitude;
-      if (elevationChange > 0) {
-        state.elevationGain += elevationChange;
+      if (point.altitude !== null && prevPoint.altitude !== null) {
+        const elevationChange = point.altitude - prevPoint.altitude;
+        if (elevationChange > 0) {
+          state.elevationGain += elevationChange;
+        }
       }
     }
     
