@@ -16,6 +16,7 @@ import { useCurrentUser } from '../../hooks/useCurrentUser';
 import useFirebaseAuth from '../../hooks/useFirebaseAuth';
 import { auth } from '../../services/firebase';
 import { useFocusEffect } from '@react-navigation/native';
+import { startLocationBroadcast, stopLocationBroadcast } from '../../services/OnlineUserService';
 
 const HOLD_THRESHOLD = -150;
 const SNAP_VALUE = -200;
@@ -68,7 +69,7 @@ const SosAlertScreen = () => {
           activatorNameRef.current = (bestName ?? '').trim() || null;
           // Immediately activate global SOS so Dashboard shows the name right away
           activatedThisSessionRef.current = true;
-          activate(activatorNameRef.current);
+          activate(activatorNameRef.current, auth?.currentUser?.uid ?? null);
           Animated.timing(translateY, {
             toValue: SNAP_VALUE,
             duration: 120,
@@ -98,6 +99,7 @@ const SosAlertScreen = () => {
           // User released before help sent. Only clear global SOS if this session initiated activation.
           if (activatedThisSessionRef.current) {
             clear();
+            try { stopLocationBroadcast(); } catch {}
             activatedThisSessionRef.current = false;
           }
           Animated.spring(translateY, { 
@@ -169,7 +171,10 @@ const SosAlertScreen = () => {
         (auth?.currentUser?.displayName as string | undefined) ??
         profile?.displayName ??
         null;
-      activate((derivedName ?? '').trim() || null);
+      const sanitized = (derivedName ?? '').trim() || null;
+      activate(sanitized, auth?.currentUser?.uid ?? null);
+      // Ensure location broadcast starts so others can follow on the map
+      startLocationBroadcast({ isRiding: false });
       sendLocationToWhatsApp();
     }
   }, [helpSent, activate, profile?.displayName, profile?.email, user?.displayName, user?.email]);
@@ -179,7 +184,7 @@ const SosAlertScreen = () => {
     if (sosState.active && !sosState.name) {
       const derivedName = (auth?.currentUser?.displayName as string | undefined) ?? profile?.displayName ?? null;
       const sanitized = (derivedName ?? '').trim();
-      if (sanitized.length) activate(sanitized);
+      if (sanitized.length) activate(sanitized, auth?.currentUser?.uid ?? null);
     }
   }, [sosState.active, sosState.name, activate, profile?.displayName, profile?.email, user?.displayName, user?.email]);
 
@@ -188,6 +193,7 @@ const SosAlertScreen = () => {
     if (!sosState.active) {
       resetToInitialState();
       activatedThisSessionRef.current = false;
+      try { stopLocationBroadcast(); } catch {}
     }
   }, [sosState.active]);
 
@@ -200,9 +206,12 @@ const SosAlertScreen = () => {
           setActivated(true);
           setHelpSent(true);
         }
+        // Defensive: make sure broadcasting is on when an active SOS is detected
+        startLocationBroadcast({ isRiding: false });
       } else {
         resetToInitialState();
         activatedThisSessionRef.current = false;
+        try { stopLocationBroadcast(); } catch {}
       }
       return () => {};
     }, [sosState.active, helpSent])
@@ -279,6 +288,7 @@ const SosAlertScreen = () => {
               clear();
               resetToInitialState();
               activatedThisSessionRef.current = false;
+              try { stopLocationBroadcast(); } catch {}
             }}
           >
             <Text style={styles.cancelButtonText}>Cancel</Text>

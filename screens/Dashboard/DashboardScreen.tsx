@@ -110,7 +110,7 @@ const DashboardScreen = () => {
                   onPress={() =>
                     (navigation as any).navigate('Mapping', {
                       screen: 'LiveTracking',
-                      params: { followSosDisplayName: sosState.name },
+                      params: { followSosUid: sosState.uid, followSosDisplayName: sosState.name },
                     })
                   }
                 >

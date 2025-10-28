@@ -50,6 +50,7 @@ type Props = {
     showResolved?: boolean;
   };
   followUserDisplayName?: string | undefined;
+  followUserUid?: string | undefined;
 };
 
 // Fallback large region so the map renders immediately while we resolve a more precise region.
@@ -60,7 +61,7 @@ const WORLD_REGION: Region = {
   longitudeDelta: 60,
 };
 
-export default function MapViewTracker({ path, mapType = 'standard', nearestTrail, snappedCoordinate, snapRadius, obstacleFilters, followUserDisplayName }: Props) {
+export default function MapViewTracker({ path, mapType = 'standard', nearestTrail, snappedCoordinate, snapRadius, obstacleFilters, followUserDisplayName, followUserUid }: Props) {
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme ?? 'light'];
   const [region, setRegion] = useState<Region | null>(null);
@@ -136,10 +137,11 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
 
   // If a follow target is provided, center the map on that user's live location whenever it updates
   useEffect(() => {
-    if (!followUserDisplayName) return;
-    const target = users
-      .filter(u => Date.now() - (u.lastSeen || 0) <= 5 * 60 * 1000)
-      .find(u => (u.displayName || '').trim() === followUserDisplayName);
+    const fresh = users.filter(u => Date.now() - (u.lastSeen || 0) <= 5 * 60 * 1000);
+    if (!followUserUid && !followUserDisplayName) return;
+    const target = followUserUid
+      ? fresh.find(u => u.uid === followUserUid)
+      : fresh.find(u => (u.displayName || '').trim() === (followUserDisplayName || ''));
     if (target) {
       setRegion({
         latitude: target.location.latitude,
@@ -148,7 +150,7 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
         longitudeDelta: 0.002,
       });
     }
-  }, [followUserDisplayName, users]);
+  }, [followUserUid, followUserDisplayName, users]);
 
   // Animate the camera whenever the region updates to create a 3D nearby-objects look:
   // - high pitch (55º)

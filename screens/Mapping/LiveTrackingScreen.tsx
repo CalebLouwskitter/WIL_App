@@ -41,6 +41,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const followSosDisplayName: string | undefined = route?.params?.followSosDisplayName;
+  const followSosUid: string | undefined = route?.params?.followSosUid;
 
   const nav = useNavigation<any>();
   
@@ -281,6 +282,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             snappedCoordinate={rideData?.snappedCoordinate ?? null}
             snapRadius={rideData?.snapRadius ?? null}
             followUserDisplayName={followSosDisplayName}
+            followUserUid={followSosUid}
           />
         </View>
 
