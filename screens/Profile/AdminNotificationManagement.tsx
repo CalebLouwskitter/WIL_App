@@ -13,19 +13,23 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Feather } from '@expo/vector-icons';
 import { createAdminNotification, getNotificationsForRole, subscribeToNotifications } from '../../services/FirebaseNotificationService';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 import { Notification, NotificationType, NotificationAudience } from '../../types/Notification';
 import { NotificationList } from '../../components/Notifications';
+import type { ProfileStackParamList } from '../../navigation/ProfileStack';
 
 // Check if running in Expo Go (demo mode)
 const IS_EXPO_DEMO = true; // Set to false when building production app
 
+type AdminNotificationNavigationProp = StackNavigationProp<ProfileStackParamList, 'AdminNotificationManagement'>;
+
 export default function AdminNotificationManagement() {
-  const navigation = useNavigation();
-  const { profile } = useCurrentUser();
+  const navigation = useNavigation<AdminNotificationNavigationProp>();
+  const { profile, loading: profileLoading } = useCurrentUser();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -40,17 +44,21 @@ export default function AdminNotificationManagement() {
 
   // Guard: only admins may access this screen
   useEffect(() => {
-    if (profile && profile.role !== 'admin') {
-      Alert.alert('Access denied', 'You do not have permission to view this screen.', [
-        { text: 'OK', onPress: () => (navigation as any).goBack() },
-      ]);
+    // Wait for profile to finish loading
+    if (!profileLoading) {
+      if (profile === null) {
+        // Not authenticated: navigate back
+        Alert.alert('Access denied', 'You must be logged in to view this screen.', [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
+      } else if (profile.role !== 'admin') {
+        // Authenticated but not admin: navigate back
+        Alert.alert('Access denied', 'You do not have permission to view this screen.', [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
+      }
     }
-    if (profile === null) {
-      // Not authenticated or profile not loaded: navigate back
-      // Avoid double alerts; just go back silently
-      (navigation as any).goBack();
-    }
-  }, [profile, navigation]);
+  }, [profile, profileLoading, navigation]);
 
   useEffect(() => {
     loadNotifications();
@@ -128,6 +136,32 @@ export default function AdminNotificationManagement() {
       default: return 'notifications';
     }
   };
+
+  // Show loading while profile is being fetched
+  if (profileLoading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            accessibilityLabel="Go back"
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="chevron-back" size={24} color="#111" />
+          </TouchableOpacity>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={styles.title}>Notifications</Text>
+          </View>
+          <View style={{ width: 32 }} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={{ marginTop: 16, color: '#6B7280' }}>Loading...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

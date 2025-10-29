@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Feather } from '@expo/vector-icons';
 
@@ -21,6 +22,7 @@ import {
   removeObstacle,
 } from '../../services/ObstacleService';
 import { type ObstacleStatus } from '../../services/Data';
+import type { ProfileStackParamList } from '../../navigation/ProfileStack';
 
 const FILTERS: { label: string; value: ObstacleStatus | 'all' }[] = [
   { label: 'Active', value: 'active' },
@@ -28,24 +30,32 @@ const FILTERS: { label: string; value: ObstacleStatus | 'all' }[] = [
   { label: 'All', value: 'all' },
 ];
 
+type AdminObstacleNavigationProp = StackNavigationProp<ProfileStackParamList, 'AdminObstacleManagement'>;
+
 export default function AdminObstacleManagement() {
-  const navigation = useNavigation();
-  const { profile } = useCurrentUser();
+  const navigation = useNavigation<AdminObstacleNavigationProp>();
+  const { profile, loading: profileLoading } = useCurrentUser();
   const [filter, setFilter] = useState<typeof FILTERS[number]['value']>('active');
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (profile && profile.role !== 'admin') {
-      Alert.alert('Access denied', 'You do not have permission to view this screen.', [
-        { text: 'OK', onPress: () => (navigation as any).goBack() },
-      ]);
+    // Wait for profile to finish loading
+    if (!profileLoading) {
+      if (profile === null) {
+        // Not authenticated: navigate back
+        Alert.alert('Access denied', 'You must be logged in to view this screen.', [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
+      } else if (profile.role !== 'admin') {
+        // Authenticated but not admin: navigate back
+        Alert.alert('Access denied', 'You do not have permission to view this screen.', [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
+      }
     }
-    if (profile === null) {
-      (navigation as any).goBack();
-    }
-  }, [profile, navigation]);
+  }, [profile, profileLoading, navigation]);
 
   const loadObstacles = useCallback(async () => {
     try {
@@ -191,6 +201,32 @@ export default function AdminObstacleManagement() {
       </View>
     );
   };
+
+  // Show loading while profile is being fetched
+  if (profileLoading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            accessibilityLabel="Go back"
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="chevron-back" size={24} color="#111" />
+          </TouchableOpacity>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={styles.title}>Obstacle Management</Text>
+          </View>
+          <View style={{ width: 32 }} />
+        </View>
+        <View style={styles.loading}>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={{ marginTop: 16, color: '#6B7280' }}>Loading...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

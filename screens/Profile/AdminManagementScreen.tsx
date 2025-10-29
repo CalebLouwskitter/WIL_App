@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { getAllUsers, approveUser, disapproveUser, deleteUserDoc, seedUsersRbac, setUserRole } from '../../services/FirebaseUserService';
 import { User } from '../../types/User'; // Assuming a User type exists
+import type { ProfileStackParamList } from '../../navigation/ProfileStack';
+
+type AdminManagementScreenNavigationProp = StackNavigationProp<ProfileStackParamList, 'AdminManagement'>;
 
 export default function AdminManagementScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<AdminManagementScreenNavigationProp>();
   const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -160,14 +164,14 @@ export default function AdminManagementScreen() {
       </View>
       <TouchableOpacity 
         style={styles.adminActionButton}
-        onPress={() => (navigation as any).navigate('AdminNotificationManagement')}
+        onPress={() => navigation.navigate('AdminNotificationManagement')}
       >
         <Ionicons name="notifications" size={20} color="#FFFFFF" />
         <Text style={styles.adminActionButtonText}>Manage Notifications</Text>
       </TouchableOpacity>
       <TouchableOpacity 
         style={[styles.adminActionButton, styles.obstacleActionButton]}
-        onPress={() => (navigation as any).navigate('AdminObstacleManagement')}
+        onPress={() => navigation.navigate('AdminObstacleManagement')}
       >
         <Ionicons name="warning" size={20} color="#FFFFFF" />
         <Text style={styles.adminActionButtonText}>Manage Obstacles</Text>
