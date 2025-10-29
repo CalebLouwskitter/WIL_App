@@ -1,5 +1,7 @@
 import 'dotenv/config';
 import type { ExpoConfig } from 'expo/config';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // This replaces app.json and allows reading keys from .env
 // Expected vars in .env:
@@ -14,6 +16,16 @@ import type { ExpoConfig } from 'expo/config';
 
 const androidMapsApiKey = process.env.GOOGLE_MAPS_API_KEY ?? '';
 const iosMapsApiKey = process.env.IOS_GOOGLE_MAPS_API_KEY ?? process.env.GOOGLE_MAPS_API_KEY ?? '';
+
+// Write google-services.json from environment variable if available (for EAS Build)
+if (process.env.GOOGLE_SERVICES_JSON) {
+  try {
+    const googleServicesPath = path.join(__dirname, 'google-services.json');
+    fs.writeFileSync(googleServicesPath, process.env.GOOGLE_SERVICES_JSON, 'utf8');
+  } catch (error) {
+    console.warn('Failed to write google-services.json from environment variable:', error);
+  }
+}
 
 const config: ExpoConfig = {
   name: 'SBHRA_App',
@@ -55,6 +67,7 @@ const config: ExpoConfig = {
     },
     edgeToEdgeEnabled: true,
     package: 'com.sbhra.app',
+    googleServicesFile: './google-services.json',
     // Google Maps Android SDK key
     config: {
       googleMaps: {
@@ -98,6 +111,15 @@ const config: ExpoConfig = {
           'Allow SBHRA to use your location to track horse rides.',
         isAndroidBackgroundLocationEnabled: true,
         isAndroidForegroundServiceEnabled: true,
+      },
+    ],
+    [
+      'expo-notifications',
+      {
+        icon: './assets/icons/notification-icon.png',
+        color: '#2563eb',
+        sounds: ['./assets/sounds/notification.wav'],
+        mode: 'production',
       },
     ],
   ],

@@ -7,7 +7,9 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "check-firebase": "node scripts/checkFirebase.js"
+    "check-firebase": "node scripts/checkFirebase.js",
+    "check-notifications": "node scripts/checkNotifications.js",
+    "test-notifications": "node scripts/testNotifications.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

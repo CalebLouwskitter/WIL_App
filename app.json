@@ -50,6 +50,15 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icons/notification-icon.png",
+          "color": "#2563eb",
+          "sounds": ["./assets/sounds/notification.wav"],
+          "mode": "production"
+        }
       ]
     ]
   }
