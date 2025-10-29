@@ -275,7 +275,11 @@ class ProfilePictureService {
             await AsyncStorage.setItem(PROFILE_PICTURE_KEY, JSON.stringify(profilePic));
             return url;
           } catch (e: any) {
-            console.warn('Remote fetch failed:', e?.code || e?.message || e);
+            if (e?.code === 'storage/object-not-found') {
+              console.log('Remote profile picture not found (expected for new users).');
+            } else {
+              console.warn('Remote fetch failed:', e?.code || e?.message || e);
+            }
             // Fallback to Firebase auth photoURL if available
             if (auth?.currentUser?.photoURL) return auth.currentUser.photoURL;
           }
@@ -308,7 +312,11 @@ class ProfilePictureService {
               await AsyncStorage.setItem(PROFILE_PICTURE_KEY, JSON.stringify(newPic));
               return url;
             } catch (e: any) {
-              console.warn('Retry remote fetch failed:', e?.code || e?.message || e);
+              if (e?.code === 'storage/object-not-found') {
+                console.log('Remote profile picture not found on retry.');
+              } else {
+                console.warn('Retry remote fetch failed:', e?.code || e?.message || e);
+              }
             }
           }
           // Final fallback to auth photoURL
@@ -337,7 +345,11 @@ class ProfilePictureService {
       console.log('checkRemoteProfilePicture -> success');
       return { exists: true, url, path: storagePath };
     } catch (e: any) {
-      console.warn('checkRemoteProfilePicture -> failed:', e?.code || e?.message || e);
+      if (e?.code === 'storage/object-not-found') {
+        console.log('checkRemoteProfilePicture -> object not found (no remote picture yet).');
+      } else {
+        console.warn('checkRemoteProfilePicture -> failed:', e?.code || e?.message || e);
+      }
       return { exists: false, url: null, path: null, reason: e?.code || e?.message };
     }
   }
