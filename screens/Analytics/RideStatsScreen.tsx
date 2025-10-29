@@ -4,7 +4,7 @@ import { getRides } from '../../services/RideStorage';
 import type { RideData as BaseRideData } from '../../hooks/useRideTracker';
 import { primaryPreviewRoutes } from '../../constants/trails';
 import MapView, { Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { Colors, resolvePalette } from '../../constants/colors';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,6 +17,7 @@ const RideStatsScreen = () => {
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const colorScheme = useColorScheme();
   const theme = resolvePalette(colorScheme);
 
@@ -55,7 +56,14 @@ const RideStatsScreen = () => {
         <TouchableOpacity 
           style={styles.headerBack} 
           activeOpacity={0.7} 
-          onPress={() => navigation.navigate('ProfileMain')}
+          onPress={() => {
+            const fromDashboard = route.params?.fromDashboard;
+            if (fromDashboard) {
+              navigation.getParent()?.navigate('Dashboard');
+            } else {
+              navigation.goBack();
+            }
+          }}
         >
           <Feather name="arrow-left" size={24} color={theme.onSurface} />
         </TouchableOpacity>

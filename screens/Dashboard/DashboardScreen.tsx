@@ -35,8 +35,8 @@ const DashboardScreen = () => {
 
   const navigateToScreen = (screen: string) => {
     if (DASHBOARD_PROFILE_SCREENS.includes(screen)) {
-      const profileTarget = screen === 'ProfilePage' ? 'ProfileMain' : (screen === 'RideHistoryPage' ? 'HistoryScreen' : screen);
-      if (profileTarget === 'PersonalStats' || profileTarget === 'AchievementsScreen' || profileTarget === 'HistoryScreen' || profileTarget === 'CreateHorse') {
+      const profileTarget = screen === 'ProfilePage' ? 'ProfileMain' : (screen === 'RideHistoryPage' ? 'RideHistory' : screen);
+      if (profileTarget === 'PersonalStats' || profileTarget === 'AchievementsScreen' || profileTarget === 'RideHistory' || profileTarget === 'CreateHorse') {
         navigation.navigate('ProfileStack', { screen: profileTarget, params: { fromDashboard: true } } as never);
       } else {
         navigation.navigate('ProfileStack', { screen: profileTarget } as never);
