@@ -406,12 +406,11 @@ export default function ProfileScreen() {
               </LinearGradient>
             </TouchableOpacity>
           </View>
-          
           {recentRides.length > 0 ? (
             <View style={styles.ridesList}>
               {recentRides.map((r, idx) => (
                 <TouchableOpacity
-                  key={r.startTime}
+                  key={`${r.startTime}-${idx}`}
                   style={styles.rideCard}
                   activeOpacity={0.8}
                   onPress={() => (navigation as any).navigate('ProfileStack' as never, { screen: 'RideDetail', params: { startTime: r.startTime } } as never)}
