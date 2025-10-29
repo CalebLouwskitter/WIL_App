@@ -37,7 +37,7 @@ export default function ProfileScreen() {
   const [profilePictureUri, setProfilePictureUri] = useState<string | null>(null);
   const [loadingPicture, setLoadingPicture] = useState(false);
   const fadeAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(30);
+  const slideAnim = new Animated.Value(0);
   
   const [statsData, setStatsData] = useState<StatItem[]>([
     { label: 'Rides', value: '0', boxColor: colors.profileStatRidesBox, circleColor: colors.profileStatRidesCircle, icon: 'activity' },
@@ -158,7 +158,7 @@ export default function ProfileScreen() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         
         {/* Top Icons (Dashboard-style) */}
-        <View style={[styles.topIcons, { paddingHorizontal: 16 }]}>        
+        <View style={styles.topIcons}>        
           <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)}>
             <Icon name="settings" size={27} color="#374151" />
           </TouchableOpacity>
@@ -492,6 +492,7 @@ const styles = StyleSheet.create({
     paddingTop: 45,
     justifyContent: 'space-between',
     marginBottom: 16,
+    paddingHorizontal: 16,
   },
   
   headerTitle: {
@@ -504,8 +505,8 @@ const styles = StyleSheet.create({
 
   // Profile Card
   profileCard: {
-    marginHorizontal: 20,
-    marginBottom: 24,
+    marginHorizontal: 16,
+    marginBottom: 16,
     borderRadius: 24,
     borderBottomEndRadius: 24,
     paddingBottom: 20,
@@ -789,7 +790,7 @@ const styles = StyleSheet.create({
 
   // Settings Widget
   settingsWidget: {
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     marginBottom: 24,
   },
   settingsCard: {
@@ -839,7 +840,7 @@ const styles = StyleSheet.create({
 
   // Actions
   actionsContainer: {
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     marginBottom: 28,
     gap: 12,
   },
@@ -919,7 +920,7 @@ const styles = StyleSheet.create({
 
   // Recent Rides
   ridesSection: {
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     backgroundColor: '#fff',
     borderRadius: 24,
     padding: 20,
