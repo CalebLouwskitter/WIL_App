@@ -23,7 +23,7 @@ import { NotificationList } from '../../components/Notifications';
 import type { ProfileStackParamList } from '../../navigation/ProfileStack';
 
 // Check if running in Expo Go (demo mode)
-const IS_EXPO_DEMO = true; // Set to false when building production app
+const IS_EXPO_DEMO = false; // Set to false once you've configured Firebase Cloud Messaging credentials
 
 type AdminNotificationNavigationProp = StackNavigationProp<ProfileStackParamList, 'AdminNotificationManagement'>;
 

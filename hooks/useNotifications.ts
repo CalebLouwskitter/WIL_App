@@ -104,19 +104,24 @@ async function registerForPushNotificationsAsync() {
     
     // Get Expo push token
     try {
-      // For development with Expo Go, projectId is auto-detected
-      // For production builds, you can specify projectId explicitly
-      const tokenData = await Notifications.getExpoPushTokenAsync();
+      // For Expo Go: Use the projectId from app.config.ts
+      // Format: @owner/slug from app.config.ts
+      const projectId = '@caleblouwskiter/SBHRA';
+      
+      const tokenData = await Notifications.getExpoPushTokenAsync({
+        projectId: projectId,
+      });
       token = tokenData.data;
       console.log('✅ Expo push token obtained:', token);
     } catch (error: any) {
       console.warn('⚠️ Push notifications not available:', error.message);
       
       // Check if it's the Expo Go limitation
-      if (error.message?.includes('projectId') || error.message?.includes('Expo Go')) {
-        console.warn('📱 Push notifications require a development build (not supported in Expo Go SDK 53+)');
-        console.warn('👉 Run: eas build --profile development --platform android');
-        // Don't show alert - just log for developers
+      if (error.message?.includes('projectId')) {
+        console.warn('📱 Please set your Expo projectId in useNotifications.ts');
+        console.warn('👉 Find your projectId at: https://expo.dev/accounts/[username]/projects/[project-slug]');
+      } else if (error.message?.includes('credentials')) {
+        console.warn('📱 FCM credentials not configured. Run: eas credentials');
       } else {
         // Other errors might need user attention
         console.error('Error details:', error.message);
