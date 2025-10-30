@@ -94,12 +94,18 @@ const DashboardScreen = () => {
   };
 
   const renderSosCard = ({ item }: { item: any }) => (
-    <View style={styles.sosCard}>
-      <Text style={styles.sosTitle}>🚨 SOS ALERT</Text>
-      <Text style={styles.sosUser}>{item.name || 'Unknown User'}</Text>
-      <TouchableOpacity style={styles.trackButton} onPress={() => handleTrackSOS(item)}>
-        <Text style={styles.trackText}>Track</Text>
-      </TouchableOpacity>
+    <View style={styles.emergencyItemContainer}>
+      <View style={styles.emergencyAlert}>
+        <View style={styles.alertLeft}>
+          <Text style={styles.alertIcon}>⚠️</Text>
+          <Text style={styles.alertText}>{(item.name ?? 'User')} Needs Help!</Text>
+        </View>
+        <View style={styles.alertButtons}>
+          <TouchableOpacity style={styles.trackButton} onPress={() => handleTrackSOS(item)}>
+            <Text style={styles.buttonText}>Track</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 
@@ -242,11 +248,14 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   topIcons: { flexDirection: 'row', paddingTop: 45, justifyContent: 'space-between', marginBottom: 16, paddingHorizontal: PADDING_HORIZONTAL },
   sosSection: { marginBottom: 20 },
-  sosCard: { width: screenWidth - 40, marginHorizontal: 10, padding: 20, borderRadius: 14, backgroundColor: '#fee2e2', justifyContent: 'center', alignItems: 'center' },
-  sosTitle: { fontSize: 22, fontWeight: '700', color: '#dc2626', marginBottom: 5 },
-  sosUser: { fontSize: 18, color: '#111', marginBottom: 10 },
-  trackButton: { backgroundColor: '#dc2626', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 25 },
-  trackText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  emergencyItemContainer: { width: screenWidth },
+  emergencyAlert: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ef4444', marginHorizontal: PADDING_HORIZONTAL, marginVertical: 8, padding: 12, borderRadius: 8 },
+  alertLeft: { flexDirection: 'row', alignItems: 'center' },
+  alertIcon: { fontSize: 16, marginRight: 8 },
+  alertText: { color: 'white', fontWeight: '600' },
+  alertButtons: { flexDirection: 'row' },
+  trackButton: { backgroundColor: 'white', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 16 },
+  buttonText: { color: '#ef4444', fontSize: 12, fontWeight: '600' },
   dotsContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: 10 },
   dot: { width: 8, height: 8, borderRadius: 4, marginHorizontal: 4, backgroundColor: '#dc2626' },
   mapWidgetContainer: { marginHorizontal: PADDING_HORIZONTAL, marginBottom: 16, backgroundColor: '#3b82f6', borderRadius: 10, overflow: 'hidden', height: 200 },
