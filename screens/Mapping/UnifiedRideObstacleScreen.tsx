@@ -14,7 +14,9 @@ import {
   Image,
   PermissionsAndroid,
   FlatList,
+  SafeAreaView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE, Callout } from 'react-native-maps';
 import type { RideData } from '@/hooks/useRideTracker';
 import type { MappingStackParamList } from '@/navigation/MappingStack';
@@ -123,14 +125,14 @@ const QUICK_NOTES = [
 ];
 
 const TRAIL_ISSUES = [
-  { id: 'i_damage', label: 'Trail Erosion', emoji: '⛰️', color: '#FFE6E6' },
-  { id: 'i_obstruction', label: 'Fallen Tree', emoji: '🪵', color: '#FFE8E0' },
-  { id: 'i_flooding', label: 'Water Crossing', emoji: '💧', color: '#E6F0FF' },
-  { id: 'i_mud', label: 'Muddy Section', emoji: '🟫', color: '#8B4513' },
-  { id: 'i_gate', label: 'Gate Problem', emoji: '🚪', color: '#FFE6F0' },
-  { id: 'i_fence', label: 'Fence Damage', emoji: '🚧', color: '#FFF0E6' },
-  { id: 'i_animal', label: 'Animal on Path', emoji: '🐄', color: '#FFEBE6' },
-  { id: 'i_other', label: 'Other Issue', emoji: '📝', color: '#F0F0F0' },
+  { id: 'i_damage', label: 'Trail Erosion', emoji: '⛰️', color: '#FFFFFF' },
+  { id: 'i_obstruction', label: 'Fallen Tree', emoji: '🪵', color: '#FFFFFF' },
+  { id: 'i_flooding', label: 'Water Crossing', emoji: '💧', color: '#FFFFFF' },
+  { id: 'i_mud', label: 'Muddy Section', emoji: '🟫', color: '#FFFFFF' },
+  { id: 'i_gate', label: 'Gate Problem', emoji: '🚪', color: '#FFFFFF' },
+  { id: 'i_fence', label: 'Fence Damage', emoji: '🚧', color: '#FFFFFF' },
+  { id: 'i_animal', label: 'Animal on Path', emoji: '🐄', color: '#FFFFFF' },
+  { id: 'i_other', label: 'Other Issue', emoji: '📝', color: '#FFFFFF' },
 ];
 
 type Props = {
@@ -158,6 +160,9 @@ export default function UnifiedRideObstacleScreen({
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
+
+  // Safe area insets
+  const insets = useSafeAreaInsets();
 
   // State management
   const [activeTab, setActiveTab] = useState<'sighting' | 'report' | 'obstacles'>(
@@ -334,14 +339,19 @@ export default function UnifiedRideObstacleScreen({
           };
           setCurrentLocation(coords);
 
-          // Update map region to follow user
-          if (mapRef.current && activeTab === 'report') {
-            mapRef.current.animateToRegion({
-              latitude: coords.latitude,
-              longitude: coords.longitude,
-              latitudeDelta: 0.008,
-              longitudeDelta: 0.008,
-            }, 1000);
+          // Update map region to follow user (only when on report tab and map is likely rendered)
+          if (mapRef.current && activeTab === 'report' && currentLocation) {
+            // Add a small delay to ensure map is fully rendered
+            setTimeout(() => {
+              if (mapRef.current) {
+                mapRef.current.animateToRegion({
+                  latitude: coords.latitude,
+                  longitude: coords.longitude,
+                  latitudeDelta: 0.008,
+                  longitudeDelta: 0.008,
+                }, 1000);
+              }
+            }, 300);
           }
         },
         (error: GeolocationError) => {
@@ -363,6 +373,50 @@ export default function UnifiedRideObstacleScreen({
       }
     };
   }, [activeTab, rideData]);
+
+  // Center map when location changes or tab switches to report
+  useEffect(() => {
+    if (mapRef.current && currentLocation && activeTab === 'report') {
+      // Add a small delay to ensure the map is rendered
+      const timeoutId = setTimeout(() => {
+        if (mapRef.current) {
+          mapRef.current.animateToRegion({
+            latitude: currentLocation.latitude,
+            longitude: currentLocation.longitude,
+            latitudeDelta: 0.008,
+            longitudeDelta: 0.008,
+          }, 1000);
+        }
+      }, 800); // Increased delay for better reliability
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [currentLocation, activeTab]);
+
+  // Handle tab switching to ensure map is properly centered
+  useEffect(() => {
+    if (activeTab === 'report' && mapRef.current) {
+      // Delay to ensure map component is rendered after tab switch
+      const timeoutId = setTimeout(() => {
+        if (mapRef.current) {
+          // Center on current location or use last known location
+          const centerLocation = currentLocation || rideData?.lastKnownLocation || 
+            (rideData?.path && rideData.path.length > 0 ? rideData.path[rideData.path.length - 1] : null);
+          
+          if (centerLocation) {
+            mapRef.current.animateToRegion({
+              latitude: centerLocation.latitude,
+              longitude: centerLocation.longitude,
+              latitudeDelta: 0.008,
+              longitudeDelta: 0.008,
+            }, 1000);
+          }
+        }
+      }, 500);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [activeTab]); // Only depend on activeTab to avoid re-centering on location changes
 
   // Track unsaved changes
   useEffect(() => {
@@ -688,16 +742,23 @@ export default function UnifiedRideObstacleScreen({
           <TouchableOpacity 
             style={styles.viewOnMapButton}
             onPress={() => {
-              // Navigate to map view centered on this obstacle
-              if (mapRef.current) {
-                mapRef.current.animateToRegion({
-                  latitude: item.location.latitude,
-                  longitude: item.location.longitude,
-                  latitudeDelta: 0.008,
-                  longitudeDelta: 0.008,
-                }, 1000);
-                setActiveTab('report');
-              }
+              console.log('View on Map pressed for obstacle:', item.id);
+              // First switch to report tab, then animate to location after delay
+              setActiveTab('report');
+              // Wait for tab switch and map render before animating
+              setTimeout(() => {
+                if (mapRef.current) {
+                  console.log('Animating to obstacle location:', item.location);
+                  mapRef.current.animateToRegion({
+                    latitude: item.location.latitude,
+                    longitude: item.location.longitude,
+                    latitudeDelta: 0.008,
+                    longitudeDelta: 0.008,
+                  }, 1000);
+                } else {
+                  console.warn('Map reference not available when trying to animate to obstacle');
+                }
+              }, 500); // Allow time for tab switch and map render
             }}
           >
             <Text style={styles.viewOnMapButtonText}>View on Map</Text>
@@ -763,42 +824,45 @@ export default function UnifiedRideObstacleScreen({
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <Animated.View 
-        style={[
-          styles.innerContainer,
-          {
-            opacity: fadeAnim,
-            transform: [
-              { translateY: slideAnim },
-              { scale: scaleAnim }
-            ]
-          }
-        ]}
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {/* Professional Header */}
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>
-              {isDuringRide ? 'During Ride' : 'Ride Review'}
-            </Text>
-            <Text style={styles.headerSubtitle}>
-              {isDuringRide ? 'Log observations as you ride' : 'Record your observations'}
-            </Text>
+        <Animated.View 
+          style={[
+            styles.innerContainer,
+            {
+              opacity: fadeAnim,
+              transform: [
+                { translateY: slideAnim },
+                { scale: scaleAnim }
+              ]
+            }
+          ]}
+        >
+          {/* Professional Header */}
+          <View style={[styles.header, { paddingTop: 16 + insets.top }]}>
+            <View style={styles.headerContent}>
+              <Text style={styles.headerTitle}>
+                {isDuringRide ? 'During Ride' : 'Ride Review'}
+              </Text>
+              <Text style={styles.headerSubtitle}>
+                {isDuringRide ? 'Log observations as you ride' : 'Record your observations'}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+              <Text style={styles.closeButtonText}>✕</Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-            <Text style={styles.closeButtonText}>✕</Text>
-          </TouchableOpacity>
-        </View>
 
         <ScrollView 
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.content}>
+            <View style={styles.contentInner}>
           {/* Enhanced Stats Card - Only show if not during ride */}
           {!isDuringRide && rideData && (
             <View style={styles.statsCard}>
@@ -1036,8 +1100,8 @@ export default function UnifiedRideObstacleScreen({
                     ref={mapRef}
                     style={styles.map}
                     initialRegion={{
-                      latitude: currentLocation?.latitude || 0,
-                      longitude: currentLocation?.longitude || 0,
+                      latitude: currentLocation?.latitude || -26.2041, // Johannesburg fallback
+                      longitude: currentLocation?.longitude || 28.0473,
                       latitudeDelta: 0.008,
                       longitudeDelta: 0.008,
                     }}
@@ -1116,7 +1180,7 @@ export default function UnifiedRideObstacleScreen({
           )}
 
         {/* Action Buttons */}
-        <View style={styles.actionContainer}>
+        <View style={[styles.actionContainer, { paddingBottom: insets.bottom + 16 }]}>
           <TouchableOpacity
             style={[
               styles.submitButton,
@@ -1143,16 +1207,23 @@ export default function UnifiedRideObstacleScreen({
         </View>
 
         <View style={{ height: 40 }} />
-      </ScrollView>
-    </Animated.View>
-  </KeyboardAvoidingView>
+            </View>
+          </View>
+        </ScrollView>
+      </Animated.View>
+    </KeyboardAvoidingView>
+</SafeAreaView>
 );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#FAF9F7',
+    backgroundColor: '#F3F4F6',
   },
   innerContainer: {
     flex: 1,
@@ -1161,7 +1232,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingBottom: 16,
+  },
+  content: {
+    paddingBottom: 16,
+  },
+  contentInner: {
+    paddingHorizontal: 16,
   },
   
   // Header styles
@@ -1169,53 +1246,55 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    paddingBottom: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   headerContent: {
     flex: 1,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
-    color: '#2C5530',
-    letterSpacing: -0.5,
+    color: '#1F2937',
+    letterSpacing: -0.3,
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: '#8A8A8A',
-    marginTop: 2,
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 4,
   },
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F5F5F5',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeButtonText: {
-    fontSize: 20,
-    color: '#5A5A5A',
-    fontWeight: '300',
+    fontSize: 24,
+    color: '#6B7280',
+    fontWeight: '400',
   },
 
   // Stats Card
   statsCard: {
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    marginTop: 20,
     borderRadius: 16,
     padding: 20,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 2,
+    elevation: 3,
   },
   statsHeader: {
     flexDirection: 'row',
@@ -1250,7 +1329,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#2C5530',
+    color: '#3B82F6',
   },
   statUnit: {
     fontSize: 14,
@@ -1271,40 +1350,41 @@ const styles = StyleSheet.create({
   // Tabs
   tabContainer: {
     flexDirection: 'row',
-    marginHorizontal: 20,
-    marginTop: 20,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F3F4F6',
     borderRadius: 12,
     padding: 4,
+    marginBottom: 16,
   },
   tab: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 12,
   },
   activeTab: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+    backgroundColor: '#3B82F6',
   },
   tabText: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#6B7280',
   },
   activeTabText: {
-    color: '#2C5530',
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
 
   // Section styles
   section: {
-    marginHorizontal: 20,
-    marginTop: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1313,16 +1393,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 4,
+    color: '#1F2937',
+    letterSpacing: -0.2,
   },
   sectionDescription: {
     fontSize: 14,
     color: '#6B7280',
     lineHeight: 20,
-    marginBottom: 20,
+    marginBottom: 16,
   },
 
   // Live indicator
@@ -1355,10 +1435,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 1,
   },
   obstacleHeader: {
     flexDirection: 'row',
@@ -1460,17 +1540,19 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowRadius: 4,
     elevation: 1,
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
   wildlifeCardSelected: {
-    shadowColor: '#2C5530',
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+    shadowColor: '#3B82F6',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 2,
-    borderColor: '#2C5530',
+    elevation: 2,
   },
   wildlifeEmoji: {
     fontSize: 32,
@@ -1483,8 +1565,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   wildlifeLabelSelected: {
-    color: '#2C5530',
-    fontWeight: '600',
+    color: '#3B82F6',
+    fontWeight: '700',
   },
 
   // Issue grid
@@ -1503,17 +1585,19 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowRadius: 4,
     elevation: 1,
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
   issueCardSelected: {
-    shadowColor: '#2C5530',
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+    shadowColor: '#F59E0B',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 2,
-    borderColor: '#2C5530',
+    elevation: 2,
   },
   issueEmoji: {
     fontSize: 32,
@@ -1526,8 +1610,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   issueLabelSelected: {
-    color: '#2C5530',
-    fontWeight: '600',
+    color: '#F59E0B',
+    fontWeight: '700',
   },
 
   // Input styles
@@ -1790,21 +1874,20 @@ const styles = StyleSheet.create({
 
   // Action buttons
   actionContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 20,
-    paddingBottom: 10,
     gap: 12,
   },
   submitButton: {
-    backgroundColor: '#2C5530',
+    backgroundColor: '#3B82F6',
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
-    shadowColor: '#2C5530',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   submitButtonDisabled: {
     backgroundColor: '#D1D5DB',
@@ -1817,20 +1900,20 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   skipButton: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#E5E7EB',
   },
   skipButtonText: {
     color: '#6B7280',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
   },
 
   });
