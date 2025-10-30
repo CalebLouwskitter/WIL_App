@@ -14,6 +14,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { saveObstacle } from '../../services/ObstacleService';
+import { createAdminNotification } from '../../services/FirebaseNotificationService';
+import { auth as firebaseAuth } from '../../services/firebase';
 import type { ObstacleType, ObstacleSeverity } from '../../services/Data';
 import { Colors } from '@/constants/colors';
 
@@ -99,7 +101,7 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
 
     setLoading(true);
     try {
-      await saveObstacle({
+      const savedObstacle = await saveObstacle({
         type: selectedType,
         severity: selectedSeverity,
         status: 'active',
@@ -107,6 +109,31 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
         description: description.trim() || undefined,
         location,
       });
+
+      // Send FCM notification to admins about new trail obstacle
+      try {
+        const userId = firebaseAuth?.currentUser?.uid;
+        if (userId) {
+          await createAdminNotification(
+            userId,
+            'alert',
+            `New Trail Obstacle: ${title.trim()}`,
+            `A new ${selectedSeverity} severity obstacle (${selectedType}) has been reported on the trail${savedObstacle.userName ? ` by ${savedObstacle.userName}` : ''}. ${description.trim() ? `Notes: ${description.trim()}` : ''}`,
+            'admins',
+            {
+              obstacleId: savedObstacle.id,
+              type: selectedType,
+              severity: selectedSeverity,
+              location: location,
+              reportedBy: savedObstacle.userName || 'Anonymous'
+            }
+          );
+          console.log('[MarkObstacleScreen] FCM notification sent to admins');
+        }
+      } catch (notificationError) {
+        console.warn('[MarkObstacleScreen] Failed to send FCM notification:', notificationError);
+        // Non-fatal error - obstacle was still saved
+      }
 
       Alert.alert('Success', 'Obstacle reported successfully!', [
         { text: 'OK', onPress: () => navigation.goBack() },

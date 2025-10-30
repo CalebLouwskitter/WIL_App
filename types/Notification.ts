@@ -10,6 +10,7 @@ export interface Notification {
   createdAt: Date;
   createdBy: string; // userId of creator
   sentAt?: Date;
+  updatedAt?: Date;
   metadata?: {
     userId?: string; // for user_signup notifications
     eventId?: string;
