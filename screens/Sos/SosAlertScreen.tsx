@@ -22,9 +22,6 @@ const HOLD_THRESHOLD = -150;
 const SNAP_VALUE = -200;
 const COUNTDOWN_START = 3;
 
-// ✅ Your WhatsApp group link here
-const WHATSAPP_GROUP_LINK = '';
-
 const SosAlertScreen = () => {
   const [helpSent, setHelpSent] = useState(false);
   const [activated, setActivated] = useState(false);
@@ -40,12 +37,14 @@ const SosAlertScreen = () => {
   const activatorNameRef = useRef<string | null>(null);
   const activatedRef = useRef(false);
   const activatedThisSessionRef = useRef(false);
+  const whatsappSentRef = useRef(false);
 
   const resetToInitialState = () => {
     activatedRef.current = false;
     setActivated(false);
     setHelpSent(false);
     setCountdown(COUNTDOWN_START);
+    whatsappSentRef.current = false;
     translateY.setValue(0);
     translateYJS.setValue(0);
     Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true }).start();
@@ -64,12 +63,16 @@ const SosAlertScreen = () => {
         if (!activatedRef.current && ty <= HOLD_THRESHOLD) {
           activatedRef.current = true;
           setActivated(true);
-          // Capture profile name immediately on activation
           const bestName = (auth?.currentUser?.displayName as string | undefined) ?? profile?.displayName ?? null;
           activatorNameRef.current = (bestName ?? '').trim() || null;
-          // Immediately activate global SOS so Dashboard shows the name right away
           activatedThisSessionRef.current = true;
+          
+          // Start location broadcast immediately
+          startLocationBroadcast({ isRiding: false });
+          
+          // Activate SOS with location immediately
           activate(activatorNameRef.current, auth?.currentUser?.uid ?? null);
+          
           Animated.timing(translateY, {
             toValue: SNAP_VALUE,
             duration: 120,
@@ -96,7 +99,6 @@ const SosAlertScreen = () => {
           activatedRef.current = false;
           setActivated(false);
           setCountdown(COUNTDOWN_START);
-          // User released before help sent. Only clear global SOS if this session initiated activation.
           if (activatedThisSessionRef.current) {
             clear();
             try { stopLocationBroadcast(); } catch {}
@@ -117,6 +119,9 @@ const SosAlertScreen = () => {
 
   // Send location to WhatsApp
   const sendLocationToWhatsApp = async () => {
+    if (whatsappSentRef.current) return;
+    whatsappSentRef.current = true;
+
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -125,25 +130,27 @@ const SosAlertScreen = () => {
       }
 
       const location = await Location.getCurrentPositionAsync({});
-      const mapsUrl = `https://maps.google.com/?q=${location.coords.latitude},${location.coords.longitude}`;
-      const message = `🚨 SOS Activated! 🚨\nMy current location: ${mapsUrl}`;
+      const { latitude, longitude } = location.coords;
+      const mapsUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
+      const message = `🚨 SOS ALERT 🚨\nPlease help!\nMy live location:\n${mapsUrl}\n\nTap the link to navigate via Google Maps.`;
 
       const encodedMessage = encodeURIComponent(message);
-      const fullUrl = `${WHATSAPP_GROUP_LINK}?text=${encodedMessage}`;
+      const fullUrl = `whatsapp://send?text=${encodedMessage}`;
 
       const supported = await Linking.canOpenURL(fullUrl);
       if (supported) {
         await Linking.openURL(fullUrl);
       } else {
-        Alert.alert('Error', 'Could not open WhatsApp. Please try again.');
+        const webUrl = `https://wa.me/?text=${encodedMessage}`;
+        await Linking.openURL(webUrl);
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to get location.');
-      console.error('Error sending location:', error);
+      Alert.alert('Error', 'Failed to share SOS location.');
+      console.error('Error sending WhatsApp message:', error);
     }
   };
 
-  // Countdown effect
+  // Countdown effect - triggers WhatsApp immediately when countdown reaches 0
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | null = null;
     if (activated && !helpSent) {
@@ -151,6 +158,8 @@ const SosAlertScreen = () => {
         setCountdown((prev) => {
           if (prev <= 1) {
             if (timer) clearInterval(timer);
+            // Immediately send WhatsApp message
+            sendLocationToWhatsApp();
             setHelpSent(true);
             return 0;
           }
@@ -163,22 +172,6 @@ const SosAlertScreen = () => {
     };
   }, [activated, helpSent]);
 
-  // Trigger side-effects after helpSent commits to true
-  useEffect(() => {
-    if (helpSent) {
-      const derivedName =
-        activatorNameRef.current ??
-        (auth?.currentUser?.displayName as string | undefined) ??
-        profile?.displayName ??
-        null;
-      const sanitized = (derivedName ?? '').trim() || null;
-      activate(sanitized, auth?.currentUser?.uid ?? null);
-      // Ensure location broadcast starts so others can follow on the map
-      startLocationBroadcast({ isRiding: false });
-      sendLocationToWhatsApp();
-    }
-  }, [helpSent, activate, profile?.displayName, profile?.email, user?.displayName, user?.email]);
-
   // Backfill activator name if SOS is active but name wasn't available yet
   useEffect(() => {
     if (sosState.active && !sosState.name) {
@@ -186,9 +179,9 @@ const SosAlertScreen = () => {
       const sanitized = (derivedName ?? '').trim();
       if (sanitized.length) activate(sanitized, auth?.currentUser?.uid ?? null);
     }
-  }, [sosState.active, sosState.name, activate, profile?.displayName, profile?.email, user?.displayName, user?.email]);
+  }, [sosState.active, sosState.name, activate, profile?.displayName, user?.displayName]);
 
-  // Sync local UI when SOS is cleared elsewhere; do not auto-mark helpSent on first activation
+  // Sync local UI when SOS is cleared elsewhere
   useEffect(() => {
     if (!sosState.active) {
       resetToInitialState();
@@ -197,16 +190,14 @@ const SosAlertScreen = () => {
     }
   }, [sosState.active]);
 
-  // Also ensure state is synced whenever the screen gains focus
+  // Sync state when screen gains focus
   useFocusEffect(
     React.useCallback(() => {
       if (sosState.active) {
-        // Only auto-show Cancel when returning to the screen and this session did not initiate the alert
         if (!activatedThisSessionRef.current && !helpSent) {
           setActivated(true);
           setHelpSent(true);
         }
-        // Defensive: make sure broadcasting is on when an active SOS is detected
         startLocationBroadcast({ isRiding: false });
       } else {
         resetToInitialState();
