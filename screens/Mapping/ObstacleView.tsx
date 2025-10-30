@@ -19,7 +19,7 @@ type Props = {
 const getObstacleIcon = (type: string): string => {
   switch (type) {
     case 'pothole':
-      return 'alert-triangle';
+      return 'alert-circle';
     case 'debris':
       return 'trash-2';
     case 'animal':

@@ -85,8 +85,34 @@ export default function AdminNotificationManagement() {
   };
 
   const handleSendNotification = async () => {
-    if (!title.trim() || !body.trim()) {
-      Alert.alert('Validation Error', 'Please fill in both title and body.');
+    // Enhanced validation
+    if (!title.trim()) {
+      Alert.alert('Validation Error', 'Please enter a notification title.');
+      return;
+    }
+
+    if (title.trim().length < 3) {
+      Alert.alert('Validation Error', 'Title must be at least 3 characters long.');
+      return;
+    }
+
+    if (title.trim().length > 100) {
+      Alert.alert('Validation Error', 'Title must be less than 100 characters.');
+      return;
+    }
+
+    if (!body.trim()) {
+      Alert.alert('Validation Error', 'Please enter a notification message.');
+      return;
+    }
+
+    if (body.trim().length < 10) {
+      Alert.alert('Validation Error', 'Message must be at least 10 characters long.');
+      return;
+    }
+
+    if (body.trim().length > 500) {
+      Alert.alert('Validation Error', 'Message must be less than 500 characters.');
       return;
     }
 
@@ -146,14 +172,16 @@ export default function AdminNotificationManagement() {
             accessibilityLabel="Go back"
             onPress={() => navigation.goBack()}
             style={styles.backButton}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
           >
-            <Ionicons name="chevron-back" size={24} color="#111" />
+            <View style={styles.iconButton}>
+              <Ionicons name="chevron-back" size={24} color="#111" />
+            </View>
           </TouchableOpacity>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text style={styles.title}>Notifications</Text>
           </View>
-          <View style={{ width: 32 }} />
+          <View style={{ width: 48 }} />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2563eb" />
@@ -171,9 +199,11 @@ export default function AdminNotificationManagement() {
           accessibilityLabel="Go back"
           onPress={() => navigation.goBack()}
           style={styles.backButton}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
         >
-          <Ionicons name="chevron-back" size={24} color="#111" />
+          <View style={styles.iconButton}>
+            <Ionicons name="chevron-back" size={24} color="#111" />
+          </View>
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={styles.title}>Notifications</Text>
@@ -181,9 +211,11 @@ export default function AdminNotificationManagement() {
         <TouchableOpacity
           onPress={() => setShowForm(!showForm)}
           style={styles.addButton}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
         >
-          <Ionicons name={showForm ? 'close' : 'add'} size={24} color="#2563eb" />
+          <View style={[styles.iconButton, styles.addButtonBackground]}>
+            <Ionicons name={showForm ? 'close' : 'add'} size={24} color="#2563eb" />
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -272,25 +304,28 @@ export default function AdminNotificationManagement() {
             <Text style={styles.label}>Title</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter notification title"
+              placeholder="Notification Title"
               value={title}
               onChangeText={setTitle}
               maxLength={100}
             />
+            <Text style={styles.characterCount}>
+              {title.length}/100 characters
+            </Text>
 
             {/* Body Input */}
             <Text style={styles.label}>Message</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Enter notification message"
+              placeholder="Notification Message"
               value={body}
               onChangeText={setBody}
               multiline
-              numberOfLines={4}
               maxLength={500}
-              textAlignVertical="top"
             />
-            <Text style={styles.charCount}>{body.length}/500</Text>
+            <Text style={styles.characterCount}>
+              {body.length}/500 characters
+            </Text>
 
             {/* Send Button */}
             <TouchableOpacity
@@ -443,16 +478,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
+    paddingTop: 20,
   },
   backButton: {
-    width: 32,
     alignItems: 'flex-start',
     justifyContent: 'center',
+    minHeight: 48,
+    minWidth: 48,
   },
   addButton: {
-    width: 32,
     alignItems: 'flex-end',
     justifyContent: 'center',
+    minHeight: 48,
+    minWidth: 48,
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  addButtonBackground: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 2,
+    borderColor: '#2563eb',
   },
   title: {
     fontSize: 24,
@@ -543,11 +599,16 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#D1D5DB',
     borderRadius: 8,
     padding: 12,
-    fontSize: 14,
-    color: '#111827',
+    fontSize: 16,
+  },
+  characterCount: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'right',
+    marginBottom: 8,
   },
   textArea: {
     minHeight: 100,

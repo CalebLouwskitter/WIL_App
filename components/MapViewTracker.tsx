@@ -209,11 +209,13 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
     (async () => {
       if (!region) return;
       try {
+        console.log('[MapViewTracker] Loading obstacles for region:', region);
         const nearbyObstacles = await getObstaclesInArea(
           { latitude: region.latitude, longitude: region.longitude },
           10, // 10km radius
           { status: 'active' }
         );
+        console.log('[MapViewTracker] Loaded obstacles:', nearbyObstacles.length);
         if (!cancelled) {
           setObstacles(nearbyObstacles);
         }
@@ -295,12 +297,17 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
       // Refresh obstacles to show updated verification count
       setObstacles(prev => prev.map(o => 
         o.id === obstacle.id 
-          ? { ...o, verifiedBy: [...(o.verifiedBy || []), 'current-user'] }
+          ? { ...o, verifiedBy: [...(o.verifiedBy || []), auth?.currentUser?.uid || 'current-user'] }
           : o
       ));
     } catch (error) {
       console.warn('Failed to verify obstacle:', error);
     }
+  };
+
+  const handleObstaclePress = (obstacle: Obstacle) => {
+    // Could navigate to obstacle details or show modal
+    console.log('Obstacle pressed:', obstacle.title);
   };
 
   return (
@@ -463,6 +470,7 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
       <ObstacleView 
         obstacles={filteredObstacles} 
         onVerify={handleVerifyObstacle}
+        onObstaclePress={handleObstaclePress}
       />
     </MapView>
   );

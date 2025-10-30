@@ -16,6 +16,7 @@ export default function AdminManagementScreen() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [operationLoading, setOperationLoading] = useState<string | null>(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -53,6 +54,7 @@ export default function AdminManagementScreen() {
   };
 
   const handleApprove = async (userId: string) => {
+    setOperationLoading(userId);
     try {
       await approveUser(userId);
       Alert.alert('Success', 'User has been approved.');
@@ -60,10 +62,13 @@ export default function AdminManagementScreen() {
     } catch (error) {
       Alert.alert('Error', 'Could not approve user.');
       console.error(error);
+    } finally {
+      setOperationLoading(null);
     }
   };
 
   const handleDisapprove = async (userId: string) => {
+    setOperationLoading(userId);
     try {
       await disapproveUser(userId);
       Alert.alert('Success', 'User has been disapproved.');
@@ -71,6 +76,8 @@ export default function AdminManagementScreen() {
     } catch (error) {
       Alert.alert('Error', 'Could not disapprove user.');
       console.error(error);
+    } finally {
+      setOperationLoading(null);
     }
   };
 
@@ -79,26 +86,46 @@ export default function AdminManagementScreen() {
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive', onPress: async () => {
+          setOperationLoading(userId);
           try {
             await deleteUserDoc(userId);
             Alert.alert('Deleted', 'User document deleted.');
             fetchUsers();
           } catch (e) {
             Alert.alert('Error', 'Failed to delete user');
+            console.error(e);
+          } finally {
+            setOperationLoading(null);
           }
-        }
-      }
+        },
+      },
     ]);
   };
 
-  const handleSeed = async () => {
-    try {
-      await seedUsersRbac();
-      Alert.alert('Seed Completed', 'Users updated with role/status where missing.');
-      fetchUsers();
-    } catch (e) {
-      Alert.alert('Error', 'Failed to run seed.');
-    }
+  const handleRoleChange = async (userId: string, newRole: 'admin' | 'member') => {
+    Alert.alert(
+      'Confirm Role Change',
+      `Are you sure you want to make this user ${newRole}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes',
+          onPress: async () => {
+            setOperationLoading(userId);
+            try {
+              await setUserRole(userId, newRole);
+              Alert.alert('Success', `User role changed to ${newRole}.`);
+              fetchUsers();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to change role.');
+              console.error(error);
+            } finally {
+              setOperationLoading(null);
+            }
+          }
+        }
+      ]
+    );
   };
 
   
@@ -162,20 +189,41 @@ export default function AdminManagementScreen() {
           onChangeText={setSearchQuery}
         />
       </View>
-      <TouchableOpacity 
-        style={styles.adminActionButton}
-        onPress={() => navigation.navigate('AdminNotificationManagement')}
-      >
-        <Ionicons name="notifications" size={20} color="#FFFFFF" />
-        <Text style={styles.adminActionButtonText}>Manage Notifications</Text>
-      </TouchableOpacity>
-      <TouchableOpacity 
-        style={[styles.adminActionButton, styles.obstacleActionButton]}
-        onPress={() => navigation.navigate('AdminObstacleManagement')}
-      >
-        <Ionicons name="warning" size={20} color="#FFFFFF" />
-        <Text style={styles.adminActionButtonText}>Manage Obstacles</Text>
-      </TouchableOpacity>
+      <View style={styles.adminCardsContainer}>
+        <TouchableOpacity 
+          style={styles.adminCard}
+          onPress={() => navigation.navigate('AdminNotificationManagement')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.adminCardContent}>
+            <View style={styles.adminIconContainer}>
+              <Ionicons name="notifications" size={24} color="#2563eb" />
+            </View>
+            <View style={styles.adminTextContainer}>
+              <Text style={styles.adminCardTitle}>Manage Notifications</Text>
+              <Text style={styles.adminCardSubtitle}>Send and manage push notifications</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </View>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.adminCard, styles.obstacleCard]}
+          onPress={() => navigation.navigate('AdminObstacleManagement')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.adminCardContent}>
+            <View style={[styles.adminIconContainer, styles.obstacleIconContainer]}>
+              <Ionicons name="warning" size={24} color="#dc2626" />
+            </View>
+            <View style={styles.adminTextContainer}>
+              <Text style={styles.adminCardTitle}>Manage Obstacles</Text>
+              <Text style={styles.adminCardSubtitle}>Add, edit, or remove map obstacles</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </View>
+        </TouchableOpacity>
+      </View>
       <FlatList
         data={filteredUsers}
         renderItem={({ item }) => {
@@ -201,35 +249,53 @@ export default function AdminManagementScreen() {
                   style={[
                     styles.button,
                     styles.approveButton,
-                    (isApproved) && styles.buttonDisabled
+                    (isApproved || operationLoading === item.uid) && styles.buttonDisabled
                   ]}
-                  disabled={isApproved}
+                  disabled={isApproved || operationLoading === item.uid}
                   onPress={() => handleApprove(item.uid)}
                 >
-                  <Text style={styles.buttonText}>Approve</Text>
+                  {operationLoading === item.uid ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.buttonText}>Approve</Text>
+                  )}
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[
                     styles.button,
                     styles.disapproveButton,
-                    (isDenied) && styles.buttonDisabled
+                    (isDenied || operationLoading === item.uid) && styles.buttonDisabled
                   ]}
-                  disabled={isDenied}
+                  disabled={isDenied || operationLoading === item.uid}
                   onPress={() => handleDisapprove(item.uid)}
                 >
-                  <Text style={styles.buttonText}>Deny</Text>
+                  {operationLoading === item.uid ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.buttonText}>Deny</Text>
+                  )}
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.button, { backgroundColor:'#2563eb' }]}
-                  onPress={async () => { await setUserRole(item.uid, role === 'admin' ? 'member' : 'admin'); fetchUsers(); }}
+                  onPress={() => handleRoleChange(item.uid, role === 'admin' ? 'member' : 'admin')}
+                  disabled={operationLoading === item.uid}
                 >
-                  <Text style={styles.buttonText}>{role === 'admin' ? 'Make Member' : 'Make Admin'}</Text>
+                  {operationLoading === item.uid ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.buttonText}>{role === 'admin' ? 'Make Member' : 'Make Admin'}</Text>
+                  )}
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.button, { backgroundColor:'#6b7280' }]}
                   onPress={() => handleDelete(item.uid)}
+                  disabled={operationLoading === item.uid}
                 >
-                  <Text style={styles.buttonText}>Delete</Text>
+                  {operationLoading === item.uid ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.buttonText}>Delete</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -365,23 +431,56 @@ const styles = StyleSheet.create({
   chipRoleMember: {
     backgroundColor: '#6b7280',
   },
-  adminActionButton: {
-    backgroundColor: '#2563eb',
+  adminCardsContainer: {
+    paddingHorizontal: 0,
+    marginBottom: 16,
+  },
+  adminCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  adminCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    gap: 8,
+    padding: 16,
   },
-  adminActionButtonText: {
-    color: '#FFFFFF',
+  adminIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  obstacleIconContainer: {
+    backgroundColor: '#FEF2F2',
+  },
+  adminTextContainer: {
+    flex: 1,
+  },
+  adminCardTitle: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
   },
-  obstacleActionButton: {
-    backgroundColor: '#dc2626',
+  adminCardSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
+  },
+  obstacleCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
   },
 });

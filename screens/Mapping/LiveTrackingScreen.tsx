@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, StyleSheet, Text, Animated, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import * as Location from 'expo-location';
 import { useBackgroundRideTracker } from '../../components/backgroundServices';
 import { saveRide } from '../../services/RideStorage';
 import MapViewTracker from '../../components/MapViewTracker';
@@ -176,7 +177,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             
             if (finalRide) {
               await saveRide(finalRide);
-              navigation.navigate('RideReviewScreen', { ride: finalRide });
+              navigation.navigate('RideReviewScreen', { rideData: finalRide });
             }
           },
         },
@@ -384,25 +385,23 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             </Animated.View>
 
             <TouchableOpacity
-              style={[styles.reportObstacleButton, { bottom: insets.bottom + 240 }]}
+              style={[styles.reportButton, { bottom: insets.bottom + 240 }]}
               activeOpacity={0.9}
               onPress={() =>
-                navigation.navigate('MarkObstacle', {
-                  location:
-                    rideData?.path && rideData.path.length > 0
-                      ? {
-                          latitude: rideData.path[rideData.path.length - 1].latitude,
-                          longitude: rideData.path[rideData.path.length - 1].longitude,
-                        }
-                      : undefined,
+                navigation.navigate('DuringRideScreen', {
+                  rideData: rideData,
+                  initialTab: 'report',
                 })
               }
             >
               <LinearGradient
                 colors={['#f59e0b', '#ea580c']}
-                style={styles.obstacleButtonGradient}
+                style={styles.reportButtonGradient}
               >
-                <Feather name="alert-triangle" size={28} color="white" />
+                <View style={styles.reportButtonInner}>
+                  <Feather name="alert-triangle" size={24} color="white" />
+                  <Text style={styles.reportButtonText}>Report Obstacle</Text>
+                </View>
               </LinearGradient>
             </TouchableOpacity>
           </>
@@ -705,25 +704,72 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  reportObstacleButton: {
+  // Report button styles
+  reportButton: {
     position: 'absolute',
+    right: 20,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  reportButtonGradient: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderRadius: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  reportButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  reportButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  quickActionsRow: {
+    position: 'absolute',
+    left: 24,
     right: 24,
-    width: 64,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  quickActionButton: {
+    flex: 1,
     height: 64,
     borderRadius: 24,
     overflow: 'hidden',
-    shadowColor: '#f59e0b',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
     shadowRadius: 16,
     elevation: 12,
   },
-  obstacleButtonGradient: {
+  quickActionButtonGradient: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(251, 146, 60, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  quickActionButtonInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  quickActionEmoji: {
+    fontSize: 20,
+  },
+  quickActionText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   actionRow: {
     position: 'absolute',
