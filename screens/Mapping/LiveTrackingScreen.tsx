@@ -671,26 +671,6 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
               </BlurView>
             </Animated.View>
 
-            {/* Floating Drag Button to expand sheet */}
-            {!bottomSheetExpanded && (
-              <TouchableOpacity
-                style={[styles.floatingExpandButton, { bottom: insets.bottom + 20 }]}
-                onPress={() => toggleBottomSheet(true)}
-                activeOpacity={0.9}
-              >
-                <BlurView intensity={80} tint="dark" style={styles.floatingButtonBlur}>
-                  <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.08)']}
-                    style={styles.floatingButtonGradient}
-                  >
-                    <Feather name="chevron-up" size={24} color="white" />
-                    <Text style={styles.floatingButtonText}>
-                      {activeHorseName || 'Select Horse'}
-                    </Text>
-                  </LinearGradient>
-                </BlurView>
-              </TouchableOpacity>
-            )}
             {/* Enhanced Start/Cancel confirmation */}
             {isConfirmingStart && (
               <View style={styles.confirmOverlay}>
