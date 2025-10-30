@@ -42,6 +42,7 @@ import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { saveObservation } from '@/services/ObservationStorage';
 import { saveObstacle } from '../../services/ObstacleService';
+import { createAdminNotification } from '../../services/FirebaseNotificationService';
 import { trailData } from '@/constants/trails';
 import { Feather } from '@expo/vector-icons';
 import { getObstacles, subscribeToObstacles, type Obstacle } from '../../services/ObstacleService';
@@ -551,7 +552,7 @@ export default function UnifiedRideObstacleScreen({
         
         if (location) {
           try {
-            await saveObstacle({
+            const savedObstacle = await saveObstacle({
               type: obstacleType,
               severity: severity,
               status: 'active',
@@ -560,6 +561,31 @@ export default function UnifiedRideObstacleScreen({
               location: location,
             });
             console.log('[UnifiedRideObstacleScreen] Created obstacle from trail report:', issueLabel);
+            
+            // Send FCM notification to admins about new trail obstacle
+            try {
+              const userId = firebaseAuth?.currentUser?.uid;
+              if (userId) {
+                await createAdminNotification(
+                  userId,
+                  'alert',
+                  `New Trail Obstacle: ${issueLabel}`,
+                  `A new ${severity} severity obstacle has been reported on the trail${savedObstacle.userName ? ` by ${savedObstacle.userName}` : ''}. ${reportNotes ? `Notes: ${reportNotes}` : ''}`,
+                  'admins',
+                  {
+                    obstacleId: savedObstacle.id,
+                    type: obstacleType,
+                    severity: severity,
+                    location: location,
+                    reportedBy: savedObstacle.userName || 'Anonymous'
+                  }
+                );
+                console.log('[UnifiedRideObstacleScreen] FCM notification sent to admins');
+              }
+            } catch (notificationError) {
+              console.warn('[UnifiedRideObstacleScreen] Failed to send FCM notification:', notificationError);
+              // Non-fatal error - obstacle was still saved
+            }
           } catch (error) {
             console.error('[UnifiedRideObstacleScreen] Failed to create obstacle:', error);
             Alert.alert('Error', 'Failed to save obstacle. Please try again.');

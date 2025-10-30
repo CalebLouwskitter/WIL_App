@@ -159,6 +159,7 @@ export default function AdminNotificationManagement() {
       case 'event': return 'calendar';
       case 'update': return 'information-circle';
       case 'alert': return 'warning';
+      case 'user_signup': return 'person-add';
       default: return 'notifications';
     }
   };
