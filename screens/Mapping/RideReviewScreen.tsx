@@ -101,15 +101,18 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
     success: '#4CAF50',
   };
 
-  // Wildlife categories with updated styling
+  // Wildlife categories - Sardinia Bay, Port Elizabeth fauna
   const WILDLIFE = [
-    { id: 'w_deer', label: 'Deer', emoji: '🦌', color: '#F0E6D8' },
-    { id: 'w_bird', label: 'Bird', emoji: '🦅', color: '#E8F4F8' },
-    { id: 'w_rabbit', label: 'Rabbit', emoji: '🐰', color: '#FFF0F5' },
-    { id: 'w_fox', label: 'Fox', emoji: '🦊', color: '#FFE8E0' },
-    { id: 'w_squirrel', label: 'Squirrel', emoji: '🐿️', color: '#F5E6FF' },
-    { id: 'w_boar', label: 'Wild Boar', emoji: '🐗', color: '#FFE6E6' },
-    { id: 'w_badger', label: 'Badger', emoji: '🦡', color: '#E6F0E6' },
+    { id: 'w_bushbuck', label: 'Bushbuck', emoji: '🦌', color: '#F0E6D8' },
+    { id: 'w_duiker', label: 'Duiker', emoji: '🦌', color: '#FFF0F5' },
+    { id: 'w_vervet', label: 'Vervet Monkey', emoji: '🐒', color: '#FFE8D8' },
+    { id: 'w_tortoise', label: 'Tortoise', emoji: '🐢', color: '#F5E6FF' },
+    { id: 'w_mongoose', label: 'Mongoose', emoji: '🦦', color: '#FFE8E0' },
+    { id: 'w_porcupine', label: 'Porcupine', emoji: '🦔', color: '#E6F0E6' },
+    { id: 'w_snake', label: 'Snake', emoji: '🐍', color: '#FFF8E6' },
+    { id: 'w_dolphin', label: 'Dolphin', emoji: '🐬', color: '#E8F4F8' },
+    { id: 'w_seabird', label: 'Seabird', emoji: '🦅', color: '#E6F5FF' },
+    { id: 'w_hare', label: 'Cape Hare', emoji: '🐰', color: '#FFF0F0' },
     { id: 'w_other', label: 'Other', emoji: '🐾', color: '#F0F0F0' },
   ];
 
@@ -150,7 +153,7 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isLoadingPhoto, setIsLoadingPhoto] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const mapRef = useRef<MapView | null>(null);
   const { rideData, rideId } = route.params ?? {};
   const currentUser = firebaseAuth?.currentUser;
@@ -185,6 +188,20 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
       }),
     ]).start();
   }, []);
+
+  // Snap map to user location when switching to report tab
+  useEffect(() => {
+    if (activeTab === 'report' && currentLocation && mapRef.current) {
+      setTimeout(() => {
+        mapRef.current?.animateToRegion({
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        }, 1000);
+      }, 300);
+    }
+  }, [activeTab]);
 
   // Get initial location and track updates
   useEffect(() => {
@@ -221,22 +238,25 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
       if (!hasPermission) return;
 
       // Get initial location using navigator.geolocation (built-in)
+      console.log('[Location] Requesting current position...');
       navigator.geolocation.getCurrentPosition(
         (position: GeolocationPosition) => {
           const coords = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
           };
+          console.log('[Location] Got current position:', coords);
           setCurrentLocation(coords);
           setReportLocation(coords);
         },
         (error: GeolocationError) => {
-          console.log('Error getting location:', error.message);
-          // Set default location if error
+          console.log('[Location] Error getting location:', error.message, error.code);
+          // Set default location if error - use ride end point if available
           const defaultCoords = {
-            latitude: rideData?.path?.[rideData.path.length - 1]?.latitude ?? 51.5074,
-            longitude: rideData?.path?.[rideData.path.length - 1]?.longitude ?? -0.1278,
+            latitude: rideData?.path?.[rideData.path.length - 1]?.latitude ?? -34.0254,
+            longitude: rideData?.path?.[rideData.path.length - 1]?.longitude ?? 25.5002,
           };
+          console.log('[Location] Using fallback location:', defaultCoords);
           setCurrentLocation(defaultCoords);
           setReportLocation(defaultCoords);
         },
@@ -254,20 +274,12 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
           };
+          console.log('[Location] Position updated:', coords);
           setCurrentLocation(coords);
-
-          // Update map region to follow user
-          if (mapRef.current && activeTab === 'report') {
-            mapRef.current.animateToRegion({
-              latitude: coords.latitude,
-              longitude: coords.longitude,
-              latitudeDelta: 0.008,
-              longitudeDelta: 0.008,
-            }, 1000);
-          }
+          // Map will auto-follow user location via showsUserLocation prop
         },
         (error: GeolocationError) => {
-          console.log('Error watching location:', error.message);
+          console.log('[Location] Error watching location:', error.message, error.code);
         },
         {
           enableHighAccuracy: true,
@@ -649,8 +661,8 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
       
       // Success feedback
       Alert.alert(
-        '✓ Successfully Saved',
-        'Your observations have been saved locally and synced to the cloud.',
+        '✓ Report Submitted',
+        'Your trail report has been saved and will help other riders stay informed.',
         [{ text: 'Done', onPress: () => onClose ? onClose() : navigation.goBack() }]
       );
 
@@ -715,8 +727,8 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
         {/* Professional Header */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Ride Review</Text>
-            <Text style={styles.headerSubtitle}>Record your observations</Text>
+            <Text style={styles.headerTitle}>Trail Report & Sightings</Text>
+            <Text style={styles.headerSubtitle}>Report trail conditions and wildlife</Text>
           </View>
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
             <Text style={styles.closeButtonText}>✕</Text>
@@ -728,40 +740,34 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Enhanced Stats Card */}
-          <View style={styles.statsCard}>
-            <View style={styles.statsHeader}>
-              <Text style={styles.statsTitle}>Today's Performance</Text>
-              <View style={styles.successBadge}>
-                <Text style={styles.successBadgeText}>Completed</Text>
+          {/* Optional: Ride stats for context - only show if ride data exists */}
+          {rideData && (
+            <View style={styles.statsCard}>
+              <View style={styles.statsHeader}>
+                <Text style={styles.statsTitle}>Ride Summary</Text>
+                <View style={styles.successBadge}>
+                  <Text style={styles.successBadgeText}>Completed</Text>
+                </View>
+              </View>
+              <View style={styles.statsGrid}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {(stats.distance / 1000).toFixed(1)}
+                    <Text style={styles.statUnit}> km</Text>
+                  </Text>
+                  <Text style={styles.statLabel}>Distance</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {Math.floor(stats.duration / 60000)}
+                    <Text style={styles.statUnit}> min</Text>
+                  </Text>
+                  <Text style={styles.statLabel}>Duration</Text>
+                </View>
               </View>
             </View>
-            <View style={styles.statsGrid}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>
-                  {(stats.distance / 1000).toFixed(1)}
-                  <Text style={styles.statUnit}> km</Text>
-                </Text>
-                <Text style={styles.statLabel}>Distance</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>
-                  {stats.elevation.toFixed(0)}
-                  <Text style={styles.statUnit}> m</Text>
-                </Text>
-                <Text style={styles.statLabel}>Elevation</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>
-                  {Math.floor(stats.duration / 60000)}
-                  <Text style={styles.statUnit}> min</Text>
-                </Text>
-                <Text style={styles.statLabel}>Duration</Text>
-              </View>
-            </View>
-          </View>
+          )}
 
           {/* Tab Selector */}
           <View style={styles.tabContainer}>
@@ -778,7 +784,7 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
               onPress={() => setActiveTab('report')}
             >
               <Text style={[styles.tabText, activeTab === 'report' && styles.activeTabText]}>
-                ⚠️ Trail Reports
+                🚧 Trail Conditions
               </Text>
             </TouchableOpacity>
           </View>
@@ -873,9 +879,9 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
           {/* Trail Reports Section */}
           {activeTab === 'report' && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Report an issue</Text>
+              <Text style={styles.sectionTitle}>Report trail conditions</Text>
               <Text style={styles.sectionDescription}>
-                Help maintain the trails by reporting any issues you encounter
+                Help maintain safe trails by reporting conditions and issues
               </Text>
 
               <View style={styles.issueGrid}>
@@ -940,16 +946,19 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
 
               <View style={styles.mapContainer}>
                 <Text style={styles.mapLabel}>📍 Mark Location on Map</Text>
+                <Text style={styles.mapHint}>View trails, your ride path, and tap to mark the report location</Text>
                 <View style={styles.mapWrapper}>
                   <MapView
                     ref={mapRef}
+                    provider={PROVIDER_GOOGLE}
                     style={styles.map}
                     initialRegion={{
-                      latitude: currentLocation?.latitude || 0,
-                      longitude: currentLocation?.longitude || 0,
-                      latitudeDelta: 0.008,
-                      longitudeDelta: 0.008,
+                      latitude: currentLocation?.latitude || rideData?.path?.[0]?.latitude || -34.0254,
+                      longitude: currentLocation?.longitude || rideData?.path?.[0]?.longitude || 25.5002,
+                      latitudeDelta: 0.02,
+                      longitudeDelta: 0.02,
                     }}
+                    onPress={onMapPress}
                     showsUserLocation={true}
                     showsMyLocationButton={false}
                     showsPointsOfInterest={false}
@@ -961,6 +970,68 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
                     loadingIndicatorColor="#2C5530"
                     loadingBackgroundColor="#FAF9F7"
                   >
+                    {/* Display all trail routes */}
+                    {trailData.map((trail) => (
+                      <Polyline
+                        key={trail.id}
+                        coordinates={trail.routeWaypoints.map(wp => ({
+                          latitude: wp.latitude,
+                          longitude: wp.longitude,
+                        }))}
+                        strokeColor={trail.color || '#0080ff'}
+                        strokeWidth={3}
+                        lineJoin="round"
+                        lineCap="round"
+                        zIndex={1}
+                      />
+                    ))}
+                    
+                    {/* Show the completed ride path on top of trails */}
+                    {rideData?.path && rideData.path.length > 1 && (
+                      <Polyline
+                        coordinates={rideData.path.map(p => ({
+                          latitude: p.latitude,
+                          longitude: p.longitude,
+                        }))}
+                        strokeColor="#2C5530"
+                        strokeWidth={5}
+                        lineJoin="round"
+                        lineCap="round"
+                        zIndex={2}
+                      />
+                    )}
+                    
+                    {/* Start marker */}
+                    {rideData?.path && rideData.path.length > 0 && (
+                      <Marker
+                        coordinate={{
+                          latitude: rideData.path[0].latitude,
+                          longitude: rideData.path[0].longitude,
+                        }}
+                        title="Ride Start"
+                      >
+                        <View style={styles.startMarker}>
+                          <Text style={styles.startMarkerText}>🏁</Text>
+                        </View>
+                      </Marker>
+                    )}
+                    
+                    {/* End marker */}
+                    {rideData?.path && rideData.path.length > 1 && (
+                      <Marker
+                        coordinate={{
+                          latitude: rideData.path[rideData.path.length - 1].latitude,
+                          longitude: rideData.path[rideData.path.length - 1].longitude,
+                        }}
+                        title="Ride End"
+                      >
+                        <View style={styles.endMarker}>
+                          <Text style={styles.endMarkerText}>🏁</Text>
+                        </View>
+                      </Marker>
+                    )}
+                    
+                    {/* User's selected report location */}
                     {reportLocation && (
                       <Marker
                         coordinate={{
@@ -968,18 +1039,22 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
                           longitude: reportLocation?.longitude || 0,
                         }}
                         pinColor="#C73E1D"
+                        title="Report Location"
                       >
                         <View style={styles.customMarker}>
                           <Text style={styles.markerEmoji}>📍</Text>
                         </View>
                       </Marker>
                     )}
+                    
+                    {/* Current location indicator */}
                     {currentLocation && (
                       <Marker
                         coordinate={{
                           latitude: currentLocation?.latitude || 0,
                           longitude: currentLocation?.longitude || 0,
                         }}
+                        title="Current Location"
                       >
                         <View style={styles.currentLocationMarker}>
                           <View style={styles.currentLocationDot} />
@@ -988,52 +1063,65 @@ export default function RideReviewScreen({ route, navigation, onSubmit, onClose 
                     )}
                   </MapView>
                   <TouchableOpacity 
-                    style={styles.currentLocationButton}
+                    style={styles.centerLocationButton}
                     onPress={() => {
-                      if (currentLocation) {
-                        setReportLocation(currentLocation);
+                      console.log('Center button pressed');
+                      console.log('currentLocation:', currentLocation);
+                      console.log('reportLocation:', reportLocation);
+                      console.log('rideData path length:', rideData?.path?.length);
+                      
+                      // Use current location, or fall back to last ride point, or report location
+                      const targetLocation = currentLocation || 
+                        (rideData?.path && rideData.path.length > 0 ? rideData.path[rideData.path.length - 1] : null) ||
+                        reportLocation;
+                      
+                      if (targetLocation) {
+                        console.log('Centering on:', targetLocation);
                         mapRef.current?.animateToRegion({
-                          latitude: currentLocation?.latitude || 0,
-                          longitude: currentLocation?.longitude || 0,
-                          latitudeDelta: 0.008,
-                          longitudeDelta: 0.008,
-                        }, 1000);
+                          latitude: targetLocation.latitude,
+                          longitude: targetLocation.longitude,
+                          latitudeDelta: 0.015,
+                          longitudeDelta: 0.015,
+                        }, 800);
+                      } else {
+                        Alert.alert('Location Not Available', 'No location data available yet.');
                       }
                     }}
+                    activeOpacity={0.7}
                   >
-                    <Text style={styles.currentLocationButtonText}>📍 Use Current Location</Text>
+                    <Text style={styles.centerLocationButtonText}>📍 Center</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             </View>
           )}
 
-        {/* Action Buttons */}
-        <View style={styles.actionContainer}>
-          <TouchableOpacity
-            style={[
-              styles.submitButton,
-              (!selectedWildlife && !selectedIssue) && styles.submitButtonDisabled,
-              isSubmitting && styles.submitButtonLoading
-            ]}
-            onPress={submitAll}
-            disabled={(!selectedWildlife && !selectedIssue) || isSubmitting}
-          >
-            <Text style={styles.submitButtonText}>
-              {isSubmitting ? 'Saving...' : 'Save Observations'}
-            </Text>
-          </TouchableOpacity>
+          {/* Action Buttons */}
+          <View style={styles.actionContainer}>
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                (!selectedWildlife && !selectedIssue) && styles.submitButtonDisabled,
+                isSubmitting && styles.submitButtonLoading
+              ]}
+              onPress={submitAll}
+              disabled={(!selectedWildlife && !selectedIssue) || isSubmitting}
+            >
+              <Text style={styles.submitButtonText}>
+                {isSubmitting ? 'Saving...' : 'Save Report'}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.skipButton} 
-            onPress={handleClose}
-            disabled={isSubmitting}
-          >
-            <Text style={styles.skipButtonText}>Skip for Now</Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity 
+              style={styles.skipButton} 
+              onPress={handleClose}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.skipButtonText}>Skip for Now</Text>
+            </TouchableOpacity>
+          </View>
 
-        <View style={{ height: 40 }} />
+          <View style={{ height: 40 }} />
       </ScrollView>
     </Animated.View>
   </KeyboardAvoidingView>
@@ -1444,7 +1532,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  mapHint: {
+    fontSize: 12,
+    color: '#8A8A8A',
     marginBottom: 8,
+    fontStyle: 'italic',
   },
   mapWrapper: {
     borderRadius: 12,
@@ -1454,6 +1548,7 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+    borderRadius: 12,
   },
   mapOverlay: {
     position: 'absolute',
@@ -1463,11 +1558,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     paddingVertical: 8,
     alignItems: 'center',
-  },
-  mapHint: {
-    fontSize: 12,
-    color: '#8A8A8A',
-    fontWeight: '500',
   },
   customMarker: {
     backgroundColor: '#FFFFFF',
@@ -1483,6 +1573,36 @@ const styles = StyleSheet.create({
   },
   markerEmoji: {
     fontSize: 20,
+  },
+  startMarker: {
+    backgroundColor: '#4CAF50',
+    padding: 6,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  startMarkerText: {
+    fontSize: 16,
+  },
+  endMarker: {
+    backgroundColor: '#2C5530',
+    padding: 6,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  endMarkerText: {
+    fontSize: 16,
   },
   currentLocationMarker: {
     width: 24,
@@ -1500,23 +1620,26 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FFFFFF',
   },
-  currentLocationButton: {
+  centerLocationButton: {
     position: 'absolute',
     top: 10,
     right: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 1001,
   },
-  currentLocationButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
+  centerLocationButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
     color: '#2C5530',
   },
 
