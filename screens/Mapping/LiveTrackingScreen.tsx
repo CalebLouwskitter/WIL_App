@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity, StyleSheet, Text, Animated, Dimensions } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, TouchableOpacity, StyleSheet, Text, Animated, Dimensions, PanResponder } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import * as Location from 'expo-location';
 import { useBackgroundRideTracker } from '../../components/backgroundServices';
 import { saveRide } from '../../services/RideStorage';
 import MapViewTracker from '../../components/MapViewTracker';
@@ -37,8 +38,11 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [showResumeBanner, setShowResumeBanner] = useState(false);
+  const [userHeading, setUserHeading] = useState<number | null>(null);
+  const [bottomSheetExpanded, setBottomSheetExpanded] = useState(false);
 
   const insets = useSafeAreaInsets();
+  const bottomSheetAnim = useRef(new Animated.Value(0)).current;
   const route = useRoute<any>();
   const followSosDisplayName: string | undefined = route?.params?.followSosDisplayName;
   const followSosUid: string | undefined = route?.params?.followSosUid;
@@ -55,6 +59,61 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   // Animation states
   const pulseAnim = useState(new Animated.Value(1))[0];
   const scaleAnim = useState(new Animated.Value(0.95))[0];
+  const confirmSlideAnim = useState(new Animated.Value(100))[0];
+  const confirmFadeAnim = useState(new Animated.Value(0))[0];
+
+  // Pan responder for bottom sheet drag
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dy) > 5;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0 && bottomSheetExpanded) {
+          // Dragging down when expanded
+          bottomSheetAnim.setValue(-gestureState.dy);
+        } else if (gestureState.dy < 0 && !bottomSheetExpanded) {
+          // Dragging up when collapsed
+          bottomSheetAnim.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (Math.abs(gestureState.dy) > 50) {
+          // Threshold for toggle
+          if (gestureState.dy > 0 && bottomSheetExpanded) {
+            // Swiped down - collapse
+            toggleBottomSheet(false);
+          } else if (gestureState.dy < 0 && !bottomSheetExpanded) {
+            // Swiped up - expand
+            toggleBottomSheet(true);
+          } else {
+            // Return to current state
+            Animated.spring(bottomSheetAnim, {
+              toValue: bottomSheetExpanded ? 300 : 0,
+              useNativeDriver: false,
+            }).start();
+          }
+        } else {
+          // Return to current state
+          Animated.spring(bottomSheetAnim, {
+            toValue: bottomSheetExpanded ? 300 : 0,
+            useNativeDriver: false,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  const toggleBottomSheet = (expand: boolean) => {
+    setBottomSheetExpanded(expand);
+    Animated.spring(bottomSheetAnim, {
+      toValue: expand ? 300 : 0,
+      tension: 50,
+      friction: 8,
+      useNativeDriver: false,
+    }).start();
+  };
 
   useEffect(() => {
     startLocationBroadcast({ isRiding: false });
@@ -62,6 +121,39 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
       stopLocationBroadcast();
     };
   }, []);
+
+  // Track device heading/compass when riding (only in foreground)
+  useEffect(() => {
+    let headingSubscription: any = null;
+    
+    const startHeadingTracking = async () => {
+      if (!isRiding) {
+        setUserHeading(null);
+        return;
+      }
+      
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+        
+        headingSubscription = await Location.watchHeadingAsync((heading: Location.LocationHeadingObject) => {
+          // heading.magHeading is the magnetic heading in degrees (0-360)
+          // 0/360 = North, 90 = East, 180 = South, 270 = West
+          setUserHeading(heading.magHeading);
+        });
+      } catch (error) {
+        console.warn('Failed to start heading tracking:', error);
+      }
+    };
+    
+    startHeadingTracking();
+    
+    return () => {
+      if (headingSubscription) {
+        headingSubscription.remove();
+      }
+    };
+  }, [isRiding]);
 
   // Show resume banner when ride is resumed
   useEffect(() => {
@@ -231,6 +323,18 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
       console.error('Manual resume check failed:', error);
       Alert.alert('Error', 'Failed to check for interrupted rides.');
     }
+  };
+
+  const getCardinalDirection = (heading: number): string => {
+    if (heading >= 337.5 || heading < 22.5) return 'N';
+    if (heading >= 22.5 && heading < 67.5) return 'NE';
+    if (heading >= 67.5 && heading < 112.5) return 'E';
+    if (heading >= 112.5 && heading < 157.5) return 'SE';
+    if (heading >= 157.5 && heading < 202.5) return 'S';
+    if (heading >= 202.5 && heading < 247.5) return 'SW';
+    if (heading >= 247.5 && heading < 292.5) return 'W';
+    if (heading >= 292.5 && heading < 337.5) return 'NW';
+    return 'N';
   };
 
   return (
@@ -405,129 +509,276 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                 <Feather name="alert-triangle" size={28} color="white" />
               </LinearGradient>
             </TouchableOpacity>
+
+            {/* Compass/Heading Indicator */}
+            {userHeading !== null && (
+              <View style={[styles.compassContainer, { top: insets.top + 100 }]}>
+                <BlurView intensity={80} tint="dark" style={styles.compassBlur}>
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.08)']}
+                    style={styles.compassGradient}
+                  >
+                    <Animated.View
+                      style={[
+                        styles.compassIcon,
+                        { transform: [{ rotate: `${userHeading}deg` }] }
+                      ]}
+                    >
+                      <Feather name="navigation" size={24} color="#6ee7b7" />
+                    </Animated.View>
+                    <Text style={styles.compassText}>
+                      {getCardinalDirection(userHeading)}
+                    </Text>
+                    <Text style={styles.compassDegrees}>{Math.round(userHeading)}°</Text>
+                  </LinearGradient>
+                </BlurView>
+              </View>
+            )}
           </>
         ) : (
           <>
-            <View style={[styles.actionRow, { bottom: insets.bottom + 80 }]}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => setIsConfirmingStart(true)}
-                activeOpacity={0.9}
-              >
+            {/* Bottom Sheet */}
+            <Animated.View
+              style={[
+                styles.bottomSheet,
+                {
+                  bottom: bottomSheetAnim.interpolate({
+                    inputRange: [0, 300],
+                    outputRange: [-250, 0],
+                  }),
+                },
+              ]}
+            >
+              <BlurView intensity={100} tint="dark" style={styles.bottomSheetBlur}>
                 <LinearGradient
-                  colors={['#10b981', '#14b8a6', '#06b6d4']}
-                  style={styles.actionButtonGradient}
+                  colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.05)']}
+                  style={styles.bottomSheetGradient}
                 >
-                  <View style={styles.actionButtonInner}>
-                    <Feather name="navigation" size={24} color="white" />
-                    <Text style={styles.actionButtonText}>Free Ride</Text>
+                  {/* Drag Handle */}
+                  <View {...panResponder.panHandlers} style={styles.dragHandleContainer}>
+                    <View style={styles.dragHandle} />
                   </View>
-                </LinearGradient>
-              </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => navigation.navigate('SelectHorse')}
-                activeOpacity={0.9}
-              >
-                <LinearGradient
-                  colors={['#8b5cf6', '#a855f7', '#d946ef']}
-                  style={styles.actionButtonGradient}
-                >
-                  <View style={styles.actionButtonInner}>
-                    <Feather name="award" size={24} color="white" />
-                    <Text style={styles.actionButtonText}>Select Horse</Text>
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => {
-                  const parent = navigation.getParent();
-                  if (parent) {
-                    parent.navigate('Analytics' as never);
-                  }
-                }}
-                activeOpacity={0.9}
-              >
-                <LinearGradient
-                  colors={['#3b82f6', '#6366f1', '#8b5cf6']}
-                  style={styles.actionButtonGradient}
-                >
-                  <View style={styles.actionButtonInner}>
-                    <Feather name="clock" size={24} color="white" />
-                    <Text style={styles.actionButtonText}>Recent</Text>
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-
-            {/* Manual Resume Button - only show if automatic alert wasn't displayed */}
-            {hasRecoverableRide && !isRiding && !alertShown && (
-              <TouchableOpacity
-                style={[styles.resumeCheckButton, { bottom: insets.bottom + 68 }]}
-                onPress={handleManualResumeCheck}
-                activeOpacity={0.9}
-              >
-                <BlurView intensity={80} tint="dark" style={styles.resumeCheckBlur}>
-                  <LinearGradient
-                    colors={['rgba(16, 185, 129, 0.3)', 'rgba(16, 185, 129, 0.2)']}
-                    style={styles.resumeCheckGradient}
+                  {/* Active Horse Display */}
+                  <TouchableOpacity
+                    style={styles.horseSelector}
+                    onPress={() => {
+                      navigation.navigate('SelectHorse');
+                      toggleBottomSheet(false);
+                    }}
+                    activeOpacity={0.7}
                   >
-                    <Feather name="rotate-ccw" size={16} color="#6ee7b7" />
-                    <Text style={styles.resumeCheckText}>Resume Interrupted Ride</Text>
+                    <Feather name="award" size={20} color="#6ee7b7" />
+                    <View style={styles.horseSelectorText}>
+                      <Text style={styles.horseSelectorLabel}>Active Horse</Text>
+                      <Text style={styles.horseSelectorValue}>
+                        {activeHorseName || 'Tap to select'}
+                      </Text>
+                    </View>
+                    <Feather name="chevron-right" size={20} color="#94a3b8" />
+                  </TouchableOpacity>
+
+                  {/* Manual Resume Button */}
+                  {hasRecoverableRide && !isRiding && !alertShown && (
+                    <TouchableOpacity
+                      style={styles.resumeRideButton}
+                      onPress={() => {
+                        handleManualResumeCheck();
+                        toggleBottomSheet(false);
+                      }}
+                      activeOpacity={0.9}
+                    >
+                      <LinearGradient
+                        colors={['rgba(16, 185, 129, 0.3)', 'rgba(16, 185, 129, 0.2)']}
+                        style={styles.resumeRideGradient}
+                      >
+                        <Feather name="rotate-ccw" size={18} color="#6ee7b7" />
+                        <Text style={styles.resumeRideText}>Resume Interrupted Ride</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Action Buttons */}
+                  <View style={styles.sheetButtonsRow}>
+                    <TouchableOpacity
+                      style={styles.sheetButton}
+                      onPress={() => {
+                        setIsConfirmingStart(true);
+                        toggleBottomSheet(false);
+                        // Animate in the confirmation dialog
+                        Animated.parallel([
+                          Animated.timing(confirmSlideAnim, {
+                            toValue: 0,
+                            duration: 300,
+                            useNativeDriver: true,
+                          }),
+                          Animated.timing(confirmFadeAnim, {
+                            toValue: 1,
+                            duration: 300,
+                            useNativeDriver: true,
+                          }),
+                        ]).start();
+                      }}
+                      activeOpacity={0.9}
+                    >
+                      <LinearGradient
+                        colors={['#10b981', '#14b8a6', '#06b6d4']}
+                        style={styles.sheetButtonGradient}
+                      >
+                        <Feather name="navigation" size={24} color="white" />
+                        <Text style={styles.sheetButtonText}>Free Ride</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.sheetButton}
+                      onPress={() => {
+                        navigation.navigate('SelectHorse');
+                        toggleBottomSheet(false);
+                      }}
+                      activeOpacity={0.9}
+                    >
+                      <LinearGradient
+                        colors={['#8b5cf6', '#a855f7', '#d946ef']}
+                        style={styles.sheetButtonGradient}
+                      >
+                        <Feather name="award" size={24} color="white" />
+                        <Text style={styles.sheetButtonText}>Select Horse</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.sheetButton}
+                      onPress={() => {
+                        const parent = navigation.getParent();
+                        if (parent) {
+                          parent.navigate('Analytics' as never);
+                        }
+                        toggleBottomSheet(false);
+                      }}
+                      activeOpacity={0.9}
+                    >
+                      <LinearGradient
+                        colors={['#3b82f6', '#6366f1', '#8b5cf6']}
+                        style={styles.sheetButtonGradient}
+                      >
+                        <Feather name="clock" size={24} color="white" />
+                        <Text style={styles.sheetButtonText}>Recent</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
+                </LinearGradient>
+              </BlurView>
+            </Animated.View>
+
+            {/* Floating Drag Button to expand sheet */}
+            {!bottomSheetExpanded && (
+              <TouchableOpacity
+                style={[styles.floatingExpandButton, { bottom: insets.bottom + 20 }]}
+                onPress={() => toggleBottomSheet(true)}
+                activeOpacity={0.9}
+              >
+                <BlurView intensity={80} tint="dark" style={styles.floatingButtonBlur}>
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.08)']}
+                    style={styles.floatingButtonGradient}
+                  >
+                    <Feather name="chevron-up" size={24} color="white" />
+                    <Text style={styles.floatingButtonText}>
+                      {activeHorseName || 'Select Horse'}
+                    </Text>
                   </LinearGradient>
                 </BlurView>
               </TouchableOpacity>
             )}
-
-            <View style={[styles.activeHorseBar, { bottom: insets.bottom + 12 }]}>
-              <BlurView intensity={80} tint="dark" style={styles.activeHorseBlur}>
-                <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']}
-                  style={styles.activeHorseGradient}
-                >
-                  <Text style={styles.activeHorseText}>
-                    Active horse:{' '}
-                    <Text style={styles.activeHorseName}>
-                      {activeHorseName || 'None selected'}
-                    </Text>
-                  </Text>
-                </LinearGradient>
-              </BlurView>
-            </View>
-            {/* Start/Cancel confirmation */}
+            {/* Enhanced Start/Cancel confirmation */}
             {isConfirmingStart && (
-              <View style={[styles.confirmBar, { bottom: insets.bottom + 20 }]}>
-                <BlurView intensity={100} tint="dark" style={styles.confirmBlur}>
-                  <View style={styles.confirmRow}>
-                    <TouchableOpacity
-                      style={[styles.confirmBtn, styles.cancelBtn]}
-                      onPress={() => setIsConfirmingStart(false)}
-                      activeOpacity={0.9}
+              <View style={styles.confirmOverlay}>
+                <Animated.View 
+                  style={[
+                    styles.confirmBar, 
+                    { 
+                      opacity: confirmFadeAnim,
+                      transform: [{ translateY: confirmSlideAnim }]
+                    }
+                  ]}
+                >
+                  <BlurView intensity={100} tint="dark" style={styles.confirmBlur}>
+                    <LinearGradient
+                      colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']}
+                      style={styles.confirmGradientBg}
                     >
-                      <LinearGradient colors={["#ef4444", "#dc2626"]} style={styles.confirmBtnGradient}>
-                        <Feather name="x" size={18} color="white" />
-                        <Text style={styles.confirmText}>Cancel</Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
+                      <View style={styles.confirmHeader}>
+                        <Feather name="navigation" size={24} color="#6ee7b7" />
+                        <Text style={styles.confirmTitle}>Start Your Ride?</Text>
+                      </View>
+                      {activeHorseName && (
+                        <Text style={styles.confirmSubtitle}>
+                          Recording ride with {activeHorseName}
+                        </Text>
+                      )}
+                      <View style={styles.confirmRow}>
+                        <TouchableOpacity
+                          style={[styles.confirmBtn, styles.cancelBtn]}
+                          onPress={() => {
+                            Animated.parallel([
+                              Animated.timing(confirmSlideAnim, {
+                                toValue: 100,
+                                duration: 200,
+                                useNativeDriver: true,
+                              }),
+                              Animated.timing(confirmFadeAnim, {
+                                toValue: 0,
+                                duration: 200,
+                                useNativeDriver: true,
+                              }),
+                            ]).start(() => setIsConfirmingStart(false));
+                          }}
+                          activeOpacity={0.9}
+                        >
+                          <LinearGradient 
+                            colors={["#64748b", "#475569"]} 
+                            style={styles.confirmBtnGradient}
+                          >
+                            <Feather name="x" size={20} color="white" />
+                            <Text style={styles.confirmText}>Cancel</Text>
+                          </LinearGradient>
+                        </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={[styles.confirmBtn, styles.startBtn]}
-                      onPress={async () => {
-                        setIsConfirmingStart(false);
-                        await handleStart();
-                      }}
-                      activeOpacity={0.9}
-                    >
-                      <LinearGradient colors={["#10b981", "#14b8a6"]} style={styles.confirmBtnGradient}>
-                        <Feather name="play" size={18} color="white" />
-                        <Text style={styles.confirmText}>Start</Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  </View>
-                </BlurView>
+                        <TouchableOpacity
+                          style={[styles.confirmBtn, styles.startBtn]}
+                          onPress={async () => {
+                            Animated.parallel([
+                              Animated.timing(confirmSlideAnim, {
+                                toValue: 100,
+                                duration: 200,
+                                useNativeDriver: true,
+                              }),
+                              Animated.timing(confirmFadeAnim, {
+                                toValue: 0,
+                                duration: 200,
+                                useNativeDriver: true,
+                              }),
+                            ]).start();
+                            setIsConfirmingStart(false);
+                            await handleStart();
+                          }}
+                          activeOpacity={0.9}
+                        >
+                          <LinearGradient 
+                            colors={["#10b981", "#14b8a6", "#06b6d4"]} 
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.confirmBtnGradient}
+                          >
+                            <Feather name="play" size={20} color="white" />
+                            <Text style={styles.confirmText}>Start Ride</Text>
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      </View>
+                    </LinearGradient>
+                  </BlurView>
+                </Animated.View>
               </View>
             )}
           </>
@@ -787,10 +1038,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   // Confirmation styles
-  confirmBar: {
+  confirmOverlay: {
     position: 'absolute',
-    left: 24,
-    right: 24,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    zIndex: 200,
+  },
+  confirmBar: {
+    width: '100%',
+    maxWidth: 520,
   },
   confirmBlur: {
     borderRadius: 20,
@@ -937,6 +1199,196 @@ const styles = StyleSheet.create({
   resumeCheckText: {
     color: '#6ee7b7',
     fontSize: 13,
+    fontWeight: '600',
+  },
+  // Compass/Heading indicator styles
+  compassContainer: {
+    position: 'absolute',
+    right: 24,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  compassBlur: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+  },
+  compassGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    gap: 4,
+  },
+  compassIcon: {
+    marginBottom: 4,
+  },
+  compassText: {
+    color: '#6ee7b7',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  compassDegrees: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  // Enhanced confirmation dialog styles
+  confirmGradientBg: {
+    padding: 20,
+  },
+  confirmHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  confirmTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  confirmSubtitle: {
+    fontSize: 14,
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  // Bottom Sheet Styles
+  bottomSheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 300,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 20,
+  },
+  bottomSheetBlur: {
+    flex: 1,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  bottomSheetGradient: {
+    flex: 1,
+    padding: 20,
+  },
+  dragHandleContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  horseSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginBottom: 16,
+    gap: 12,
+  },
+  horseSelectorText: {
+    flex: 1,
+  },
+  horseSelectorLabel: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginBottom: 4,
+  },
+  horseSelectorValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+  },
+  resumeRideButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  resumeRideGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  resumeRideText: {
+    color: '#6ee7b7',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  sheetButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  sheetButton: {
+    flex: 1,
+    aspectRatio: 1,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  sheetButtonGradient: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 12,
+  },
+  sheetButtonText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  floatingExpandButton: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  floatingButtonBlur: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+  },
+  floatingButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    gap: 12,
+  },
+  floatingButtonText: {
+    color: 'white',
+    fontSize: 16,
     fontWeight: '600',
   },
 });
