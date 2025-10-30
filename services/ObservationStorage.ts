@@ -98,40 +98,8 @@ export const saveObservation = async (observation: Omit<RideObservation, 'id' | 
         await createSighting(userId, sightingDTO);
       }
       
-      // Save report/obstacle if exists
-      if (observation.report) {
-        const isObstacle = ['obstruction', 'hazard'].some(keyword => 
-          observation.report!.issueType.toLowerCase().includes(keyword)
-        );
-        
-        if (isObstacle) {
-          const obstacleDTO: ObstacleDTO = newObstacle({
-            id: generateUUID(),
-            type: mapIssueToObstacleType(observation.report.issueType),
-            title: observation.report.issueType,
-            location: observation.report.location || { latitude: 0, longitude: 0 },
-            description: observation.report.notes,
-            severity: observation.report.severity,
-            userId,
-            userName: auth.currentUser?.displayName || auth.currentUser?.email || 'Anonymous',
-          });
-          await createObstacle(obstacleDTO);
-        } else {
-          const reportDTO: ReportDTO = newReport({
-            id: generateUUID(),
-            type: mapIssueToReportType(observation.report.issueType),
-            title: observation.report.issueType,
-            description: observation.report.notes,
-            severity: observation.report.severity,
-            userId,
-            location: observation.report.location,
-            rideId: observation.rideId,
-            trailId: observation.report.trailId,
-            trailName: observation.report.trailName,
-          });
-          await createReport(reportDTO);
-        }
-      }
+      // Note: Trail reports are now handled directly by UnifiedRideObstacleScreen
+      // using saveObstacle() to create proper obstacles for map display
     } catch (error) {
       console.warn('Failed to sync observation to Firebase:', error);
       // Non-fatal: local save succeeded
@@ -191,18 +159,17 @@ export const deleteObservation = async (observationId: string): Promise<void> =>
 
 // Helper mapping functions
 const mapIssueToObstacleType = (issueLabel: string): any => {
-  const lower = issueLabel.toLowerCase();
-  if (lower.includes('water') || lower.includes('mud')) return 'water';
-  if (lower.includes('obstruction') || lower.includes('damage')) return 'debris';
-  if (lower.includes('tree')) return 'tree';
+  // Direct mapping for MarkObstacleScreen types
+  if (issueLabel === 'Fallen Tree') return 'tree';
+  if (issueLabel === 'Water Hazard' || issueLabel === 'Water Crossing' || issueLabel === 'Muddy Section') return 'water';
+  if (issueLabel === 'Animal') return 'animal';
+  if (issueLabel === 'Debris' || issueLabel === 'Fence Damage') return 'debris';
+  if (issueLabel === 'Pothole') return 'pothole';
   return 'other';
 };
 
 const mapIssueToReportType = (issueLabel: string): any => {
-  const lower = issueLabel.toLowerCase();
-  if (lower.includes('damage')) return 'trail_damage';
-  if (lower.includes('hazard') || lower.includes('safety')) return 'safety_hazard';
-  if (lower.includes('gate') || lower.includes('signage')) return 'maintenance_needed';
-  if (lower.includes('erosion')) return 'maintenance_needed';
+  if (issueLabel === 'Trail Erosion') return 'trail_damage';
+  if (issueLabel === 'Gate Problem') return 'maintenance_needed';
   return 'other';
 };
