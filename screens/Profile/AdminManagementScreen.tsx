@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, ActivityIndicator, SafeAreaView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -132,9 +132,9 @@ export default function AdminManagementScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loading}>
+      <SafeAreaView style={styles.loading}>
         <ActivityIndicator size="large" color="#2563eb" />
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -162,8 +162,8 @@ export default function AdminManagementScreen() {
     );
   };
 
-  return (
-    <View style={styles.container}>
+  const renderListHeader = () => (
+    <View>
       <View style={styles.headerRow}>
         <TouchableOpacity
           accessibilityLabel="Go back"
@@ -224,8 +224,14 @@ export default function AdminManagementScreen() {
           </View>
         </TouchableOpacity>
       </View>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
       <FlatList
         data={filteredUsers}
+        ListHeaderComponent={renderListHeader}
         renderItem={({ item }) => {
           const status = item.status ?? 'pending';
           const role = item.role ?? 'member';
@@ -304,21 +310,20 @@ export default function AdminManagementScreen() {
         keyExtractor={(item) => item.uid}
         refreshing={refreshing}
         onRefresh={onRefresh}
-        contentContainerStyle={{ paddingBottom: 24, flexGrow: users.length ? 0 : 1 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
         ListEmptyComponent={
           <View style={{flex:1, alignItems:'center', justifyContent:'center', paddingVertical: 40}}>
             <Text>No users to manage right now.</Text>
           </View>
         }
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
     backgroundColor: '#F4F7FE',
   },
   loading: {
@@ -328,27 +333,43 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4F7FE',
   },
   title: {
-    fontSize: 30,
-    fontWeight: 'bold',
-    marginTop: 16,
-    marginBottom: 16,
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#111827',
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 50,
+    paddingBottom: 16,
   },
   backButton: {
-    width: 32,
-    alignItems: 'flex-start',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   userItem: {
     backgroundColor: '#FFFFFF',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
     flexDirection: 'column',
     alignItems: 'stretch',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   userEmail: {
     fontSize: 16,
@@ -379,10 +400,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   promoteRow: {
-    marginTop: 12,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 16,
   },
   input: {
     flex: 1,
@@ -390,8 +409,9 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     borderWidth: 1,
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
   },
   promoteButton: {
     backgroundColor: '#0ea5e9',
@@ -432,8 +452,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#6b7280',
   },
   adminCardsContainer: {
-    paddingHorizontal: 0,
-    marginBottom: 16,
+    paddingHorizontal: 16,
+    marginBottom: 20,
   },
   adminCard: {
     backgroundColor: '#FFFFFF',

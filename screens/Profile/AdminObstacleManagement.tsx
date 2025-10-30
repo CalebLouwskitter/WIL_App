@@ -8,6 +8,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  SafeAreaView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -296,7 +297,7 @@ export default function AdminObstacleManagement() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
         <TouchableOpacity
           accessibilityLabel="Go back"
@@ -361,7 +362,7 @@ export default function AdminObstacleManagement() {
           }
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -407,20 +408,27 @@ function createStyles() {
     container: {
       flex: 1,
       backgroundColor: '#F4F7FE',
-      paddingHorizontal: 16,
-      paddingTop: 16,
     },
     headerRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 16,
-      paddingTop: 8,
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingTop: 50,
+      paddingBottom: 16,
     },
     backButton: {
-      alignItems: 'flex-start',
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: '#FFFFFF',
+      alignItems: 'center',
       justifyContent: 'center',
-      minHeight: 48,
-      minWidth: 48,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
     },
     iconButton: {
       width: 44,
@@ -465,6 +473,7 @@ function createStyles() {
     filterRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
+      paddingHorizontal: 16,
       marginBottom: 16,
     },
     filterButton: {
@@ -494,6 +503,7 @@ function createStyles() {
       alignItems: 'center',
     },
     listContent: {
+      paddingHorizontal: 16,
       paddingBottom: 24,
     },
     emptyContent: {

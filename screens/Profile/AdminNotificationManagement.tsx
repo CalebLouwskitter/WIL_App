@@ -10,13 +10,14 @@ import {
   ActivityIndicator,
   Switch,
   Modal,
+  SafeAreaView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Feather } from '@expo/vector-icons';
-import { createAdminNotification, getNotificationsForRole, subscribeToNotifications } from '../../services/FirebaseNotificationService';
+import { createAdminNotification, getNotificationsForRole, subscribeToNotifications, deleteNotification, updateNotification, getNotificationById, getAllNotifications, getNotificationStats } from '../../services/FirebaseNotificationService';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 import { Notification, NotificationType, NotificationAudience } from '../../types/Notification';
 import { NotificationList } from '../../components/Notifications';
@@ -27,12 +28,12 @@ const IS_EXPO_DEMO = false; // Set to false once you've configured Firebase Clou
 
 type AdminNotificationNavigationProp = StackNavigationProp<ProfileStackParamList, 'AdminNotificationManagement'>;
 
-export default function AdminNotificationManagement() {
+const AdminNotificationManagement: React.FC = () => {
   const navigation = useNavigation<AdminNotificationNavigationProp>();
   const { profile, loading: profileLoading } = useCurrentUser();
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [sending, setSending] = useState<boolean>(false);
   
   // Form state
   const [notificationType, setNotificationType] = useState<NotificationType>('event');
@@ -41,6 +42,9 @@ export default function AdminNotificationManagement() {
   const [audience, setAudience] = useState<NotificationAudience>('users');
   const [showForm, setShowForm] = useState(false);
   const [showDemoModal, setShowDemoModal] = useState(false);
+  const [editingNotification, setEditingNotification] = useState<Notification | null>(null);
+  const [showStats, setShowStats] = useState(false);
+  const [notificationStats, setNotificationStats] = useState<any>(null);
 
   // Guard: only admins may access this screen
   useEffect(() => {
@@ -61,17 +65,43 @@ export default function AdminNotificationManagement() {
   }, [profile, profileLoading, navigation]);
 
   useEffect(() => {
-    loadNotifications();
+    let unsubscribe: (() => void) | null = null;
     
-    // Subscribe to real-time updates
-    const unsubscribe = subscribeToNotifications('admin', (newNotifications) => {
-      setNotifications(newNotifications);
-    });
+    const initializeData = async () => {
+      try {
+        await loadNotifications();
+        await loadStats();
+        
+        // Subscribe to real-time updates only after initial data is loaded
+        unsubscribe = subscribeToNotifications('admin', (newNotifications) => {
+          setNotifications(newNotifications);
+        });
+      } catch (error) {
+        console.error('Error initializing admin notification data:', error);
+      }
+    };
+    
+    initializeData();
 
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
+  const loadStats = async () => {
+    try {
+      const stats = await getNotificationStats();
+      setNotificationStats(stats);
+    } catch (error) {
+      console.error('Error loading notification stats:', error);
+    }
+  };
+
   const loadNotifications = async () => {
+    if (loading) return; // Prevent multiple simultaneous loads
+    
     setLoading(true);
     try {
       const notifs = await getNotificationsForRole('admin');
@@ -82,6 +112,98 @@ export default function AdminNotificationManagement() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEditNotification = (notification: Notification) => {
+    setEditingNotification(notification);
+    setNotificationType(notification.type);
+    setTitle(notification.title);
+    setBody(notification.body);
+    setAudience(notification.audience);
+    setShowForm(true);
+  };
+
+  const handleUpdateNotification = async () => {
+    if (!editingNotification || !profile?.uid) {
+      Alert.alert('Error', 'Missing required information.');
+      return;
+    }
+
+    // Enhanced validation
+    if (!title.trim()) {
+      Alert.alert('Validation Error', 'Please enter a notification title.');
+      return;
+    }
+
+    if (title.trim().length < 3) {
+      Alert.alert('Validation Error', 'Title must be at least 3 characters long.');
+      return;
+    }
+
+    if (title.trim().length > 100) {
+      Alert.alert('Validation Error', 'Title must be less than 100 characters.');
+      return;
+    }
+
+    if (!body.trim()) {
+      Alert.alert('Validation Error', 'Please enter a notification message.');
+      return;
+    }
+
+    if (body.trim().length < 10) {
+      Alert.alert('Validation Error', 'Message must be at least 10 characters long.');
+      return;
+    }
+
+    if (body.trim().length > 500) {
+      Alert.alert('Validation Error', 'Message must be less than 500 characters.');
+      return;
+    }
+
+    setSending(true);
+    try {
+      await updateNotification(editingNotification.id, {
+        type: notificationType,
+        title: title.trim(),
+        body: body.trim(),
+        audience,
+      });
+
+      Alert.alert('Success', 'Notification updated successfully!');
+      
+      // Reset form
+      resetForm();
+      
+      // Reload notifications and stats
+      await loadNotifications();
+      await loadStats();
+    } catch (error) {
+      console.error('Error updating notification:', error);
+      Alert.alert('Error', 'Could not update notification. Please try again.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleDeleteNotification = async (notification: Notification) => {
+    try {
+      await deleteNotification(notification.id);
+      Alert.alert('Success', 'Notification deleted successfully');
+      await loadNotifications();
+      await loadStats();
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      Alert.alert('Error', 'Failed to delete notification');
+    }
+  };
+
+  const resetForm = () => {
+    setTitle('');
+    setBody('');
+    setNotificationType('event');
+    setAudience('users');
+    setEditingNotification(null);
+    setShowForm(false);
   };
 
   const handleSendNotification = async () => {
@@ -129,23 +251,25 @@ export default function AdminNotificationManagement() {
 
     setSending(true);
     try {
-      await createAdminNotification(
-        profile.uid,
-        notificationType,
-        title.trim(),
-        body.trim(),
-        audience
-      );
-
-      Alert.alert('Success', 'Notification sent successfully!');
+      if (editingNotification) {
+        await handleUpdateNotification();
+      } else {
+        await createAdminNotification(
+          profile.uid,
+          notificationType,
+          title.trim(),
+          body.trim(),
+          audience
+        );
+        Alert.alert('Success', 'Notification sent successfully!');
+      }
       
       // Reset form
-      setTitle('');
-      setBody('');
-      setShowForm(false);
+      resetForm();
       
-      // Reload notifications
+      // Reload notifications and stats
       await loadNotifications();
+      await loadStats();
     } catch (error) {
       console.error('Error sending notification:', error);
       Alert.alert('Error', 'Could not send notification. Please try again.');
@@ -154,7 +278,7 @@ export default function AdminNotificationManagement() {
     }
   };
 
-  const getTypeIcon = (type: NotificationType) => {
+  const getTypeIcon = (type: NotificationType): string => {
     switch (type) {
       case 'event': return 'calendar';
       case 'update': return 'information-circle';
@@ -193,7 +317,7 @@ export default function AdminNotificationManagement() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity
@@ -216,6 +340,15 @@ export default function AdminNotificationManagement() {
         >
           <View style={[styles.iconButton, styles.addButtonBackground]}>
             <Ionicons name={showForm ? 'close' : 'add'} size={24} color="#2563eb" />
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setShowStats(!showStats)}
+          style={styles.statsButton}
+          hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+        >
+          <View style={[styles.iconButton, styles.statsButtonBackground]}>
+            <Ionicons name="bar-chart" size={24} color="#10B981" />
           </View>
         </TouchableOpacity>
       </View>
@@ -246,7 +379,9 @@ export default function AdminNotificationManagement() {
         {/* Create Notification Form */}
         {showForm && (
           <View style={styles.formContainer}>
-            <Text style={styles.formTitle}>Send New Notification</Text>
+            <Text style={styles.formTitle}>
+              {editingNotification ? 'Edit Notification' : 'Send New Notification'}
+            </Text>
             
             {/* Notification Type Selection */}
             <Text style={styles.label}>Type</Text>
@@ -328,24 +463,74 @@ export default function AdminNotificationManagement() {
               {body.length}/500 characters
             </Text>
 
-            {/* Send Button */}
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                (!title.trim() || !body.trim() || sending) && styles.sendButtonDisabled,
-              ]}
-              onPress={handleSendNotification}
-              disabled={!title.trim() || !body.trim() || sending}
-            >
-              {sending ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="send" size={20} color="#FFFFFF" />
-                  <Text style={styles.sendButtonText}>Send Notification</Text>
-                </>
+            {/* Action Buttons */}
+            <View style={styles.formActions}>
+              {editingNotification && (
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={resetForm}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.sendButton,
+                  (!title.trim() || !body.trim() || sending) && styles.sendButtonDisabled,
+                ]}
+                onPress={handleSendNotification}
+                disabled={!title.trim() || !body.trim() || sending}
+              >
+                {sending ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name={editingNotification ? 'checkmark' : 'send'} size={20} color="#FFFFFF" />
+                    <Text style={styles.sendButtonText}>
+                      {editingNotification ? 'Update' : 'Send'} Notification
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Statistics Panel */}
+        {showStats && notificationStats && (
+          <View style={styles.statsContainer}>
+            <Text style={styles.statsTitle}>Notification Statistics</Text>
+            
+            <View style={styles.statsGrid}>
+              <View style={styles.statCard}>
+                <Text style={styles.statNumber}>{notificationStats.total}</Text>
+                <Text style={styles.statLabel}>Total Notifications</Text>
+              </View>
+              
+              <View style={styles.statCard}>
+                <Text style={styles.statNumber}>{notifications.length}</Text>
+                <Text style={styles.statLabel}>Recent</Text>
+              </View>
+            </View>
+
+            <Text style={styles.statsSubtitle}>By Type</Text>
+            <View style={styles.typeStats}>
+              {Object.entries(notificationStats.byType).map(([type, count]) => (
+                <View key={type} style={styles.typeStatItem}>
+                  <Ionicons name={getTypeIcon(type as NotificationType) as any} size={16} color="#6B7280" />
+                  <Text style={styles.typeStatText}>{String(type)}: {String(count)}</Text>
+                </View>
+              ))}
+            </View>
+
+            <Text style={styles.statsSubtitle}>By Audience</Text>
+            <View style={styles.audienceStats}>
+              {Object.entries(notificationStats.byAudience).map(([audience, count]) => (
+                <View key={audience} style={styles.audienceStatItem}>
+                  <Text style={styles.audienceStatText}>{String(audience)}: {String(count)}</Text>
+                </View>
+              ))}
+            </View>
           </View>
         )}
 
@@ -366,6 +551,9 @@ export default function AdminNotificationManagement() {
             <NotificationList
               notifications={notifications}
               loading={loading}
+              isAdmin={true}
+              onDeleteNotification={handleDeleteNotification}
+              onEditNotification={handleEditNotification}
             />
           )}
         </View>
@@ -466,9 +654,11 @@ export default function AdminNotificationManagement() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
-}
+};
+
+export default AdminNotificationManagement;
 
 const styles = StyleSheet.create({
   container: {
@@ -478,8 +668,10 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    paddingTop: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 50,
+    paddingBottom: 16,
   },
   backButton: {
     alignItems: 'flex-start',
@@ -492,6 +684,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 48,
     minWidth: 48,
+  },
+  statsButton: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    minHeight: 48,
+    minWidth: 48,
+    marginRight: 8,
   },
   iconButton: {
     width: 44,
@@ -511,9 +710,15 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#2563eb',
   },
+  statsButtonBackground: {
+    backgroundColor: '#F0FDF4',
+    borderWidth: 2,
+    borderColor: '#10B981',
+  },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: '#111827',
   },
   content: {
     flex: 1,
@@ -637,6 +842,94 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  formActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonText: {
+    color: '#6B7280',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  statsContainer: {
+    backgroundColor: '#FFFFFF',
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+    color: '#111827',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2563eb',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  statsSubtitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+    marginTop: 16,
+  },
+  typeStats: {
+    marginBottom: 16,
+  },
+  typeStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  typeStatText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  audienceStats: {
+    marginBottom: 16,
+  },
+  audienceStatItem: {
+    marginBottom: 4,
+  },
+  audienceStatText: {
+    fontSize: 13,
+    color: '#6B7280',
   },
   historyContainer: {
     margin: 16,
