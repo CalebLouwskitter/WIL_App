@@ -38,7 +38,7 @@ const ProfileScreen: React.FC = () => {
   const [profilePictureUri, setProfilePictureUri] = useState<string | null>(null);
   const [loadingPicture, setLoadingPicture] = useState(false);
   const fadeAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(30);
+  const slideAnim = new Animated.Value(0);
   
   const [statsData, setStatsData] = useState<StatItem[]>([
     { label: 'Rides', value: '0', boxColor: colors.profileStatRidesBox, circleColor: colors.profileStatRidesCircle, icon: 'activity' },
@@ -565,6 +565,7 @@ const styles = StyleSheet.create({
     paddingTop: 45,
     justifyContent: 'space-between',
     marginBottom: 16,
+    paddingHorizontal: 16,
   },
   
   headerTitle: {
@@ -577,10 +578,11 @@ const styles = StyleSheet.create({
 
   // Profile Card
   profileCard: {
-    marginHorizontal: 20,
-    marginBottom: 24,
+    marginHorizontal: 16,
+    marginBottom: 16,
     borderRadius: 24,
-    borderBottomEndRadius: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     paddingBottom: 20,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -591,6 +593,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     position: 'relative',
     overflow: 'hidden',
+    borderRadius: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   decorativeCircle1: {
     position: 'absolute',
@@ -862,7 +867,7 @@ const styles = StyleSheet.create({
 
   // Settings Widget
   settingsWidget: {
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     marginBottom: 24,
   },
   settingsCard: {
@@ -912,7 +917,7 @@ const styles = StyleSheet.create({
 
   // Actions
   actionsContainer: {
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     marginBottom: 28,
     gap: 12,
   },
@@ -992,7 +997,7 @@ const styles = StyleSheet.create({
 
   // Recent Rides
   ridesSection: {
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     backgroundColor: '#fff',
     borderRadius: 24,
     padding: 20,
