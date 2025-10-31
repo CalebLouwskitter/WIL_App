@@ -201,6 +201,25 @@ const DashboardScreen = () => {
             {renderNavWidget('Add New Horse', 'plus-circle', '#10b981', 'CreateHorse', 'Register a new riding companion')}
           </View>
 
+          <TouchableOpacity
+            style={styles.chartContainer}
+            activeOpacity={0.8}
+            onPress={() => navigateToScreen('AnalyticsPage')}
+          >
+            <View style={styles.chartHeader}>
+              <Text style={styles.chartTitle}>Analytics & Data</Text>
+              <View style={styles.chartTrendBox}>
+                <Feather name="arrow-up" size={12} color="#16a34a" />
+                <Text style={styles.chartTrend}>6%</Text>
+              </View>
+            </View>
+            <View style={styles.chartBars}>
+              {[70, 90, 75, 100, 75, 50, 60].map((height, index) => (
+                <View key={index} style={[styles.chartBar, { height: height * 0.7 }]} />
+              ))}
+            </View>
+          </TouchableOpacity>
+
           <View style={{ height: 30 }} />
         </ScrollView>
       </SafeAreaView>
@@ -266,6 +285,13 @@ const styles = StyleSheet.create({
   iconCircle: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
   navWidgetTitle: { fontSize: 14, fontWeight: '700', color: '#1f2937', marginBottom: 4 },
   navWidgetSubtitle: { fontSize: 10, color: '#6b7280', fontWeight: '500', lineHeight: 14 },
+  chartContainer: { backgroundColor: 'white', marginHorizontal: PADDING_HORIZONTAL, marginVertical: 8, padding: 16, borderRadius: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 1, elevation: 2 },
+  chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  chartTitle: { fontSize: 16, fontWeight: '600', color: '#374151' },
+  chartTrendBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#d1fae5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  chartTrend: { fontSize: 12, color: '#16a34a', fontWeight: '600' },
+  chartBars: { flexDirection: 'row', alignItems: 'flex-end', height: 80, marginBottom: 8 },
+  chartBar: { flex: 1, backgroundColor: '#3b82f6', borderRadius: 2, marginHorizontal: 3 },
 });
 
 export default DashboardScreen;
