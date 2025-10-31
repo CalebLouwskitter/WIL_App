@@ -56,7 +56,7 @@ export function buildTrailsIndex(trails: Trail[]): TrailsIndex {
   return index;
 }
 
-function projectPointToSegmentMeters(p: Vec2, a: Vec2, b: Vec2) {
+export function projectPointToSegmentMeters(p: Vec2, a: Vec2, b: Vec2) {
   const proj = toMetersProjection(a.latitude);
   const ax = 0;
   const ay = 0;
@@ -96,4 +96,27 @@ export function snapToTrails(point: Vec2, trailsIndex: TrailsIndex): SnapResult 
     }
   }
   return best;
+}
+
+export function snapToTrailsWithHint(
+  point: Vec2,
+  trailsIndex: TrailsIndex,
+  preferTrailId?: string | null,
+  acceptWithinMeters: number = 60
+): SnapResult | null {
+  let best: SnapResult | null = null;
+  if (preferTrailId && trailsIndex[preferTrailId]) {
+    const t = trailsIndex[preferTrailId];
+    for (const seg of t.segments) {
+      const { t: segT, snapped, dist } = projectPointToSegmentMeters(point, seg.start, seg.end);
+      const along = seg.cumStart + segT * seg.length;
+      if (!best || dist < best.distanceToTrail) {
+        best = { trailId: t.id, trailName: t.name, snapped, distanceToTrail: dist, along };
+      }
+    }
+    if (best && best.distanceToTrail <= acceptWithinMeters) {
+      return best;
+    }
+  }
+  return snapToTrails(point, trailsIndex);
 }
