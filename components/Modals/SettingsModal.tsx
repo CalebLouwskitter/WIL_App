@@ -122,10 +122,20 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
                     />
                   </View>
 
+                </View>
+
+                <View
+                  style={[
+                    styles.card,
+                    { backgroundColor: palette.cardElevated || palette.surface || '#FFFFFF' },
+                  ]}
+                >
+                  <Text style={[styles.cardTitle, { color: palette.secondary || palette.text }]}>Location tracking</Text>
+                  
                   <View style={styles.switchRow}>
                     <View style={styles.switchLabelRow}>
                       <Feather name="map-pin" size={18} color={palette.icon || palette.text} />
-                      <Text style={[styles.switchLabel, { color: palette.text }]}>Location tracking</Text>
+                      <Text style={[styles.switchLabel, { color: palette.text }]}>Enable tracking</Text>
                     </View>
                     <Switch
                       value={locationTracking}
@@ -141,40 +151,39 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
                       }
                     />
                   </View>
-                </View>
 
-                <View
-                  style={[
-                    styles.card,
-                    { backgroundColor: palette.cardElevated || palette.surface || '#FFFFFF' },
-                  ]}
-                >
-                  <Text style={[styles.cardTitle, { color: palette.secondary || palette.text }]}>Background tracking</Text>
-                  <View style={styles.permissionRow}>
-                    <View style={styles.permissionStatus}>
-                      <View style={[styles.statusDot, { backgroundColor: backgroundEnabled ? '#10b981' : '#f59e0b' }]} />
-                      <Text style={[styles.permissionText, { color: palette.text }]}>
-                        {backgroundEnabled ? 'Enabled' : 'Disabled'}
-                      </Text>
-                    </View>
-                    <View style={styles.permissionActions}>
-                      <TouchableOpacity
-                        style={[styles.smallBtn, { backgroundColor: palette.brandPrimary || '#2563EB' }]}
-                        onPress={async () => {
-                          const ok = await BackgroundLocationService.requestPermissions();
-                          setBackgroundEnabled(ok);
-                        }}
-                        activeOpacity={0.9}
-                      >
-                        <Text style={[styles.smallBtnText, { color: palette.onPrimary || '#FFFFFF' }]}>Request</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.smallBtn, { backgroundColor: palette.surface || '#FFFFFF', borderWidth: 1, borderColor: palette.border || 'rgba(148,163,184,0.25)' }]}
-                        onPress={() => Linking.openSettings()}
-                        activeOpacity={0.9}
-                      >
-                        <Text style={[styles.smallBtnText, { color: palette.text }]}>Open Settings</Text>
-                      </TouchableOpacity>
+                  <View style={styles.divider} />
+
+                  <View style={styles.permissionSection}>
+                    <Text style={[styles.permissionLabel, { color: palette.secondary || palette.text }]}>
+                      Background permission
+                    </Text>
+                    <View style={styles.permissionRow}>
+                      <View style={styles.permissionStatus}>
+                        <View style={[styles.statusDot, { backgroundColor: backgroundEnabled ? '#10b981' : '#f59e0b' }]} />
+                        <Text style={[styles.permissionText, { color: palette.text }]}>
+                          {backgroundEnabled ? 'Enabled' : 'Disabled'}
+                        </Text>
+                      </View>
+                      <View style={styles.permissionActions}>
+                        <TouchableOpacity
+                          style={[styles.smallBtn, { backgroundColor: palette.brandPrimary || '#2563EB' }]}
+                          onPress={async () => {
+                            const ok = await BackgroundLocationService.requestPermissions();
+                            setBackgroundEnabled(ok);
+                          }}
+                          activeOpacity={0.9}
+                        >
+                          <Text style={[styles.smallBtnText, { color: palette.onPrimary || '#FFFFFF' }]}>Request</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.smallBtn, { backgroundColor: palette.surface || '#FFFFFF', borderWidth: 1, borderColor: palette.border || 'rgba(148,163,184,0.25)' }]}
+                          onPress={() => Linking.openSettings()}
+                          activeOpacity={0.9}
+                        >
+                          <Text style={[styles.smallBtnText, { color: palette.text }]}>Open Settings</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 </View>
@@ -357,6 +366,20 @@ const createStyles = (palette: any, insets: EdgeInsets) =>
     smallBtnText: {
       fontSize: 13,
       fontWeight: '700',
+    },
+    divider: {
+      height: 1,
+      backgroundColor: palette.border || 'rgba(148, 163, 184, 0.25)',
+      marginVertical: 4,
+    },
+    permissionSection: {
+      gap: 12,
+    },
+    permissionLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
     },
   });
 
