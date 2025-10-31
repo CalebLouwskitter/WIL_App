@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FIREBASE_ENABLED, auth, app } from './firebase';
 import { COLLECTIONS, Converters, newObstacle, type ObstacleDTO, type ObstacleType, type ObstacleSeverity, type ObstacleStatus, userProfileConverter } from './Data';
-import { getFirestore, collection, doc, setDoc, getDocs, getDoc, query, orderBy as fsOrderBy, where as fsWhere, GeoPoint, limit as fsLimit, arrayUnion, updateDoc, deleteDoc } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, getDocs, getDoc, query, orderBy as fsOrderBy, where as fsWhere, GeoPoint, limit as fsLimit, arrayUnion, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
 export type Obstacle = {
   id: string;
@@ -74,6 +74,7 @@ export async function saveObstacle(obstacle: Omit<Obstacle, 'id' | 'createdAt' |
   // Also persist to Firestore global collection when enabled and signed in
   try {
     if (FIREBASE_ENABLED && app && auth?.currentUser?.uid) {
+      console.log('[ObstacleService] Saving obstacle to Firestore:', newObstacleObj.id);
       const db = getFirestore(app as any);
       const dto: ObstacleDTO = newObstacle({
         id: newObstacleObj.id,
@@ -92,9 +93,10 @@ export async function saveObstacle(obstacle: Omit<Obstacle, 'id' | 'createdAt' |
       });
       const ref = doc(collection(db, COLLECTIONS.obstacles), dto.id).withConverter(Converters?.obstacle as any);
       await setDoc(ref, dto as any, { merge: false });
+      console.log('[ObstacleService] Successfully saved obstacle to Firestore');
     }
   } catch (e) {
-    console.warn('Failed to save obstacle to Firestore:', e);
+    console.warn('[ObstacleService] Failed to save obstacle to Firestore:', e);
   }
   
   return newObstacleObj;
@@ -115,7 +117,7 @@ export async function getObstacles(filters?: { status?: ObstacleStatus; limit?: 
       let q = query(obstaclesCol, fsOrderBy('createdAt', 'desc'));
       
       if (filters?.status) {
-        q = query(obstaclesCol, fsWhere('status', '==', filters.status), fsOrderBy('createdAt', 'desc'));
+        q = query(q, fsWhere('status', '==', filters.status));
       }
       
       if (filters?.limit) {
@@ -339,4 +341,60 @@ export async function getMyObstacles() {
   
   const allObstacles = await getObstacles();
   return allObstacles.filter(o => o.userId === uid);
+}
+
+/**
+ * Subscribe to real-time obstacle updates
+ * Returns an unsubscribe function
+ */
+export function subscribeToObstacles(
+  callback: (obstacles: Obstacle[]) => void,
+  filters?: { status?: ObstacleStatus }
+): () => void {
+  if (!FIREBASE_ENABLED || !app) {
+    console.warn('Real-time subscriptions require Firebase');
+    return () => {}; // Return empty unsubscribe function
+  }
+
+  const db = getFirestore(app as any);
+  const obstaclesCol = collection(db, COLLECTIONS.obstacles).withConverter(Converters?.obstacle as any);
+  
+  let q = query(obstaclesCol, fsOrderBy('createdAt', 'desc'));
+  
+  if (filters?.status) {
+    q = query(q, fsWhere('status', '==', filters.status));
+  }
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const obstacles: Obstacle[] = snapshot.docs.map(d => {
+      const o = d.data() as ObstacleDTO;
+      return {
+        id: o.id,
+        userId: o.userId,
+        userName: o.userName,
+        type: o.type,
+        severity: o.severity,
+        status: o.status,
+        title: o.title,
+        description: o.description,
+        location: o.location,
+        photoUrl: o.photoUrl,
+        reportedAt: o.reportedAt,
+        resolvedAt: o.resolvedAt,
+        verifiedBy: o.verifiedBy || [],
+        createdAt: o.createdAt,
+        updatedAt: o.updatedAt,
+      } as Obstacle;
+    });
+    
+    callback(obstacles);
+  }, (error) => {
+    console.warn('[ObstacleService] Real-time subscription error:', error);
+    // Fallback to manual fetch on error
+    getObstacles(filters).then(callback).catch(err => {
+      console.warn('[ObstacleService] Fallback fetch failed:', err);
+    });
+  });
+
+  return unsubscribe;
 }

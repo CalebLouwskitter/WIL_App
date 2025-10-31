@@ -16,17 +16,27 @@ import { Colors } from '../../constants/colors';
 import { Typography, Spacing, BorderRadius, ComponentStyles } from '../../constants/styleguide';
 import { FIREBASE_ENABLED, auth } from '../../services/firebase';
 import { useUnits } from '../../hooks/useUnits';
+import ErrorBoundary from '../../components/ErrorBoundary';
+
+// Version from package.json - will be updated dynamically
+const APP_VERSION = '1.0.0';
 
 // Firebase auth types and functions - using any to bypass type issues with custom declarations
 const firebaseAuthModule = async () => import('firebase/auth');
 
-const SettingsScreen = () => {
+const SettingsScreen: React.FC = () => {
   const navigation = useNavigation();
   const scheme = useColorScheme();
   const colors = Colors[scheme ?? 'light'];
   const { isMetric, toggle: toggleUnits } = useUnits();
 
   // User Profile State
+  const [originalDisplayName, setOriginalDisplayName] = useState(
+    FIREBASE_ENABLED && auth?.currentUser?.displayName ? auth.currentUser.displayName : ''
+  );
+  const [originalEmail, setOriginalEmail] = useState(
+    FIREBASE_ENABLED && auth?.currentUser?.email ? auth.currentUser.email : ''
+  );
   const [displayName, setDisplayName] = useState(
     FIREBASE_ENABLED && auth?.currentUser?.displayName ? auth.currentUser.displayName : ''
   );
@@ -44,10 +54,51 @@ const SettingsScreen = () => {
   // Settings State
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [locationTracking, setLocationTracking] = useState(true);
+  const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
+
+  const handleNotificationToggle = async (value: boolean) => {
+    setNotificationsEnabled(value);
+    // TODO: Save to user preferences in Firebase
+    // TODO: Request/deny notification permissions
+    if (value) {
+      // Request notification permissions
+      try {
+        // This would need to be implemented with expo-notifications or similar
+        console.log('Requesting notification permissions...');
+      } catch (error) {
+        console.error('Failed to request notification permissions:', error);
+      }
+    }
+  };
+
+  const handleLocationToggle = async (value: boolean) => {
+    setLocationTracking(value);
+    // TODO: Save to user preferences in Firebase
+    // TODO: Request/deny location permissions
+    if (value) {
+      try {
+        // This would need to be implemented with expo-location or similar
+        console.log('Requesting location permissions...');
+      } catch (error) {
+        console.error('Failed to request location permissions:', error);
+      }
+    }
+  };
+
+  const handleMapTypeChange = (type: 'standard' | 'satellite' | 'hybrid') => {
+    setMapType(type);
+    // TODO: Save to user preferences in Firebase
+    // TODO: Update map components to use this preference
+    console.log('Map type changed to:', type);
+  };
 
   const handleSaveProfile = async () => {
     if (!FIREBASE_ENABLED || !auth?.currentUser) {
       Alert.alert('Error', 'Authentication not available');
+      // Reset form on error
+      setDisplayName(originalDisplayName);
+      setEmail(originalEmail);
+      setIsEditingProfile(false);
       return;
     }
 
@@ -63,10 +114,17 @@ const SettingsScreen = () => {
         await firebaseAuth.updateEmail(auth.currentUser, email);
       }
 
+      // Update original values on success
+      setOriginalDisplayName(displayName);
+      setOriginalEmail(email);
       Alert.alert('Success', 'Profile updated successfully');
       setIsEditingProfile(false);
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to update profile');
+      // Reset form to original values on error
+      setDisplayName(originalDisplayName);
+      setEmail(originalEmail);
+      setIsEditingProfile(false);
     }
   };
 
@@ -138,7 +196,8 @@ const SettingsScreen = () => {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.backgroundLight }]}>
+    <ErrorBoundary>
+      <View style={[styles.container, { backgroundColor: colors.backgroundLight }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -191,8 +250,8 @@ const SettingsScreen = () => {
                   style={[styles.button, styles.cancelButton, { borderColor: colors.border }]}
                   onPress={() => {
                     setIsEditingProfile(false);
-                    setDisplayName(auth?.currentUser?.displayName || '');
-                    setEmail(auth?.currentUser?.email || '');
+                    setDisplayName(originalDisplayName);
+                    setEmail(originalEmail);
                   }}
                 >
                   <Text style={[styles.buttonText, { color: colors.text }]}>Cancel</Text>
@@ -336,8 +395,37 @@ const SettingsScreen = () => {
         {/* App Settings */}
         {renderSectionHeader('App Settings', 'settings')}
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
-          {renderSettingRow('Notifications', notificationsEnabled, setNotificationsEnabled, 'bell')}
-          {renderSettingRow('Location Tracking', locationTracking, setLocationTracking, 'map-pin')}
+          {renderSettingRow('Notifications', notificationsEnabled, handleNotificationToggle, 'bell')}
+          {renderSettingRow('Location Tracking', locationTracking, handleLocationToggle, 'map-pin')}
+        </View>
+
+        {/* Map Settings */}
+        {renderSectionHeader('Map Settings', 'map')}
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <View style={styles.mapTypeContainer}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>Map Type</Text>
+            <View style={styles.mapTypeButtons}>
+              {(['standard', 'satellite', 'hybrid'] as const).map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  style={[
+                    styles.mapTypeButton,
+                    mapType === type && styles.mapTypeButtonActive,
+                    { backgroundColor: mapType === type ? colors.brandPrimary : colors.backgroundLight }
+                  ]}
+                  onPress={() => handleMapTypeChange(type)}
+                >
+                  <Text style={[
+                    styles.mapTypeButtonText,
+                    mapType === type && styles.mapTypeButtonTextActive,
+                    { color: mapType === type ? colors.onPrimary : colors.text }
+                  ]}>
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         </View>
 
         {/* About Section */}
@@ -345,7 +433,7 @@ const SettingsScreen = () => {
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
           <View style={styles.aboutRow}>
             <Text style={[styles.aboutLabel, { color: colors.onSurfaceVariant }]}>Version</Text>
-            <Text style={[styles.aboutValue, { color: colors.text }]}>1.0.0</Text>
+            <Text style={[styles.aboutValue, { color: colors.text }]}>{APP_VERSION}</Text>
           </View>
           <TouchableOpacity style={styles.aboutRow}>
             <Text style={[styles.aboutLabel, { color: colors.brandPrimary }]}>Terms of Service</Text>
@@ -383,7 +471,8 @@ const SettingsScreen = () => {
 
         <View style={{ height: 40 }} />
       </ScrollView>
-    </View>
+      </View>
+    </ErrorBoundary>
   );
 };
 
@@ -497,17 +586,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.sm,
-    marginBottom: Spacing.xs,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '500',
   },
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  settingLabel: {
-    fontSize: Typography.body.fontSize,
+  mapTypeContainer: {
+    paddingVertical: Spacing.sm,
+  },
+  mapTypeButtons: {
+    flexDirection: 'row',
+    marginTop: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  mapTypeButton: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+  },
+  mapTypeButtonActive: {
+    // Styles applied dynamically
+  },
+  mapTypeButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  mapTypeButtonTextActive: {
+    // Styles applied dynamically
   },
   aboutRow: {
     flexDirection: 'row',

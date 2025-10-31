@@ -14,7 +14,8 @@ import AdminNotificationManagement from '../screens/Profile/AdminNotificationMan
 import AdminObstacleManagement from '../screens/Profile/AdminObstacleManagement';
 import RideStatsScreen from '../screens/Analytics/RideStatsScreen';
 import RideViewMoreScreen from '../screens/Analytics/RideViewMoreScreen';
-import NotificationsScreen from '../screens/Profile/NotificationsScreen';
+import HistoryScreen from '../screens/Profile/HistoryScreen';
+import UserNotificationsScreen from '../screens/Profile/UserNotificationsScreen';
 
 const Stack = createStackNavigator();
 
@@ -30,9 +31,9 @@ const ProfileStack = () => {
       <Stack.Screen name="AdminManagement" component={AdminManagementScreen} />
       <Stack.Screen name="AdminNotificationManagement" component={AdminNotificationManagement} />
       <Stack.Screen name="AdminObstacleManagement" component={AdminObstacleManagement} />
-      <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="Notifications" component={UserNotificationsScreen} />
       <Stack.Screen name="Observations" component={ObservationsScreen} />
-      <Stack.Screen name="RideHistory" component={RideStatsScreen} />
+      <Stack.Screen name="RideHistory" component={HistoryScreen} />
       <Stack.Screen name="RideDetail" component={RideViewMoreScreen} />
       {/* Add more profile screens as needed */}
     </Stack.Navigator>

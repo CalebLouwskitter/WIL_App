@@ -4,6 +4,8 @@ import {
   getDocs, 
   doc, 
   updateDoc, 
+  deleteDoc,
+  getDoc,
   query, 
   where, 
   orderBy, 
@@ -16,6 +18,70 @@ import {
 } from 'firebase/firestore';
 import { firestore } from './FirebaseFirestoreService';
 import { Notification, NotificationPreferences, NotificationType, NotificationAudience } from '../types/Notification';
+
+/**
+ * Create a test notification for debugging
+ */
+export const createTestNotification = async (userId: string) => {
+  if (!firestore) {
+    throw new Error("Firestore is not initialized");
+  }
+
+  const notification: Omit<Notification, 'id'> = {
+    type: 'update',
+    title: 'Test Notification',
+    body: 'This is a test notification to verify the system works',
+    audience: 'users',
+    createdAt: new Date(),
+    createdBy: userId,
+    sentAt: new Date(),
+    metadata: {
+      test: true
+    }
+  };
+
+  const notificationsCol = collection(firestore, 'notifications');
+  const docRef = await addDoc(notificationsCol, {
+    ...notification,
+    createdAt: serverTimestamp(),
+    sentAt: serverTimestamp(),
+  });
+
+  return docRef.id;
+};
+
+/**
+ * Send a notification to admins when a user signs in
+ */
+export const sendUserSigninNotification = async (userId: string, userEmail: string) => {
+  if (!firestore) {
+    throw new Error("Firestore is not initialized");
+  }
+
+  const notification: Omit<Notification, 'id'> = {
+    type: 'update',
+    title: 'User Signin',
+    body: `${userEmail} has signed in`,
+    audience: 'admins',
+    createdAt: new Date(),
+    createdBy: 'system',
+    metadata: {
+      userId,
+      userEmail
+    }
+  };
+
+  const notificationsCol = collection(firestore, 'notifications');
+  const docRef = await addDoc(notificationsCol, {
+    ...notification,
+    createdAt: serverTimestamp(),
+  });
+
+  // Send FCM push notification to all admins
+  await sendPushToAdmins(notification.title, notification.body);
+
+  return docRef.id;
+};
 
 /**
  * Send a notification to admins when a user signs up
@@ -296,4 +362,133 @@ export const deleteOldNotifications = async (daysOld: number = 30) => {
 
   await Promise.all(deletePromises);
   return snapshot.size;
+};
+
+/**
+ * Delete a specific notification by ID
+ */
+export const deleteNotification = async (notificationId: string) => {
+  if (!firestore) {
+    throw new Error("Firestore is not initialized");
+  }
+
+  const notificationDoc = doc(firestore, 'notifications', notificationId);
+  await deleteDoc(notificationDoc);
+};
+
+/**
+ * Update a specific notification by ID
+ */
+export const updateNotification = async (
+  notificationId: string,
+  updates: Partial<Omit<Notification, 'id' | 'createdAt'>>
+) => {
+  if (!firestore) {
+    throw new Error("Firestore is not initialized");
+  }
+
+  const notificationDoc = doc(firestore, 'notifications', notificationId);
+  const updateData = {
+    ...updates,
+    updatedAt: serverTimestamp(),
+  };
+
+  await updateDoc(notificationDoc, updateData);
+  return notificationId;
+};
+
+/**
+ * Get a specific notification by ID
+ */
+export const getNotificationById = async (notificationId: string): Promise<Notification | null> => {
+  if (!firestore) {
+    throw new Error("Firestore is not initialized");
+  }
+
+  const notificationDoc = doc(firestore, 'notifications', notificationId);
+  const snapshot = await getDoc(notificationDoc);
+  
+  if (!snapshot.exists()) {
+    return null;
+  }
+
+  return {
+    id: snapshot.id,
+    ...snapshot.data(),
+    createdAt: snapshot.data().createdAt?.toDate() || new Date(),
+    sentAt: snapshot.data().sentAt?.toDate(),
+    updatedAt: snapshot.data().updatedAt?.toDate(),
+  } as Notification;
+};
+
+/**
+ * Get all notifications (admin only)
+ */
+export const getAllNotifications = async (limitCount: number = 100): Promise<Notification[]> => {
+  if (!firestore) {
+    throw new Error("Firestore is not initialized");
+  }
+
+  const notificationsCol = collection(firestore, 'notifications');
+  const q = query(
+    notificationsCol,
+    orderBy('createdAt', 'desc'),
+    limit(limitCount)
+  );
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+    createdAt: doc.data().createdAt?.toDate() || new Date(),
+    sentAt: doc.data().sentAt?.toDate(),
+    updatedAt: doc.data().updatedAt?.toDate(),
+  } as Notification));
+};
+
+/**
+ * Get notifications count by type
+ */
+export const getNotificationStats = async (): Promise<{
+  total: number;
+  byType: Record<NotificationType, number>;
+  byAudience: Record<NotificationAudience, number>;
+}> => {
+  if (!firestore) {
+    throw new Error("Firestore is not initialized");
+  }
+
+  const notificationsCol = collection(firestore, 'notifications');
+  const snapshot = await getDocs(notificationsCol);
+
+  const stats = {
+    total: snapshot.size,
+    byType: {
+      user_signup: 0,
+      event: 0,
+      update: 0,
+      alert: 0,
+    } as Record<NotificationType, number>,
+    byAudience: {
+      admins: 0,
+      users: 0,
+      all: 0,
+    } as Record<NotificationAudience, number>,
+  };
+
+  snapshot.docs.forEach(doc => {
+    const data = doc.data();
+    const type = data.type as NotificationType;
+    const audience = data.audience as NotificationAudience;
+    
+    if (type && stats.byType[type] !== undefined) {
+      stats.byType[type]++;
+    }
+    
+    if (audience && stats.byAudience[audience] !== undefined) {
+      stats.byAudience[audience]++;
+    }
+  });
+
+  return stats;
 };

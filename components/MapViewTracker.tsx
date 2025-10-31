@@ -36,7 +36,7 @@ const applyOpacity = (hexColor: string, opacity: number) => {
 // Renders the main MapView with three responsibilities:
 // 1) Draw static preview routes (A–C).
 // 2) Draw the rider's live path as a polyline.
-// 3) Keep a tight, 3D, forward-facing camera follow on the latest point.
+// 3) Keep a tight camera follow on the latest point.
 type MapType = 'standard' | 'satellite' | 'hybrid' | 'terrain';
 type Props = { 
   path: RidePoint[] | undefined;
@@ -152,29 +152,25 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
     }
   }, [followUserUid, followUserDisplayName, users]);
 
-  // Animate the camera whenever the region updates to create a 3D nearby-objects look:
-  // - high pitch (55º)
-  // - high zoom (~18.5)
-  // - heading in the direction of travel
-  useEffect(() => {
-    if (!region || !mapRef.current) return;
-    try {
-      // Zoom ~17 gives a street-level view on Google; pitch adds 3D perspective
-      mapRef.current.animateCamera(
-        {
-          center: { latitude: region.latitude, longitude: region.longitude },
-          pitch: 55,
-          heading,
-          zoom: 18.5,
-          altitude: undefined,
-        },
-        { duration: 600 }
-      );
-    } catch (_e) {
-  
-      // no-op; animateCamera may not be supported on some providers
-    }
-  }, [region?.latitude, region?.longitude, heading]);
+  // Disabled 3D camera animation to prevent glitches - keeping standard 2D map view
+  // The region prop on MapView will handle camera positioning in 2D
+  // useEffect(() => {
+  //   if (!region || !mapRef.current) return;
+  //   try {
+  //     mapRef.current.animateCamera(
+  //       {
+  //         center: { latitude: region.latitude, longitude: region.longitude },
+  //         pitch: 0,
+  //         heading: 0,
+  //         zoom: 18.5,
+  //         altitude: undefined,
+  //       },
+  //       { duration: 600 }
+  //     );
+  //   } catch (_e) {
+  //     // no-op; animateCamera may not be supported on some providers
+  //   }
+  // }, [region?.latitude, region?.longitude]);
 
 
 
@@ -209,11 +205,13 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
     (async () => {
       if (!region) return;
       try {
+        console.log('[MapViewTracker] Loading obstacles for region:', region);
         const nearbyObstacles = await getObstaclesInArea(
           { latitude: region.latitude, longitude: region.longitude },
           10, // 10km radius
           { status: 'active' }
         );
+        console.log('[MapViewTracker] Loaded obstacles:', nearbyObstacles.length);
         if (!cancelled) {
           setObstacles(nearbyObstacles);
         }
@@ -295,12 +293,17 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
       // Refresh obstacles to show updated verification count
       setObstacles(prev => prev.map(o => 
         o.id === obstacle.id 
-          ? { ...o, verifiedBy: [...(o.verifiedBy || []), 'current-user'] }
+          ? { ...o, verifiedBy: [...(o.verifiedBy || []), auth?.currentUser?.uid || 'current-user'] }
           : o
       ));
     } catch (error) {
       console.warn('Failed to verify obstacle:', error);
     }
+  };
+
+  const handleObstaclePress = (obstacle: Obstacle) => {
+    // Could navigate to obstacle details or show modal
+    console.log('Obstacle pressed:', obstacle.title);
   };
 
   return (
@@ -317,9 +320,9 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
       showsCompass
       followsUserLocation
       
-      // Show buildings and POIs to reinforce the "3D nearby objects" feel
-      showsBuildings
-      showsIndoors
+      // Disabled 3D features to prevent glitches - using standard 2D map
+      showsBuildings={false}
+      showsIndoors={false}
       showsPointsOfInterest
       ref={mapRef}
     >
@@ -463,6 +466,7 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
       <ObstacleView 
         obstacles={filteredObstacles} 
         onVerify={handleVerifyObstacle}
+        onObstaclePress={handleObstaclePress}
       />
     </MapView>
   );

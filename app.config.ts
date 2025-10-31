@@ -67,7 +67,7 @@ const config: ExpoConfig = {
     },
     edgeToEdgeEnabled: true,
     package: 'com.sbhra.app',
-    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? '/local/path/to/google-services.json',
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
     // Google Maps Android SDK key
     config: {
       googleMaps: {

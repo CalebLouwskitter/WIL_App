@@ -23,7 +23,12 @@ export const saveRide = async (ride: RideData) => {
         totalDistance: ride.totalDistance,
         elevationGain: ride.elevationGain,
         duration: ride.duration,
-        path: (ride.path || []).map(ridePointToDTO),
+        path: (ride.path || []).map((point) => ridePointToDTO({
+          latitude: point.latitude,
+          longitude: point.longitude,
+          altitude: point.altitude ?? 0,
+          timestamp: point.timestamp
+        })),
         routeDistances: ride.routeDistances,
         horseId: ride.horseId ?? null,
         horseName: ride.horseName ?? null,
