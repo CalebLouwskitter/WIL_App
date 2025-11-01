@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+
 import {
   View,
   Text,
@@ -37,6 +38,7 @@ const SosAlertScreen = () => {
   const activatorNameRef = useRef<string | null>(null);
   const activatedRef = useRef(false);
   const activatedThisSessionRef = useRef(false);
+  const activationFinalizedRef = useRef(false);
   const whatsappSentRef = useRef(false);
 
   const resetToInitialState = () => {
@@ -45,10 +47,29 @@ const SosAlertScreen = () => {
     setHelpSent(false);
     setCountdown(COUNTDOWN_START);
     whatsappSentRef.current = false;
+    activationFinalizedRef.current = false;
     translateY.setValue(0);
     translateYJS.setValue(0);
     Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true }).start();
   };
+
+  const finalizeSosActivation = useCallback(async () => {
+    if (activationFinalizedRef.current) return;
+    activationFinalizedRef.current = true;
+
+    try {
+      startLocationBroadcast({ isRiding: false });
+    } catch (error) {
+      console.error('Error starting location broadcast for SOS:', error);
+    }
+
+    try {
+      await activate(activatorNameRef.current, auth?.currentUser?.uid ?? null);
+      activatedThisSessionRef.current = true;
+    } catch (error) {
+      console.error('Error finalizing SOS activation:', error);
+    }
+  }, [activate]);
 
   const onGestureEvent = Animated.event(
     [{ nativeEvent: { translationY: translateYJS } }],
@@ -65,14 +86,8 @@ const SosAlertScreen = () => {
           setActivated(true);
           const bestName = (auth?.currentUser?.displayName as string | undefined) ?? profile?.displayName ?? null;
           activatorNameRef.current = (bestName ?? '').trim() || null;
-          activatedThisSessionRef.current = true;
-          
-          // Start location broadcast immediately
-          startLocationBroadcast({ isRiding: false });
-          
-          // Activate SOS with location immediately
-          activate(activatorNameRef.current, auth?.currentUser?.uid ?? null);
-          
+          activationFinalizedRef.current = false;
+
           Animated.timing(translateY, {
             toValue: SNAP_VALUE,
             duration: 120,
@@ -158,11 +173,13 @@ const SosAlertScreen = () => {
         setCountdown((prev) => {
           if (prev <= 1) {
             if (timer) clearInterval(timer);
+            finalizeSosActivation();
             // Immediately send WhatsApp message
             sendLocationToWhatsApp();
             setHelpSent(true);
             return 0;
           }
+
           return prev - 1;
         });
       }, 1000);
@@ -170,15 +187,23 @@ const SosAlertScreen = () => {
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [activated, helpSent]);
+  }, [activated, helpSent, finalizeSosActivation]);
 
   // Backfill activator name if SOS is active but name wasn't available yet
   useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
     if (sosState.active && !sosState.name) {
       const derivedName = (auth?.currentUser?.displayName as string | undefined) ?? profile?.displayName ?? null;
       const sanitized = (derivedName ?? '').trim();
-      if (sanitized.length) activate(sanitized, auth?.currentUser?.uid ?? null);
+      if (sanitized.length) {
+        timeout = setTimeout(() => {
+          activate(sanitized, auth?.currentUser?.uid ?? null);
+        }, 0);
+      }
     }
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
   }, [sosState.active, sosState.name, activate, profile?.displayName, user?.displayName]);
 
   // Sync local UI when SOS is cleared elsewhere
