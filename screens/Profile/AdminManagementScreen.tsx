@@ -82,7 +82,7 @@ export default function AdminManagementScreen() {
   };
 
   const handleDelete = async (userId: string) => {
-    Alert.alert('Delete User', 'Are you sure you want to delete this user document?', [
+    Alert.alert('Remove User', 'This will permanently delete the user and their data. Continue?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive', onPress: async () => {
@@ -188,6 +188,7 @@ export default function AdminManagementScreen() {
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
+        <Text style={styles.hintText}>Search by email to filter users</Text>
       </View>
       <View style={styles.adminCardsContainer}>
         <TouchableOpacity 
@@ -278,7 +279,7 @@ export default function AdminManagementScreen() {
                   {operationLoading === item.uid ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={styles.buttonText}>Deny</Text>
+                    <Text style={styles.buttonText}>Block</Text>
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -390,7 +391,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#28a745',
   },
   disapproveButton: {
-    backgroundColor: '#dc3545',
+    backgroundColor: '#b91c1c',
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -499,8 +500,15 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     lineHeight: 20,
   },
-  obstacleCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#F59E0B',
+  hintText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+    textAlign: 'left',
   },
+  obstacleCard: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+
 });
