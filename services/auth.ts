@@ -13,20 +13,41 @@ import {
   type User
 } from "firebase/auth";
 
+// Import the auth functions dynamically to avoid module resolution issues
+const getAuthFunctions = () => {
+  try {
+    const authModule = require('firebase/auth');
+    return {
+      signInWithEmailAndPassword: authModule.signInWithEmailAndPassword,
+      createUserWithEmailAndPassword: authModule.createUserWithEmailAndPassword,
+      sendEmailVerification: authModule.sendEmailVerification,
+      sendPasswordResetEmail: authModule.sendPasswordResetEmail,
+      GoogleAuthProvider: authModule.GoogleAuthProvider,
+      signInWithCredential: authModule.signInWithCredential,
+      signOut: authModule.signOut,
+    };
+  } catch (error) {
+    console.warn('Firebase auth functions not available:', error);
+    return {};
+  }
+};
+
+const authFunctions = getAuthFunctions();
+
 export const loginUser = async (email: string, password: string) => {
   if (!FIREBASE_ENABLED || !auth) {
     throw new Error("Firebase not configured. Please add environment variables to enable authentication.");
   }
-  return await signInWithEmailAndPassword(auth, email, password);
+  return await authFunctions.signInWithEmailAndPassword(auth, email, password);
 };
 
 export const registerUser = async (email: string, password: string) => {
   if (!FIREBASE_ENABLED || !auth) {
     throw new Error("Firebase not configured. Please add environment variables to enable authentication.");
   }
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  const userCredential = await authFunctions.createUserWithEmailAndPassword(auth, email, password);
   if (userCredential.user) {
-    await sendEmailVerification(userCredential.user);
+    await authFunctions.sendEmailVerification(userCredential.user);
     await getOrCreateUserProfile(userCredential.user); // Create user profile in Firestore
     
     // Send notification to admins about new user signup
@@ -44,29 +65,29 @@ export const logoutUser = async () => {
   if (!FIREBASE_ENABLED || !auth) {
     throw new Error("Firebase not configured.");
   }
-  return await signOut(auth);
+  return await authFunctions.signOut(auth);
 };
 
 export const sendPasswordReset = async (email: string) => {
   if (!FIREBASE_ENABLED || !auth) {
     throw new Error("Firebase not configured. Please add environment variables to enable authentication.");
   }
-  return await sendPasswordResetEmail(auth, email);
+  return await authFunctions.sendPasswordResetEmail(auth, email);
 };
 
 export const resendVerificationEmail = async (user: User) => {
   if (!FIREBASE_ENABLED || !auth) {
     throw new Error("Firebase not configured. Please add environment variables to enable authentication.");
   }
-  return await sendEmailVerification(user);
+  return await authFunctions.sendEmailVerification(user);
 };
 
 export const signInWithGoogle = async (idToken: string) => {
   if (!FIREBASE_ENABLED || !auth) {
     throw new Error("Firebase not configured. Please add environment variables to enable authentication.");
   }
-  const credential = GoogleAuthProvider.credential(idToken);
-  const userCredential = await signInWithCredential(auth, credential);
+  const credential = authFunctions.GoogleAuthProvider.credential(idToken);
+  const userCredential = await authFunctions.signInWithCredential(auth, credential);
   
   if (userCredential.user) {
     // Create user profile in Firestore if it doesn't exist

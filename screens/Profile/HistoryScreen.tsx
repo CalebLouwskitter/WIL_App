@@ -1,11 +1,15 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 
-export default function HostoryScreen() {
-  const navigation = useNavigation<any>();
-  const route = useRoute<any>();
+type RouteParams = {
+  fromDashboard?: boolean;
+};
+
+const HistoryScreen: React.FC = () => {
+  const navigation = useNavigation();
+  const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
 
   return (
     <View style={styles.container}>
@@ -19,6 +23,8 @@ export default function HostoryScreen() {
             }
           }}
           style={styles.backButton}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
         >
           <Feather name="arrow-left" size={22} color="#0F172A" />
         </TouchableOpacity>
@@ -56,3 +62,4 @@ const styles = StyleSheet.create({
   placeholder: { color: '#64748B', fontSize: 14, textAlign: 'center' },
 });
 
+export default HistoryScreen;

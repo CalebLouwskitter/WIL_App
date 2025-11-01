@@ -8,6 +8,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  SafeAreaView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -20,6 +21,7 @@ import {
   type Obstacle,
   updateObstacleStatus,
   removeObstacle,
+  subscribeToObstacles,
 } from '../../services/ObstacleService';
 import { type ObstacleStatus } from '../../services/Data';
 import type { ProfileStackParamList } from '../../navigation/ProfileStack';
@@ -39,6 +41,8 @@ export default function AdminObstacleManagement() {
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [operationLoading, setOperationLoading] = useState<string | null>(null);
+  const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
 
   useEffect(() => {
     // Wait for profile to finish loading
@@ -72,14 +76,62 @@ export default function AdminObstacleManagement() {
   }, [filter]);
 
   useEffect(() => {
-    loadObstacles();
-  }, [loadObstacles]);
+    // Set up real-time subscription
+    let unsubscribe: (() => void) | null = null;
+    
+    if (isRealTimeEnabled && profile && profile.role === 'admin') {
+      try {
+        const status = filter === 'all' ? undefined : (filter as ObstacleStatus);
+        unsubscribe = subscribeToObstacles((newObstacles) => {
+          setObstacles(newObstacles);
+          setLoading(false);
+        }, { status });
+        
+        console.log('[AdminObstacleManagement] Real-time subscription enabled');
+      } catch (error) {
+        console.warn('[AdminObstacleManagement] Failed to set up real-time subscription:', error);
+        setIsRealTimeEnabled(false);
+        // Fallback to manual loading
+        loadObstacles();
+      }
+    } else {
+      // Manual refresh mode
+      loadObstacles();
+      // Set up periodic refresh as fallback
+      const interval = setInterval(() => {
+        console.log('[AdminObstacleManagement] Periodic refresh');
+        loadObstacles();
+      }, 30000); // Refresh every 30 seconds
+      
+      return () => clearInterval(interval);
+    }
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+        console.log('[AdminObstacleManagement] Real-time subscription cleaned up');
+      }
+    };
+  }, [filter, isRealTimeEnabled, loadObstacles, profile]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadObstacles();
+    
+    if (isRealTimeEnabled) {
+      // In real-time mode, just trigger a manual fetch once
+      try {
+        const status = filter === 'all' ? undefined : (filter as ObstacleStatus);
+        const data = await getObstacles({ status });
+        setObstacles(data);
+      } catch (error) {
+        console.warn('[AdminObstacleManagement] Manual refresh failed:', error);
+      }
+    } else {
+      await loadObstacles();
+    }
+    
     setRefreshing(false);
-  }, [loadObstacles]);
+  }, [loadObstacles, filter, isRealTimeEnabled]);
 
   const handleUpdateStatus = useCallback(
     async (obstacle: Obstacle, nextStatus: ObstacleStatus) => {
@@ -90,6 +142,7 @@ export default function AdminObstacleManagement() {
           text: 'Yes',
           style: 'destructive',
           onPress: async () => {
+            setOperationLoading(obstacle.id);
             try {
               await updateObstacleStatus(obstacle.id, nextStatus);
               setObstacles((prev) =>
@@ -101,10 +154,14 @@ export default function AdminObstacleManagement() {
               );
               if (nextStatus === 'resolved') {
                 Alert.alert('Success', 'Obstacle marked as resolved. It will no longer appear on active maps.');
+              } else {
+                Alert.alert('Success', 'Obstacle marked as active and will appear on maps.');
               }
             } catch (error) {
               console.warn('[AdminObstacleManagement] Failed to update obstacle status', error);
               Alert.alert('Error', 'Failed to update obstacle status.');
+            } finally {
+              setOperationLoading(null);
             }
           },
         },
@@ -123,6 +180,7 @@ export default function AdminObstacleManagement() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            setOperationLoading(obstacle.id);
             try {
               await removeObstacle(obstacle.id);
               setObstacles((prev) => prev.filter((o) => o.id !== obstacle.id));
@@ -130,6 +188,8 @@ export default function AdminObstacleManagement() {
             } catch (e) {
               console.warn('[AdminObstacleManagement] Failed to delete obstacle', e);
               Alert.alert('Error', 'Failed to delete obstacle.');
+            } finally {
+              setOperationLoading(null);
             }
           },
         },
@@ -211,14 +271,22 @@ export default function AdminObstacleManagement() {
             accessibilityLabel="Go back"
             onPress={() => navigation.goBack()}
             style={styles.backButton}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
           >
-            <Ionicons name="chevron-back" size={24} color="#111" />
+            <View style={styles.iconButton}>
+              <Ionicons name="chevron-back" size={24} color="#111" />
+            </View>
           </TouchableOpacity>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text style={styles.title}>Obstacle Management</Text>
+            <View style={styles.statusRow}>
+              <View style={[styles.statusIndicator, isRealTimeEnabled ? styles.statusLive : styles.statusManual]} />
+              <Text style={styles.statusText}>
+                {isRealTimeEnabled ? 'Live Updates' : 'Manual Refresh'}
+              </Text>
+            </View>
           </View>
-          <View style={{ width: 32 }} />
+          <View style={{ width: 48 }} />
         </View>
         <View style={styles.loading}>
           <ActivityIndicator size="large" color="#2563eb" />
@@ -229,20 +297,28 @@ export default function AdminObstacleManagement() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
         <TouchableOpacity
           accessibilityLabel="Go back"
           onPress={() => navigation.goBack()}
           style={styles.backButton}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
         >
-          <Ionicons name="chevron-back" size={24} color="#111" />
+          <View style={styles.iconButton}>
+            <Ionicons name="chevron-back" size={24} color="#111" />
+          </View>
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={styles.title}>Obstacle Management</Text>
+          <View style={styles.statusRow}>
+            <View style={[styles.statusIndicator, isRealTimeEnabled ? styles.statusLive : styles.statusManual]} />
+            <Text style={styles.statusText}>
+              {isRealTimeEnabled ? 'Live Updates' : 'Manual Refresh'}
+            </Text>
+          </View>
         </View>
-        <View style={{ width: 32 }} />
+        <View style={{ width: 48 }} />
       </View>
 
       <View style={styles.filterRow}>
@@ -286,7 +362,7 @@ export default function AdminObstacleManagement() {
           }
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -332,27 +408,72 @@ function createStyles() {
     container: {
       flex: 1,
       backgroundColor: '#F4F7FE',
-      paddingHorizontal: 16,
-      paddingTop: 16,
     },
     headerRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 16,
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingTop: 50,
+      paddingBottom: 16,
     },
     backButton: {
-      width: 32,
-      alignItems: 'flex-start',
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: '#FFFFFF',
+      alignItems: 'center',
       justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    iconButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
     },
     title: {
       fontSize: 24,
       fontWeight: '700',
       color: '#111827',
     },
+    statusRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 4,
+      gap: 6,
+    },
+    statusIndicator: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+    statusLive: {
+      backgroundColor: '#10B981',
+    },
+    statusManual: {
+      backgroundColor: '#F59E0B',
+    },
+    statusText: {
+      fontSize: 12,
+      fontWeight: '500',
+      color: '#6B7280',
+    },
     filterRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
+      paddingHorizontal: 16,
       marginBottom: 16,
     },
     filterButton: {
@@ -382,6 +503,7 @@ function createStyles() {
       alignItems: 'center',
     },
     listContent: {
+      paddingHorizontal: 16,
       paddingBottom: 24,
     },
     emptyContent: {

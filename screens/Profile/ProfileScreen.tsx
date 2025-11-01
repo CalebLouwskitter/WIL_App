@@ -14,6 +14,7 @@ import { useCurrentUser } from '../../hooks/useCurrentUser';
 import ProfilePictureService from '../../services/ProfilePictureService';
 import SettingsModal from '../../components/Modals/SettingsModal';
 import NotificationsModal from '../../components/Modals/NotificationsModal';
+import ErrorBoundary from '../../components/ErrorBoundary';
 
 type ProfileScreenNavigationProp = StackNavigationProp<ProfileStackParamList, 'ProfileMain'>;
 
@@ -26,18 +27,18 @@ const achievementsData = [
 type IconName = 'activity' | 'map' | 'clock' | 'star';
 type StatItem = { label: string; value: string; boxColor: string; circleColor: string; icon: IconName };
 
-export default function ProfileScreen() {
+const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
-  const [navDisabled, setNavDisabled] = useState(false);
+  const [navDisabled, setNavDisabled] = useState<boolean>(false);
   const scheme = useColorScheme();
   const colors = Colors[scheme ?? 'light'];
-  const [settingsVisible, setSettingsVisible] = useState(false);
-  const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const [settingsVisible, setSettingsVisible] = useState<boolean>(false);
+  const [notificationsVisible, setNotificationsVisible] = useState<boolean>(false);
   
   const [profilePictureUri, setProfilePictureUri] = useState<string | null>(null);
   const [loadingPicture, setLoadingPicture] = useState(false);
   const fadeAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(30);
+  const slideAnim = new Animated.Value(0);
   
   const [statsData, setStatsData] = useState<StatItem[]>([
     { label: 'Rides', value: '0', boxColor: colors.profileStatRidesBox, circleColor: colors.profileStatRidesCircle, icon: 'activity' },
@@ -46,6 +47,7 @@ export default function ProfileScreen() {
     { label: 'Points', value: '0', boxColor: colors.profileStatPointsBox, circleColor: colors.profileStatPointsCircle, icon: 'star' },
   ]);
   const [recentRides, setRecentRides] = useState<RideData[]>([]);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
   const displayName = FIREBASE_ENABLED && auth?.currentUser?.displayName
     ? auth?.currentUser?.displayName
     : 'Rider';
@@ -103,7 +105,8 @@ export default function ProfileScreen() {
   );
 
   useEffect(() => {
-    (async () => {
+    const loadStats = async () => {
+      setIsLoadingStats(true);
       try {
         const rides: RideData[] = await getRides();
         const sorted = [...rides].sort((a, b) => b.startTime - a.startTime);
@@ -122,16 +125,25 @@ export default function ProfileScreen() {
           { label: 'Points', value: String(points), boxColor: colors.profileStatPointsBox, circleColor: colors.profileStatPointsCircle, icon: 'star' },
         ]);
       } catch (e) {
+        console.error('Error loading stats:', e);
         // keep defaults on error
+      } finally {
+        setIsLoadingStats(false);
       }
-    })();
+    };
+    
+    loadStats();
   }, []);
 
   const handleNavigate = useCallback(
-    (screen: string) => {
+    (screen: string, params?: any) => {
       if (navDisabled) return;
       setNavDisabled(true);
-      navigation.navigate(screen as never);
+      if (params) {
+        (navigation as any).navigate(screen, params);
+      } else {
+        (navigation as any).navigate(screen);
+      }
       setTimeout(() => setNavDisabled(false), 500);
     },
     [navDisabled, navigation]
@@ -154,15 +166,16 @@ export default function ProfileScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ErrorBoundary>
+      <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         
         {/* Top Icons (Dashboard-style) */}
         <View style={[styles.topIcons, { paddingHorizontal: 16 }]}>        
-          <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)}>
+          <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)} accessibilityLabel="Settings" accessibilityRole="button" accessibilityHint="Open settings menu">
             <Icon name="settings" size={27} color="#374151" />
           </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)}>
+          <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)} accessibilityLabel="Notifications" accessibilityRole="button" accessibilityHint="View notifications">
             <Icon name="bell" size={27} color="#374151" />
           </TouchableOpacity>
         </View>
@@ -191,6 +204,9 @@ export default function ProfileScreen() {
                   style={styles.profilePictureContainer}
                   onPress={handleChangeProfilePicture}
                   activeOpacity={0.8}
+                  accessibilityLabel="Change profile picture"
+                  accessibilityRole="button"
+                  accessibilityHint="Select or take a new profile picture"
                 >
                   {loadingPicture ? (
                     <View style={styles.profilePictureLoading}>
@@ -219,6 +235,9 @@ export default function ProfileScreen() {
                     style={styles.removeButton}
                     onPress={handleRemoveProfilePicture}
                     activeOpacity={0.7}
+                    accessibilityLabel="Remove profile picture"
+                    accessibilityRole="button"
+                    accessibilityHint="Remove current profile picture"
                   >
                     <Icon name="x" size={10} color="#fff" />
                   </TouchableOpacity>
@@ -244,6 +263,9 @@ export default function ProfileScreen() {
             activeOpacity={0.85}
             onPress={() => handleNavigate('Settings')}
             disabled={navDisabled}
+            accessibilityLabel="Open full settings"
+            accessibilityRole="button"
+            accessibilityHint="Navigate to settings screen"
           >
             <View style={styles.settingsCardContent}>
               <View style={[styles.secondaryIconCircle, { backgroundColor: '#D1FAE5' }]}>
@@ -252,6 +274,30 @@ export default function ProfileScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.secondaryButtonText}>Settings</Text>
                 <Text style={styles.settingsSubtitle}>Open full settings</Text>
+              </View>
+              <Icon name="chevron-right" size={20} color="#94A3B8" />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Notifications Widget */}
+        <View style={styles.settingsWidget}>
+          <TouchableOpacity
+            style={styles.settingsCard}
+            activeOpacity={0.85}
+            onPress={() => handleNavigate('Notifications')}
+            disabled={navDisabled}
+            accessibilityLabel="View all notifications"
+            accessibilityRole="button"
+            accessibilityHint="Navigate to notifications screen"
+          >
+            <View style={styles.settingsCardContent}>
+              <View style={[styles.secondaryIconCircle, { backgroundColor: '#DBEAFE' }]}>
+                <Icon name="bell" size={22} color="#3B82F6" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.secondaryButtonText}>Notifications</Text>
+                <Text style={styles.settingsSubtitle}>View all your notifications</Text>
               </View>
               <Icon name="chevron-right" size={20} color="#94A3B8" />
             </View>
@@ -267,6 +313,9 @@ export default function ProfileScreen() {
               onPress={() => handleNavigate('PersonalStats')} 
               disabled={navDisabled}
               style={styles.viewAllButton}
+              accessibilityLabel="View all statistics"
+              accessibilityRole="button"
+              accessibilityHint="Navigate to detailed statistics screen"
             >
               <Text style={styles.viewAllText}>View All</Text>
               <Icon name="chevron-right" size={16} color="#3B82F6" />
@@ -298,6 +347,9 @@ export default function ProfileScreen() {
               onPress={() => handleNavigate('AchievementsScreen')} 
               disabled={navDisabled}
               style={styles.viewAllButton}
+              accessibilityLabel="View all achievements"
+              accessibilityRole="button"
+              accessibilityHint="Navigate to achievements screen"
             >
               <Text style={styles.viewAllText}>View All</Text>
               <Icon name="chevron-right" size={16} color="#3B82F6" />
@@ -321,6 +373,9 @@ export default function ProfileScreen() {
             activeOpacity={0.85}
             onPress={() => handleNavigate('CreateHorse')}
             disabled={navDisabled}
+            accessibilityLabel="Add new horse"
+            accessibilityRole="button"
+            accessibilityHint="Navigate to create horse screen"
           >
             <LinearGradient
               colors={['#1E293B', '#0F172A'] as const}
@@ -342,6 +397,9 @@ export default function ProfileScreen() {
               activeOpacity={0.85}
               onPress={() => handleNavigate('HorsesList')}
               disabled={navDisabled}
+              accessibilityLabel="View my horses"
+              accessibilityRole="button"
+              accessibilityHint="Navigate to horses list screen"
             >
               <View style={styles.secondaryButtonContent}>
                 <View style={[styles.secondaryIconCircle, { backgroundColor: '#DBEAFE' }]}>
@@ -356,6 +414,9 @@ export default function ProfileScreen() {
               activeOpacity={0.85}
               onPress={() => handleNavigate('Observations')}
               disabled={navDisabled}
+              accessibilityLabel="View observations"
+              accessibilityRole="button"
+              accessibilityHint="Navigate to observations screen"
             >
               <View style={styles.secondaryButtonContent}>
                 <View style={[styles.secondaryIconCircle, { backgroundColor: '#D1FAE5' }]}>
@@ -371,6 +432,9 @@ export default function ProfileScreen() {
               style={styles.adminButton}
               activeOpacity={0.85}
               onPress={() => handleNavigate('AdminManagement')}
+              accessibilityLabel="Open admin panel"
+              accessibilityRole="button"
+              accessibilityHint="Navigate to admin management screen"
             >
               <LinearGradient
                 colors={['#7C3AED', '#6D28D9'] as const}
@@ -397,6 +461,9 @@ export default function ProfileScreen() {
               onPress={() => handleNavigate('RideHistory')}
               activeOpacity={0.7}
               style={styles.ridesIconButton}
+              accessibilityLabel="View ride history"
+              accessibilityRole="button"
+              accessibilityHint="Navigate to ride history screen"
             >
               <LinearGradient
                 colors={['#3B82F6', '#2563EB'] as const}
@@ -413,7 +480,10 @@ export default function ProfileScreen() {
                   key={`${r.startTime}-${idx}`}
                   style={styles.rideCard}
                   activeOpacity={0.8}
-                  onPress={() => (navigation as any).navigate('ProfileStack' as never, { screen: 'RideDetail', params: { startTime: r.startTime } } as never)}
+                  onPress={() => handleNavigate('RideDetail', { startTime: r.startTime })}
+                  accessibilityLabel={`View ride details for ride #${recentRides.length - idx}`}
+                  accessibilityRole="button"
+                  accessibilityHint="Navigate to ride detail screen"
                 >
                   <View style={styles.rideIconWrapper}>
                     <Icon name="navigation" size={20} color="#3B82F6" />
@@ -466,9 +536,12 @@ export default function ProfileScreen() {
           onClose={() => setNotificationsVisible(false)}
         />
       )}
-    </SafeAreaView>
+      </SafeAreaView>
+    </ErrorBoundary>
   );
-}
+};
+
+export default ProfileScreen;
 
 const { width: screenWidth } = Dimensions.get('window');
 const STAT_WIDTH = (screenWidth - 56) / 2;
@@ -492,6 +565,7 @@ const styles = StyleSheet.create({
     paddingTop: 45,
     justifyContent: 'space-between',
     marginBottom: 16,
+    paddingHorizontal: 16,
   },
   
   headerTitle: {
@@ -504,10 +578,11 @@ const styles = StyleSheet.create({
 
   // Profile Card
   profileCard: {
-    marginHorizontal: 20,
-    marginBottom: 24,
+    marginHorizontal: 16,
+    marginBottom: 16,
     borderRadius: 24,
-    borderBottomEndRadius: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     paddingBottom: 20,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -518,6 +593,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     position: 'relative',
     overflow: 'hidden',
+    borderRadius: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   decorativeCircle1: {
     position: 'absolute',
@@ -789,7 +867,7 @@ const styles = StyleSheet.create({
 
   // Settings Widget
   settingsWidget: {
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     marginBottom: 24,
   },
   settingsCard: {
@@ -839,7 +917,7 @@ const styles = StyleSheet.create({
 
   // Actions
   actionsContainer: {
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     marginBottom: 28,
     gap: 12,
   },
@@ -919,7 +997,7 @@ const styles = StyleSheet.create({
 
   // Recent Rides
   ridesSection: {
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     backgroundColor: '#fff',
     borderRadius: 24,
     padding: 20,

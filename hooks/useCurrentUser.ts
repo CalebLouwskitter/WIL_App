@@ -15,7 +15,7 @@ export function useCurrentUser() {
 			setProfile(null);
 			return;
 		}
-			const unsub = auth.onAuthStateChanged(async (u) => {
+			const unsub = auth.onAuthStateChanged(async (u: any) => {
 			if (u?.uid) {
 				try {
 						// Always load through getOrCreateUserProfile to ensure backfill
