@@ -191,11 +191,19 @@ const SosAlertScreen = () => {
 
   // Backfill activator name if SOS is active but name wasn't available yet
   useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
     if (sosState.active && !sosState.name) {
       const derivedName = (auth?.currentUser?.displayName as string | undefined) ?? profile?.displayName ?? null;
       const sanitized = (derivedName ?? '').trim();
-      if (sanitized.length) activate(sanitized, auth?.currentUser?.uid ?? null);
+      if (sanitized.length) {
+        timeout = setTimeout(() => {
+          activate(sanitized, auth?.currentUser?.uid ?? null);
+        }, 0);
+      }
     }
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
   }, [sosState.active, sosState.name, activate, profile?.displayName, user?.displayName]);
 
   // Sync local UI when SOS is cleared elsewhere
