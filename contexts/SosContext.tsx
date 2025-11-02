@@ -84,8 +84,6 @@ export const SosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const activate = useCallback(
     async (name: string | null | undefined, uid?: string | null | undefined) => {
-      setState({ active: true, name: name ?? null, uid: uid ?? null });
-
       if (FIREBASE_ENABLED && app) {
         try {
           const db = getFirestore(app);
@@ -114,6 +112,9 @@ export const SosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } catch (error) {
           console.error('Error activating SOS:', error);
         }
+      } else {
+        // No firebase: still reflect local state
+        setState({ active: true, name: name ?? null, uid: uid ?? null });
       }
     },
     [resolveActorId]
