@@ -2268,7 +2268,7 @@ export const trailData: Trail[] = [
       { latitude: -34.0283324, longitude: 25.5098161, name: 'Trail End', type: 'finish' },
     ],
   },
-  /*{
+  {
     id: 'trail_a_letter',
     name: 'A',
     color: '#ff0080',
@@ -2419,7 +2419,7 @@ export const trailData: Trail[] = [
       { latitude: -33.9880828, longitude: 25.5500840 },
       { latitude: -33.9881473, longitude: 25.5500740, name: 'Trail End', type: 'finish' },
     ],
-  },*/
+  },
 ]
 
 export const primaryPreviewRoutes = trailData;
