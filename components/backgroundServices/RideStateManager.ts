@@ -7,7 +7,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { RidePoint, RideData } from '../../hooks/useRideTracker';
+import type { RidePoint, RideData, TrailProximity } from '../../hooks/useRideTracker';
 
 const RIDE_STATE_KEY = '@sbhra_active_ride_state';
 
@@ -21,6 +21,16 @@ export interface PersistedRideState {
   horseName: string | null;
   lastUpdateTime: number;
   currentSpeed: number;
+  routeDistances?: Record<string, number>;
+  snappedPath?: RidePoint[];
+  nearestTrail?: TrailProximity | null;
+  snappedCoordinate?: { latitude: number; longitude: number } | null;
+  snapDistance?: number | null;
+  snapRadius?: number | null;
+  currentTrailId?: string | null;
+  pendingSwitchId?: string | null;
+  pendingCount?: number;
+  farCount?: number;
 }
 
 /**
@@ -45,6 +55,16 @@ export class RideStateManager {
       horseName,
       lastUpdateTime: Date.now(),
       currentSpeed: 0,
+      routeDistances: {},
+      snappedPath: [],
+      nearestTrail: null,
+      snappedCoordinate: null,
+      snapDistance: null,
+      snapRadius: null,
+      currentTrailId: null,
+      pendingSwitchId: null,
+      pendingCount: 0,
+      farCount: 0,
     };
 
     this.currentState = state;
@@ -187,11 +207,17 @@ export class RideStateManager {
     return {
       startTime: state.startTime,
       path: state.path,
+      snappedPath: state.snappedPath,
       totalDistance: state.totalDistance,
       elevationGain: state.elevationGain,
       duration,
       horseId: state.horseId,
       horseName: state.horseName,
+      routeDistances: state.routeDistances,
+      nearestTrail: state.nearestTrail,
+      snappedCoordinate: state.snappedCoordinate,
+      snapDistance: state.snapDistance,
+      snapRadius: state.snapRadius,
     };
   }
 
