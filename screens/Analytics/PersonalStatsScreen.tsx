@@ -1,12 +1,13 @@
-import { useColorScheme, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, Animated } from 'react-native';
+import { useColorScheme, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, Animated, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { getRides } from '../../services/RideStorage';
+import { getCurrentUserRides, getUserRidesByTimePeriod } from '../../services/UserAnalyticsService';
 import type { RideData } from '../../hooks/useRideTracker';
 import { ReportDownload } from '../../services/AnalyticsService';
 import { trailData } from '../../constants/trails';
+import { resolvePalette } from '../../constants/colors';
 
 import {
   BarChart,
@@ -35,13 +36,17 @@ interface ChartData {
 function PersonalStatsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const colorScheme = useColorScheme();
+  const theme = resolvePalette(colorScheme);
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('month');
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [loading, setLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
   const [rides, setRides] = useState<RideData[]>([]);
+  
   const userStats = useMemo<UserStats>(() => {
     if (!rides.length) {
       return { totalRides: 0, totalDistance: 0, favoriteTrail: '-', hoursRidden: 0, trailsCompleted: 0, avgSpeed: 0, lastRide: '-' };
@@ -54,7 +59,7 @@ function PersonalStatsScreen() {
     const lastRideTime = new Date(Math.max(...rides.map(r => r.startTime)));
     const diffDays = Math.floor((Date.now() - lastRideTime.getTime()) / (1000 * 60 * 60 * 24));
     const lastRide = diffDays === 0 ? 'Today' : diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
-    // Aggregate distance by trail id from routeDistances
+    
     const trailDistance: Record<string, number> = {};
     rides.forEach((r) => {
       const rd = r.routeDistances || {};
@@ -63,7 +68,6 @@ function PersonalStatsScreen() {
       });
     });
 
-    // Determine favorite trail by total distance
     let favoriteTrail = '-';
     let maxDist = 0;
     Object.entries(trailDistance).forEach(([trailId, dist]) => {
@@ -74,7 +78,6 @@ function PersonalStatsScreen() {
       }
     });
 
-    // Trails completed = number of trails with any distance ridden
     const trailsCompleted = Object.keys(trailDistance).length;
 
     return { totalRides, totalDistance, favoriteTrail, hoursRidden, trailsCompleted, avgSpeed, lastRide };
@@ -83,9 +86,8 @@ function PersonalStatsScreen() {
   const [chartData, setChartData] = useState<ChartData>({ rideFrequency: [], trailPopularity: [], weeklyDistance: [] });
 
   const generateDataForTimeSlot = (slot: TimeSlot, srcRides: RideData[]): ChartData => {
-    const primaryColor = '#3B82F6';
+    const primaryColor = theme.brandPrimary || '#3B82F6';
 
-    // Determine start date for the selected slot
     const now = new Date();
     const start = new Date(now);
     if (slot === 'day') start.setDate(now.getDate() - 1);
@@ -97,7 +99,6 @@ function PersonalStatsScreen() {
 
     const inRange = srcRides.filter(r => r.startTime >= start.getTime());
 
-    // Ride frequency buckets
     let rideFrequency: Array<{ value: number; label: string; frontColor: string }> = [];
     if (slot === 'day') {
       const buckets = [
@@ -120,7 +121,7 @@ function PersonalStatsScreen() {
       rideFrequency = labels.map((lbl, idx) => {
         const count = inRange.filter(r => {
           const d = new Date(r.startTime);
-          const day = (d.getDay() + 6) % 7; // Monday=0
+          const day = (d.getDay() + 6) % 7;
           return day === idx;
         }).length;
         return { value: count, label: lbl, frontColor: primaryColor };
@@ -136,7 +137,6 @@ function PersonalStatsScreen() {
         return { value: count, label: lbl, frontColor: primaryColor };
       });
     } else {
-      // Group by month or quarter
       if (slot === '3month' || slot === '6month') {
         const monthsBack = slot === '3month' ? 3 : 6;
         const labels: string[] = [];
@@ -159,7 +159,6 @@ function PersonalStatsScreen() {
       }
     }
 
-    // Distance series (align to same buckets as frequency)
     const weeklyDistance: Array<{ value: number; dataPointText: string }> = rideFrequency.map((bucket, idx) => {
       let totalKm = 0;
       inRange.forEach(r => {
@@ -188,7 +187,6 @@ function PersonalStatsScreen() {
       return { value: v, dataPointText: `${v}km` };
     });
 
-    // Trail popularity from actual distances
     const trailDistance: Record<string, number> = {};
     inRange.forEach((r) => {
       const rd = r.routeDistances || {};
@@ -214,10 +212,15 @@ function PersonalStatsScreen() {
 
   useEffect(() => { 
     (async () => { 
-      try { 
-        const stored = await getRides(); 
+      try {
+        setLoading(true);
+        const stored = await getUserRidesByTimePeriod(timeSlot);
         setRides(stored); 
-      } catch {} 
+      } catch (error) {
+        console.error('Error loading rides from Firebase:', error);
+      } finally {
+        setLoading(false);
+      }
     })(); 
 
     Animated.parallel([
@@ -239,7 +242,7 @@ function PersonalStatsScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [timeSlot]);
 
   const handleGenerateReport = async () => {
     setIsGeneratingReport(true);
@@ -274,14 +277,6 @@ function PersonalStatsScreen() {
   };
 
   const getChartTitle = (baseTitle: string): string => {
-    const periods = {
-      day: 'Today',
-      week: 'This Week',
-      month: 'This Month',
-      '3month': 'Last 3 Months',
-      '6month': 'Last 6 Months',
-      '1year': 'This Year'
-    };
     return `${baseTitle}`;
   };
 
@@ -296,6 +291,24 @@ function PersonalStatsScreen() {
     };
     return periods[timeSlot];
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
+        <LinearGradient
+          colors={['#EFF6FF', '#F8FAFC', '#F1F5F9'] as const}
+          style={styles.gradient}
+        >
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.brandPrimary} />
+            <Text style={[styles.loadingText, { color: theme.onSurfaceVariant }]}>
+              Loading stats from Firebase...
+            </Text>
+          </View>
+        </LinearGradient>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -329,7 +342,7 @@ function PersonalStatsScreen() {
                 <Text style={styles.headerTitle}>Personal Stats</Text>
                 <View style={styles.headerBadge}>
                   <View style={styles.liveDot} />
-                  <Text style={styles.headerSubtitle}>{getChartPeriod()}</Text>
+                  <Text style={styles.headerSubtitle}>{getChartPeriod()} • Firebase</Text>
                 </View>
               </View>
             </View>
@@ -433,9 +446,6 @@ function PersonalStatsScreen() {
               </View>
               <Text style={styles.quickStatValue}>{userStats.trailsCompleted}</Text>
               <Text style={styles.quickStatLabel}>Trails Completed</Text>
-              <View style={styles.quickStatBadge}>
-                <Text style={styles.quickStatBadgeText}>+2 this week</Text>
-              </View>
             </View>
 
             <View style={styles.quickStatCard}>
@@ -616,461 +626,80 @@ function PersonalStatsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#EFF6FF',
-  },
-  gradient: {
-    flex: 1,
-  },
-  scrollContainer: {
-    paddingTop: 60,
-    paddingBottom: 40,
-  },
-
-  // Premium Header
-  header: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  backButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  backButtonGradient: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTextContainer: {
-    marginLeft: 16,
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: -1,
-    marginBottom: 6,
-  },
-  headerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#DBEAFE',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    gap: 6,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#3B82F6',
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1E40AF',
-    letterSpacing: 0.3,
-  },
-  exportButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
-    position: 'absolute',
-    right: 20,
-    top: 0,
-  },
-  exportGradient: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Hero Card
-  heroCard: {
-    marginHorizontal: 20,
-    marginBottom: 24,
-    borderRadius: 28,
-    overflow: 'hidden',
-    shadowColor: '#1E40AF',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.3,
-    shadowRadius: 24,
-    elevation: 12,
-  },
-  heroGradient: {
-    padding: 28,
-    position: 'relative',
-  },
-  heroPattern: {
-    position: 'absolute',
-    top: -50,
-    right: -50,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  heroContent: {
-    zIndex: 1,
-  },
-  heroMain: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  heroLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.85)',
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    marginBottom: 8,
-  },
-  heroValue: {
-    fontSize: 64,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: -2,
-  },
-  heroUnit: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.9)',
-    marginTop: 4,
-  },
-  heroDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    marginBottom: 20,
-  },
-  heroStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  heroStatItem: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  heroStatValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
-    letterSpacing: -0.5,
-  },
-  heroStatLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.75)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-
-  // Time Selector Pills
-  timeSelector: {
-    marginBottom: 24,
-  },
-  timeScrollContent: {
-    paddingHorizontal: 20,
-    gap: 10,
-  },
-  timePill: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  timePillActive: {
-    shadowColor: '#3B82F6',
-    shadowOpacity: 0.25,
-    elevation: 6,
-  },
-  timePillGradient: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 20,
-    marginVertical: -12,
-    marginHorizontal: -24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  timePillText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  timePillTextActive: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#fff',
-  },
-
-  // Quick Stats
-  quickStats: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 12,
-    marginBottom: 24,
-  },
-  quickStatCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  quickStatIconWrapper: {
-    marginBottom: 16,
-  },
-  quickStatIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickStatValue: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 6,
-    letterSpacing: -1,
-  },
-  quickStatLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-    marginBottom: 12,
-    lineHeight: 18,
-  },
-  quickStatBadge: {
-    backgroundColor: '#DBEAFE',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    alignSelf: 'flex-start',
-  },
-  quickStatBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#1E40AF',
-    letterSpacing: 0.3,
-  },
-
-  // Premium Chart Cards
-  chartCard: {
-    backgroundColor: '#fff',
-    borderRadius: 28,
-    padding: 24,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 4,
-  },
-  chartHeaderPremium: {
-    marginBottom: 24,
-  },
-  chartTitleSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  chartIconBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  chartIconBadgeGradient: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chartTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 4,
-    letterSpacing: -0.3,
-  },
-  chartSubtitle: {
-    fontSize: 14,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  chartWrapper: {
-    paddingVertical: 10,
-  },
-
-  // Pie Chart
-  pieWrapper: {
-    gap: 24,
-  },
-  pieChartContainer: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  pieCenterLabel: {
-    alignItems: 'center',
-  },
-  pieCenterValue: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: -1,
-  },
-  pieCenterText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-    marginTop: 2,
-  },
-  pieCenterSubtext: {
-    fontSize: 11,
-    color: '#94A3B8',
-    fontWeight: '500',
-  },
-  pieLegendContainer: {
-    gap: 12,
-  },
-  legendRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-  },
-  legendLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  legendLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#334155',
-  },
-  legendRight: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-  },
-  legendValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-
-  // Insights Section
-  insightsSection: {
-    paddingHorizontal: 20,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 16,
-    letterSpacing: -0.5,
-  },
-  insightCard: {
-    marginBottom: 12,
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  insightGradient: {
-    padding: 20,
-  },
-  insightHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  insightIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FEF3C7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  insightTitleContainer: {
-    flex: 1,
-  },
-  insightTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  insightValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0F172A',
-    letterSpacing: -0.3,
-  },
+  container: { flex: 1, backgroundColor: '#EFF6FF' },
+  gradient: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
+  loadingText: { fontSize: 15, fontWeight: '500' },
+  scrollContainer: { paddingTop: 60, paddingBottom: 40 },
+  header: { paddingHorizontal: 20, marginBottom: 20 },
+  headerContent: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  backButton: { width: 48, height: 48, borderRadius: 24, overflow: 'hidden', shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 4 },
+  backButtonGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  headerTextContainer: { marginLeft: 16, flex: 1 },
+  headerTitle: { fontSize: 32, fontWeight: '800', color: '#0F172A', letterSpacing: -1, marginBottom: 6 },
+  headerBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#DBEAFE', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, alignSelf: 'flex-start', gap: 6 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#3B82F6' },
+  headerSubtitle: { fontSize: 13, fontWeight: '700', color: '#1E40AF', letterSpacing: 0.3 },
+  exportButton: { width: 48, height: 48, borderRadius: 24, overflow: 'hidden', shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8, position: 'absolute', right: 20, top: 0 },
+  exportGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  heroCard: { marginHorizontal: 20, marginBottom: 24, borderRadius: 28, overflow: 'hidden', shadowColor: '#1E40AF', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 12 },
+  heroGradient: { padding: 28, position: 'relative' },
+  heroPattern: { position: 'absolute', top: -50, right: -50, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(255, 255, 255, 0.1)' },
+  heroContent: { zIndex: 1 },
+  heroMain: { alignItems: 'center', marginBottom: 24 },
+  heroLabel: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
+  heroValue: { fontSize: 64, fontWeight: '800', color: '#fff', letterSpacing: -2 },
+  heroUnit: { fontSize: 16, fontWeight: '600', color: 'rgba(255,255,255,0.9)', marginTop: 4 },
+  heroDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginBottom: 20 },
+  heroStats: { flexDirection: 'row', justifyContent: 'space-around' },
+  heroStatItem: { alignItems: 'center', gap: 6 },
+  heroStatValue: { fontSize: 20, fontWeight: '700', color: '#fff', letterSpacing: -0.5 },
+  heroStatLabel: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.75)', textTransform: 'uppercase', letterSpacing: 0.5 },
+  timeSelector: { marginBottom: 24 },
+  timeScrollContent: { paddingHorizontal: 20, gap: 10 },
+  timePill: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 20, backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+  timePillActive: { shadowColor: '#3B82F6', shadowOpacity: 0.25, elevation: 6 },
+  timePillGradient: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 20, marginVertical: -12, marginHorizontal: -24, alignItems: 'center', justifyContent: 'center' },
+  timePillText: { fontSize: 15, fontWeight: '600', color: '#64748B' },
+  timePillTextActive: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  quickStats: { flexDirection: 'row', paddingHorizontal: 20, gap: 12, marginBottom: 24 },
+  quickStatCard: { flex: 1, backgroundColor: '#fff', borderRadius: 24, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 },
+  quickStatIconWrapper: { marginBottom: 16 },
+  quickStatIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  quickStatValue: { fontSize: 32, fontWeight: '800', color: '#0F172A', marginBottom: 6, letterSpacing: -1 },
+  quickStatLabel: { fontSize: 13, fontWeight: '600', color: '#64748B', marginBottom: 12, lineHeight: 18 },
+  quickStatBadge: { backgroundColor: '#DBEAFE', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, alignSelf: 'flex-start' },
+  quickStatBadgeText: { fontSize: 11, fontWeight: '700', color: '#1E40AF', letterSpacing: 0.3 },
+  chartCard: { backgroundColor: '#fff', borderRadius: 28, padding: 24, marginHorizontal: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4 },
+  chartHeaderPremium: { marginBottom: 24 },
+  chartTitleSection: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  chartIconBadge: { width: 52, height: 52, borderRadius: 26, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 2 },
+  chartIconBadgeGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  chartTitle: { fontSize: 20, fontWeight: '700', color: '#0F172A', marginBottom: 4, letterSpacing: -0.3 },
+  chartSubtitle: { fontSize: 14, color: '#64748B', fontWeight: '500' },
+  chartWrapper: { paddingVertical: 10 },
+  pieWrapper: { gap: 24 },
+  pieChartContainer: { alignItems: 'center', paddingVertical: 20 },
+  pieCenterLabel: { alignItems: 'center' },
+  pieCenterValue: { fontSize: 32, fontWeight: '800', color: '#0F172A', letterSpacing: -1 },
+  pieCenterText: { fontSize: 13, fontWeight: '600', color: '#64748B', marginTop: 2 },
+  pieCenterSubtext: { fontSize: 11, color: '#94A3B8', fontWeight: '500' },
+  pieLegendContainer: { gap: 12 },
+  legendRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F8FAFC', paddingVertical: 14, paddingHorizontal: 16, borderRadius: 16 },
+  legendLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  legendDot: { width: 12, height: 12, borderRadius: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 3, elevation: 2 },
+  legendLabel: { fontSize: 15, fontWeight: '600', color: '#334155' },
+  legendRight: { backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
+  legendValue: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
+  insightsSection: { paddingHorizontal: 20 },
+  sectionTitle: { fontSize: 24, fontWeight: '700', color: '#0F172A', marginBottom: 16, letterSpacing: -0.5 },
+  insightCard: { marginBottom: 12, borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  insightGradient: { padding: 20 },
+  insightHeader: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  insightIconCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center', shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 2 },
+  insightTitleContainer: { flex: 1 },
+  insightTitle: { fontSize: 13, fontWeight: '600', color: '#64748B', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  insightValue: { fontSize: 18, fontWeight: '700', color: '#0F172A', letterSpacing: -0.3 },
 });
 
 export default PersonalStatsScreen;

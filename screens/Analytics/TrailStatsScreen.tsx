@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,6 +8,7 @@ import { resolvePalette } from '../../constants/colors';
 
 const TrailStatsScreen = () => {
   const [summaries, setSummaries] = useState<TrailUsageSummary[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigation = useNavigation<any>();
   const colorScheme = useColorScheme();
   const theme = resolvePalette(colorScheme);
@@ -16,12 +17,17 @@ const TrailStatsScreen = () => {
     let mounted = true;
     (async () => {
       try {
+        setLoading(true);
         const data = await getTrailUsageSummaries();
         if (mounted) {
           setSummaries(data);
         }
       } catch (error) {
         console.warn('Failed to load trail usage summaries:', error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
     })();
     return () => {
@@ -34,6 +40,26 @@ const TrailStatsScreen = () => {
   const maxDistance = useMemo(() => summaries.reduce((max, item) => Math.max(max, item.totalDistance), 0), [summaries]);
 
   const formatDistance = (meters: number) => `${(meters / 1000).toFixed(2)} km`;
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
+        <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.borderMuted }]}>
+          <TouchableOpacity style={styles.headerBack} activeOpacity={0.7} onPress={() => navigation.goBack()}>
+            <Feather name="arrow-left" size={24} color={theme.onSurface} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.onSurface }]}>Trail Insights</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.brandPrimary} />
+          <Text style={[styles.loadingText, { color: theme.onSurfaceVariant }]}>
+            Loading trail data from Firebase...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}> 
@@ -100,6 +126,16 @@ const TrailStatsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 15,
+    fontWeight: '500',
   },
   header: {
     flexDirection: 'row',
