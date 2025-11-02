@@ -1299,35 +1299,6 @@ export const trailData: Trail[] = [
     ],
   },
   {
-    id: 'test_track_1',
-    name: 'Test Track',
-    color: '#ff8000',
-    routeWaypoints: [
-      { latitude: -33.9880845, longitude: 25.5502182, name: 'Test Track', desc: 'Length: 9.868 m (32.38 ft)', type: 'start' },
-      { latitude: -33.9880767, longitude: 25.5501115, name: 'Trail End', type: 'finish' },
-    ],
-  },
-  {
-    id: 'test_track_2',
-    name: 'Test Track 2',
-    color: '#00ff00',
-    routeWaypoints: [
-      { latitude: -33.9880762, longitude: 25.5501075, name: 'Test Track 2', desc: 'Length: 15.7 m (51.51 ft)', type: 'start' },
-      { latitude: -33.9880100, longitude: 25.5501182 },
-      { latitude: -33.9880183, longitude: 25.5502074, name: 'Trail End', type: 'finish' },
-    ],
-  },
-  {
-    id: 'test_track_3',
-    name: 'Test Track 3',
-    color: '#8000ff',
-    routeWaypoints: [
-      { latitude: -33.9880778, longitude: 25.5501082, name: 'Test Track 3', desc: 'Length: 9.525 m (31.25 ft)', type: 'start' },
-      { latitude: -33.9880828, longitude: 25.5500840 },
-      { latitude: -33.9881473, longitude: 25.5500740, name: 'Trail End', type: 'finish' },
-    ],
-  },
-  {
     id: 'reinhards_1',
     name: "Reinhard's 1",
     color: '#ffff00',
@@ -2418,6 +2389,35 @@ export const trailData: Trail[] = [
     routeWaypoints: [
       { latitude: -33.9863058, longitude: 25.5494372, name: 'L', desc: 'Length: 79.16 m (259.7 ft)', type: 'start' },
       { latitude: -33.9870142, longitude: 25.5493621, name: 'Trail End', type: 'finish' },
+    ],
+  },
+  {
+    id: 'test_track_1',
+    name: 'Test Track',
+    color: '#ff8000',
+    routeWaypoints: [
+      { latitude: -33.9880845, longitude: 25.5502182, name: 'Test Track', desc: 'Length: 9.868 m (32.38 ft)', type: 'start' },
+      { latitude: -33.9880767, longitude: 25.5501115, name: 'Trail End', type: 'finish' },
+    ],
+  },
+  {
+    id: 'test_track_2',
+    name: 'Test Track 2',
+    color: '#00ff00',
+    routeWaypoints: [
+      { latitude: -33.9880762, longitude: 25.5501075, name: 'Test Track 2', desc: 'Length: 15.7 m (51.51 ft)', type: 'start' },
+      { latitude: -33.9880100, longitude: 25.5501182 },
+      { latitude: -33.9880183, longitude: 25.5502074, name: 'Trail End', type: 'finish' },
+    ],
+  },
+  {
+    id: 'test_track_3',
+    name: 'Test Track 3',
+    color: '#8000ff',
+    routeWaypoints: [
+      { latitude: -33.9880778, longitude: 25.5501082, name: 'Test Track 3', desc: 'Length: 9.525 m (31.25 ft)', type: 'start' },
+      { latitude: -33.9880828, longitude: 25.5500840 },
+      { latitude: -33.9881473, longitude: 25.5500740, name: 'Trail End', type: 'finish' },
     ],
   },
 ]
