@@ -608,22 +608,9 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                   <View style={styles.sheetButtonsRow}>
                     <TouchableOpacity
                       style={styles.sheetButton}
-                      onPress={() => {
-                        setIsConfirmingStart(true);
+                      onPress={async () => {
                         toggleBottomSheet(false);
-                        // Animate in the confirmation dialog
-                        Animated.parallel([
-                          Animated.timing(confirmSlideAnim, {
-                            toValue: 0,
-                            duration: 300,
-                            useNativeDriver: true,
-                          }),
-                          Animated.timing(confirmFadeAnim, {
-                            toValue: 1,
-                            duration: 300,
-                            useNativeDriver: true,
-                          }),
-                        ]).start();
+                        await handleStart();
                       }}
                       activeOpacity={0.9}
                     >
@@ -632,7 +619,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                         style={styles.sheetButtonGradient}
                       >
                         <Feather name="navigation" size={24} color="white" />
-                        <Text style={styles.sheetButtonText}>Free Ride</Text>
+                        <Text style={styles.sheetButtonText}>Start Ride</Text>
                       </LinearGradient>
                     </TouchableOpacity>
 
