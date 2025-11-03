@@ -473,10 +473,9 @@ const ProfileScreen: React.FC = () => {
               </LinearGradient>
             </View>
           </TouchableOpacity>
-          <View style={{ height: 0 }} />
         </View>
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 28 }} />
       </ScrollView>
 
       {settingsVisible && (
@@ -973,7 +972,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 0,
   },
   ridesSectionTitle: {
     fontSize: 22,
