@@ -648,16 +648,13 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                     <TouchableOpacity
                       style={styles.sheetCard}
                       onPress={() => {
-                        const parent = navigation.getParent();
-                        if (parent) {
-                          parent.navigate('ProfileStack' as never, { screen: 'RideHistory', params: { fromMapping: true } } as never);
-                        }
+                        (navigation as any).navigate('ProfileStack', { screen: 'RideHistory', params: { fromMapping: true } });
                         toggleBottomSheet(false);
                       }}
                       activeOpacity={0.9}
                     >
                       <View style={styles.sheetCardHeader}>
-                        <View style={[styles.iconCircle, { backgroundColor: '#3b82f620' }]}>
+                        <View style={[styles.iconCircle, { backgroundColor: '#3b82f620' }]}> 
                           <Feather name="clock" size={22} color="#3b82f6" />
                         </View>
                         <Text style={styles.sheetCardTitle}>Recent</Text>
