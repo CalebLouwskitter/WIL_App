@@ -104,9 +104,8 @@ async function registerForPushNotificationsAsync() {
     
     // Get Expo push token
     try {
-      // For Expo Go: Use the projectId from app.config.ts
-      // Format: @owner/slug from app.config.ts
-      const projectId = '@caleblouwskiter/SBHRA';
+      // Use the projectId from app.config.ts (EAS project ID)
+      const projectId = 'a87bb906-5013-439d-92d2-fd915b65e342';
       
       const tokenData = await Notifications.getExpoPushTokenAsync({
         projectId: projectId,
