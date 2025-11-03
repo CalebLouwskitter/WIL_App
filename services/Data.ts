@@ -126,6 +126,7 @@ export interface RideDTO {
 	elevationGain: number;      // meters
 	duration: number;           // ms
 	path: RidePointDTO[];       // simplified path list
+	snappedPath?: RidePointDTO[]; // trail-snapped coordinates
 	routeDistances?: Record<string, number>; // per predefined route id (meters)
 	createdAt: TimestampMs;
 	updatedAt: TimestampMs;
