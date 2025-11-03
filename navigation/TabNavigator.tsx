@@ -3,6 +3,7 @@ import React, { ReactNode } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
 import { CommonActions } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 //Icons import
 import { Feather } from '@expo/vector-icons';
@@ -25,13 +26,19 @@ const CustomTabBarButton = ({ children, onPress }: { children: ReactNode; onPres
 );
 
 const TabNavigator = () => {
+  const insets = useSafeAreaInsets();
+  
   return (
     <Tab.Navigator
       screenOptions={{
         lazy:true,
         headerShown: false,
         tabBarShowLabel: true,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: {
+          ...styles.tabBar,
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom,
+        },
         tabBarActiveTintColor: Colors.light.primary,
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarHideOnKeyboard: true,
@@ -132,9 +139,7 @@ const TabNavigator = () => {
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: '#FFFFFF',
-    height: 92,
     paddingHorizontal: 8,
-    paddingBottom: 16,
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
