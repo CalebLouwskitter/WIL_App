@@ -33,7 +33,7 @@ const HistoryScreen: React.FC = () => {
           <Feather name="arrow-left" size={22} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.title}>Ride History</Text>
-        <View style={styles.backButton} />
+        <View style={{ width: 44 }} />
       </View>
 
       <View style={styles.body}>
