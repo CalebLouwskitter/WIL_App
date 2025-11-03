@@ -45,6 +45,7 @@ export function useBackgroundRideTracker(): UseBackgroundRideTrackerResult {
   const refreshInterval = useRef<NodeJS.Timeout | null>(null);
   const stateUnsubscribe = useRef<(() => void) | null>(null);
   const appStateSubscription = useRef<any>(null);
+  const healthCheckInterval = useRef<NodeJS.Timeout | null>(null);
 
   // Check for background permission on mount
   useEffect(() => {
@@ -115,6 +116,36 @@ export function useBackgroundRideTracker(): UseBackgroundRideTrackerResult {
       }
     };
   }, []);
+
+  // Health check to ensure background tracking stays alive
+  useEffect(() => {
+    if (status === 'active_foreground' || status === 'active_background') {
+      // Check every 10 seconds that background service is still running
+      healthCheckInterval.current = setInterval(async () => {
+        const isRunning = await BackgroundLocationService.isTaskRunning();
+        if (!isRunning) {
+          console.warn('[BackgroundRideTracker] Health check failed - restarting background service');
+          const restarted = await BackgroundLocationService.start();
+          if (!restarted) {
+            console.error('[BackgroundRideTracker] Failed to restart background service');
+            setError('Background tracking stopped unexpectedly');
+          }
+        }
+      }, 10000); // Check every 10 seconds
+    } else {
+      if (healthCheckInterval.current) {
+        clearInterval(healthCheckInterval.current);
+        healthCheckInterval.current = null;
+      }
+    }
+
+    return () => {
+      if (healthCheckInterval.current) {
+        clearInterval(healthCheckInterval.current);
+        healthCheckInterval.current = null;
+      }
+    };
+  }, [status]);
 
   // Periodic refresh when ride is active (for UI updates)
   useEffect(() => {

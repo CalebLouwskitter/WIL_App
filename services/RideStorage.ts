@@ -29,6 +29,12 @@ export const saveRide = async (ride: RideData) => {
           altitude: point.altitude ?? 0,
           timestamp: point.timestamp
         })),
+        snappedPath: ride.snappedPath ? (ride.snappedPath || []).map((point) => ridePointToDTO({
+          latitude: point.latitude,
+          longitude: point.longitude,
+          altitude: point.altitude ?? 0,
+          timestamp: point.timestamp
+        })) : undefined,
         routeDistances: ride.routeDistances,
         horseId: ride.horseId ?? null,
         horseName: ride.horseName ?? null,
@@ -53,6 +59,7 @@ export const getRides = async (): Promise<RideData[]> => {
       const mapped: RideData[] = docs.map((r) => ({
         startTime: r.startTime,
         path: (r.path || []).map(ridePointFromDTO),
+        snappedPath: r.snappedPath ? (r.snappedPath || []).map(ridePointFromDTO) : undefined,
         totalDistance: r.totalDistance,
         elevationGain: r.elevationGain,
         duration: r.duration,
