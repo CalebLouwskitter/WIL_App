@@ -12,6 +12,7 @@ import NotificationsModal from '../../components/Modals/NotificationsModal';
 import { useRideRecovery } from '../../contexts/RideRecoveryContext';
 
 import Feather from 'react-native-vector-icons/Feather';
+import { FontAwesome5 as FAIcon } from '@expo/vector-icons';
 import { getActiveHorse } from '../../services/HorseStorage';
 import { useFocusEffect, useNavigation, CommonActions, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -574,7 +575,8 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                     }}
                     activeOpacity={0.7}
                   >
-                    <Feather name="award" size={20} color="#2C5530" />
+                    <FAIcon name="horse" size={18} color="#2C5530" />
+
                     <View style={styles.horseSelectorText}>
                       <Text style={styles.horseSelectorLabel}>Active Horse</Text>
                       <Text style={styles.horseSelectorValue}>
@@ -604,60 +606,43 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                     </TouchableOpacity>
                   )}
 
-                  {/* Action Buttons */}
-                  <View style={styles.sheetButtonsRow}>
+                  {/* Action Cards (Dashboard style) */}
+                  <View style={styles.sheetWidgetsContainer}>
                     <TouchableOpacity
-                      style={styles.sheetButton}
+                      style={styles.sheetCard}
                       onPress={async () => {
                         toggleBottomSheet(false);
                         await handleStart();
                       }}
                       activeOpacity={0.9}
                     >
-                      <LinearGradient
-                        colors={['#10b981', '#14b8a6', '#06b6d4']}
-                        style={styles.sheetButtonGradient}
-                      >
-                        <Feather name="navigation" size={24} color="white" />
-                        <Text style={styles.sheetButtonText}>Start Ride</Text>
-                      </LinearGradient>
+                      <View style={styles.sheetCardHeader}>
+                        <View style={[styles.iconCircle, { backgroundColor: '#10b98120' }]}>
+                          <Feather name="play" size={22} color="#10b981" />
+                        </View>
+                        <Text style={styles.sheetCardTitle}>Start Ride</Text>
+                      </View>
+                      <Text style={styles.sheetCardSubtitle}>Begin recording your ride immediately</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.sheetButton}
-                      onPress={() => {
-                        navigation.navigate('SelectHorse');
-                        toggleBottomSheet(false);
-                      }}
-                      activeOpacity={0.9}
-                    >
-                      <LinearGradient
-                        colors={['#8b5cf6', '#a855f7', '#d946ef']}
-                        style={styles.sheetButtonGradient}
-                      >
-                        <Feather name="award" size={24} color="white" />
-                        <Text style={styles.sheetButtonText}>Select Horse</Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.sheetButton}
+                      style={styles.sheetCard}
                       onPress={() => {
                         const parent = navigation.getParent();
                         if (parent) {
-                          parent.navigate('Analytics' as never);
+                          parent.navigate('ProfileStack' as never, { screen: 'RideHistory', params: { fromMapping: true } } as never);
                         }
                         toggleBottomSheet(false);
                       }}
                       activeOpacity={0.9}
                     >
-                      <LinearGradient
-                        colors={['#3b82f6', '#6366f1', '#8b5cf6']}
-                        style={styles.sheetButtonGradient}
-                      >
-                        <Feather name="clock" size={24} color="white" />
-                        <Text style={styles.sheetButtonText}>Recent</Text>
-                      </LinearGradient>
+                      <View style={styles.sheetCardHeader}>
+                        <View style={[styles.iconCircle, { backgroundColor: '#3b82f620' }]}>
+                          <Feather name="clock" size={22} color="#3b82f6" />
+                        </View>
+                        <Text style={styles.sheetCardTitle}>Recent</Text>
+                      </View>
+                      <Text style={styles.sheetCardSubtitle}>View your latest rides and metrics</Text>
                     </TouchableOpacity>
                   </View>
                 </LinearGradient>
@@ -1275,6 +1260,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
   },
+  sheetCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 10,
+  },
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  sheetCardSubtitle: {
+    fontSize: 10,
+    color: '#6b7280',
+    marginLeft: 0,
+    marginTop: 2,
+  },
   // Bottom Sheet Styles
   bottomSheet: {
     position: 'absolute',
@@ -1418,6 +1427,23 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Dashboard-like cards container inside bottom sheet
+  sheetWidgetsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  // Dashboard-like single card
+  sheetCard: {
+    flex: 1,
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
 });
 

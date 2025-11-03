@@ -1,8 +1,8 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, useColorScheme } from 'react-native';
-import { Feather as Icon } from '@expo/vector-icons';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, useColorScheme, Alert } from 'react-native';
+import { Feather as Icon, FontAwesome5 as FAIcon } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { getHorses, setActiveHorseId, getActiveHorseId, type Horse } from '../../services/HorseStorage';
+import { getHorses, setActiveHorseId, getActiveHorseId, deleteHorse, type Horse } from '../../services/HorseStorage';
 import { Colors } from '@/constants/colors';
 import { getRides } from '../../services/RideStorage';
 
@@ -39,6 +39,24 @@ const SelectHorseScreen = () => {
     nav.goBack();
   };
 
+  const onDelete = async (id: string, name: string) => {
+    Alert.alert(
+      'Delete Horse',
+      `Are you sure you want to delete ${name}? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteHorse(id);
+            await load();
+          },
+        },
+      ]
+    );
+  };
+
   const renderItem = ({ item }: { item: Horse }) => {
     const isActive = item.id === activeId;
     const rideCount = rideCounts[item.id] || 0;
@@ -54,7 +72,7 @@ const SelectHorseScreen = () => {
         activeOpacity={0.7}
       >
         <View style={styles.horseIconContainer}>
-          <Icon name="award" size={28} color={isActive ? palette.brandPrimary : palette.onSurfaceVariant} />
+          <FAIcon name="horse" size={24} color={isActive ? palette.brandPrimary : palette.onSurfaceVariant} />
         </View>
         <View style={styles.horseInfo}>
           <Text style={[styles.title, { color: palette.onSurface }]}>{item.name}</Text>
@@ -77,12 +95,14 @@ const SelectHorseScreen = () => {
             )}
           </View>
         </View>
-        <View style={styles.checkContainer}>
-          {isActive && (
-            <View style={[styles.checkCircle, { backgroundColor: palette.brandPrimary }]}>
-              <Icon name="check" size={16} color="white" />
-            </View>
-          )}
+        <View style={styles.rightControls}>
+          <TouchableOpacity
+            onPress={() => onDelete(item.id, item.name)}
+            style={[styles.deleteBtn, { backgroundColor: 'rgba(244, 63, 94, 0.1)' }]}
+            activeOpacity={0.7}
+          >
+            <Icon name="trash-2" size={16} color={palette.onSurfaceVariant} />
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
@@ -100,7 +120,7 @@ const SelectHorseScreen = () => {
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: palette.onSurface }]}>Select Your Horse</Text>
         <TouchableOpacity 
-          onPress={() => nav.navigate('ProfileStack', { screen: 'CreateHorse' })} 
+          onPress={() => nav.navigate('ProfileStack', { screen: 'CreateHorse', params: { returnToSelectHorse: true } })} 
           style={[styles.addBtn, { backgroundColor: palette.brandPrimary }]}
           activeOpacity={0.8}
         >
@@ -116,12 +136,12 @@ const SelectHorseScreen = () => {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Icon name="award" size={64} color={palette.onSurfaceVariant} style={{ opacity: 0.3, marginBottom: 16 }} />
+            <FAIcon name="horse" size={56} color={palette.onSurfaceVariant} style={{ opacity: 0.3, marginBottom: 16 }} />
             <Text style={[styles.emptyText, { color: palette.onSurfaceVariant, fontWeight: '600' }]}>No horses added yet</Text>
             <Text style={[styles.emptyText, { color: palette.onSurfaceVariant, fontSize: 14, marginTop: -12, marginBottom: 24 }]}>Add your first horse to start tracking rides</Text>
             <TouchableOpacity 
               style={[styles.cta, { backgroundColor: palette.brandPrimary }]} 
-              onPress={() => nav.navigate('ProfileStack', { screen: 'CreateHorse' })}
+              onPress={() => nav.navigate('ProfileStack', { screen: 'CreateHorse', params: { returnToSelectHorse: true } })}
               activeOpacity={0.8}
             >
               <Text style={[styles.ctaText, { color: palette.onPrimary }]}>Add Your First Horse</Text>
@@ -237,6 +257,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 12
   },
+  rightControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginLeft: 12,
+  },
   checkCircle: {
     width: 32,
     height: 32,
@@ -248,6 +274,13 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 4
+  },
+  deleteBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   empty: { 
     alignItems: 'center', 

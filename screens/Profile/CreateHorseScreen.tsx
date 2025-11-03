@@ -33,7 +33,13 @@ const CreateHorseScreen = () => {
     try {
       setSaving(true);
       await saveHorse({ name: name.trim(), breed: breed.trim() || undefined, age: ageNum, notes: notes.trim() || undefined });
-      nav.goBack();
+      if (route?.params?.fromDashboard) {
+        nav.getParent()?.navigate('Dashboard');
+      } else if (route?.params?.returnToSelectHorse) {
+        nav.getParent()?.navigate('Mapping' as never, { screen: 'SelectHorse' } as never);
+      } else {
+        nav.goBack();
+      }
     } catch (e) {
       Alert.alert('Save failed', 'Could not save horse. Please try again.');
     } finally {
@@ -49,6 +55,8 @@ const CreateHorseScreen = () => {
             onPress={() => {
               if (route?.params?.fromDashboard) {
                 nav.getParent()?.navigate('Dashboard');
+              } else if (route?.params?.returnToSelectHorse) {
+                nav.getParent()?.navigate('Mapping' as never, { screen: 'SelectHorse' } as never);
               } else {
                 nav.goBack();
               }

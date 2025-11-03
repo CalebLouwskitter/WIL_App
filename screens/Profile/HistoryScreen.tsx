@@ -1,15 +1,16 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 
 type RouteParams = {
   fromDashboard?: boolean;
+  fromMapping?: boolean;
 };
 
 const HistoryScreen: React.FC = () => {
   const navigation = useNavigation();
-  const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
+  const route = useRoute<any>();
 
   return (
     <View style={styles.container}>
@@ -18,6 +19,9 @@ const HistoryScreen: React.FC = () => {
           onPress={() => {
             if (route?.params?.fromDashboard) {
               navigation.getParent()?.navigate('Dashboard');
+            } else if (route?.params?.fromMapping) {
+              const parent: any = navigation.getParent();
+              parent?.navigate('Mapping', { screen: 'LiveTracking' });
             } else {
               navigation.goBack();
             }
