@@ -119,6 +119,8 @@ const config: ExpoConfig = {
         icon: './assets/icons/notification-icon.png',
         color: '#2563eb',
         mode: 'production',
+        // Enable Firebase Cloud Messaging for push notifications
+        usesFcm: true,
       },
     ],
   ],

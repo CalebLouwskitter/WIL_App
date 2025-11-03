@@ -12,6 +12,7 @@ import AdminManagementScreen from '../screens/Profile/AdminManagementScreen';
 import ObservationsScreen from '../screens/Profile/ObservationsScreen';
 import AdminNotificationManagement from '../screens/Profile/AdminNotificationManagement';
 import AdminObstacleManagement from '../screens/Profile/AdminObstacleManagement';
+import AdminSosManagement from '../screens/Profile/AdminSosManagement';
 import RideStatsScreen from '../screens/Analytics/RideStatsScreen';
 import RideViewMoreScreen from '../screens/Analytics/RideViewMoreScreen';
 import HistoryScreen from '../screens/Profile/HistoryScreen';
@@ -31,6 +32,7 @@ const ProfileStack = () => {
       <Stack.Screen name="AdminManagement" component={AdminManagementScreen} />
       <Stack.Screen name="AdminNotificationManagement" component={AdminNotificationManagement} />
       <Stack.Screen name="AdminObstacleManagement" component={AdminObstacleManagement} />
+      <Stack.Screen name="AdminSosManagement" component={AdminSosManagement} />
       <Stack.Screen name="Notifications" component={UserNotificationsScreen} />
       <Stack.Screen name="Observations" component={ObservationsScreen} />
       <Stack.Screen name="RideHistory" component={HistoryScreen} />
@@ -49,6 +51,7 @@ export type ProfileStackParamList = {
   AdminManagement: undefined;
   AdminNotificationManagement: undefined;
   AdminObstacleManagement: undefined;
+  AdminSosManagement: undefined;
   Notifications: undefined;
   Observations: undefined;
   RideHistory: undefined;

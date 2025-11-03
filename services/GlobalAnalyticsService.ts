@@ -1,4 +1,4 @@
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { auth, firestore, FIREBASE_ENABLED } from './FirebaseConfig';
 import type { RideData } from '../hooks/useRideTracker';
 import { Converters, COLLECTIONS, type RideDTO, ridePointFromDTO } from './Data';
@@ -114,7 +114,7 @@ export const getUserRideStats = async (): Promise<UserRideStats[]> => {
     if (!userMap.has(userId)) {
       userMap.set(userId, {
         userId,
-        userName: (ride as any).userName || undefined,
+        userName: undefined,
         rideCount: 0,
         totalDistance: 0,
         totalDuration: 0,
@@ -128,6 +128,36 @@ export const getUserRideStats = async (): Promise<UserRideStats[]> => {
     stats.totalDuration += ride.duration || 0;
   });
   
+if (FIREBASE_ENABLED && firestore) {
+    const firestoreInstance = firestore; 
+    const userIds = Array.from(userMap.keys());
+    await Promise.all(
+      userIds.map(async (userId) => {
+        try {
+          const userDocRef = doc(firestoreInstance, COLLECTIONS.users, userId);
+          const userSnap = await getDoc(userDocRef);
+          
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            const displayName = userData?.displayName || userData?.name || userData?.email?.split('@')[0];
+            if (displayName && typeof displayName === 'string' && displayName.trim()) {
+              const stats = userMap.get(userId);
+              if (stats) {
+                stats.userName = displayName.trim();
+              }
+            } else {
+              console.log(`[GlobalAnalytics] No valid displayName for user ${userId}, available fields:`, Object.keys(userData || {}));
+            }
+          } else {
+            console.log(`[GlobalAnalytics] User document does not exist for userId: ${userId}`);
+          }
+        } catch (error) {
+          console.warn(`[GlobalAnalytics] Failed to fetch displayName for user ${userId}:`, error);
+        }
+      })
+    );
+  }
+
   // Calculate averages
   userMap.forEach(stats => {
     stats.averageDistance = stats.rideCount > 0 

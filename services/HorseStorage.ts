@@ -169,3 +169,44 @@ export async function getActiveHorse(): Promise<Horse | null> {
   if (!id) return null;
   return list.find(h => h.id === id) || null;
 }
+
+// Delete a horse by id from local storage and Firestore (when enabled)
+export async function deleteHorse(horseId: string) {
+  const uid = FIREBASE_ENABLED ? auth?.currentUser?.uid : undefined;
+  const key = storageKey(uid);
+  try {
+    const existing = await AsyncStorage.getItem(key);
+    const list: Horse[] = existing ? JSON.parse(existing) : [];
+    const filtered = list.filter(h => h.id !== horseId);
+    await AsyncStorage.setItem(key, JSON.stringify(filtered));
+  } catch (e) {
+    console.warn('Failed to delete horse locally:', e);
+  }
+
+  // Firestore deletion
+  try {
+    if (FIREBASE_ENABLED && app && auth?.currentUser?.uid) {
+      const uid = auth.currentUser.uid;
+      const db = getFirestore(app as any);
+      try {
+        const nestedRef = doc(collection(db, COLLECTIONS.users, uid, 'horses'), horseId).withConverter(Converters?.horse as any);
+        await deleteDoc(nestedRef as any);
+      } catch {}
+      // Attempt legacy top-level deletion as well
+      try {
+        const topRef = doc(collection(db, COLLECTIONS.horses), horseId);
+        await deleteDoc(topRef);
+      } catch {}
+    }
+  } catch (e) {
+    console.warn('Failed to delete horse from Firestore:', e);
+  }
+
+  // Clear active horse if this was active
+  try {
+    const active = await getActiveHorseId();
+    if (active === horseId) {
+      await setActiveHorseId(null);
+    }
+  } catch {}
+}

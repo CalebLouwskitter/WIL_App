@@ -15,6 +15,7 @@ import haversine from 'haversine';
 import type { RidePoint, TrailProximity } from '../../hooks/useRideTracker';
 import { trailData } from '../../constants/trails';
 import { buildTrailsIndex, snapToTrails } from '../../utils/routeSnapping';
+import { isWithinAuthorizedArea } from '../../utils/geofencing';
 
 // Task name for background location tracking
 const BACKGROUND_LOCATION_TASK = 'BACKGROUND_LOCATION_TASK';
@@ -30,10 +31,15 @@ const BACKGROUND_LOCATION_CONFIG = {
     notificationTitle: 'SBHRA - Ride in Progress',
     notificationBody: 'Recording your horse ride',
     notificationColor: '#4A90E2',
+    // Critical: Keep foreground service persistent
+    killServiceOnDestroy: false,
   },
   // iOS background mode
   pausesUpdatesAutomatically: false,
   activityType: Location.ActivityType.Fitness,
+  // Defer updates to save battery but ensure continuity
+  deferredUpdatesInterval: 1000,
+  deferredUpdatesDistance: 1,
 };
 
 // Noise filter thresholds (refined)
@@ -47,6 +53,14 @@ const BG_TASK_DEFINED_KEY = '__sbhra_bg_location_task_defined__';
 
 // Trails index for snapping
 const TRAILS_INDEX = buildTrailsIndex(trailData);
+
+// Last keepalive update time
+let lastKeepaliveUpdate = 0;
+const KEEPALIVE_INTERVAL = 5000; // 5 seconds
+
+// Track consecutive out-of-bounds violations
+let outOfBoundsCount = 0;
+const OUT_OF_BOUNDS_THRESHOLD = 3; // Stop ride after 3 consecutive violations
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -77,10 +91,11 @@ function angleDiff(a: number, b: number) {
 }
 
 /**
- * Define the background location task
- * This function runs in the background when location updates are received
+ * Define the background location task at module load time
+ * This MUST run before any calls to start the task
+ * CRITICAL: This needs to be at the top level, not inside a function
  */
-{
+function defineBackgroundTask() {
   const g: any = globalThis as any;
   if (!g[BG_TASK_DEFINED_KEY]) {
     TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
@@ -103,8 +118,12 @@ function angleDiff(a: number, b: number) {
       }
     });
     g[BG_TASK_DEFINED_KEY] = true;
+    console.log('[BackgroundLocation] Task defined successfully');
   }
 }
+
+// Define task immediately at module load
+defineBackgroundTask();
 
 // Track if we're already stopping to prevent race conditions
 let isStopping = false;
@@ -124,6 +143,59 @@ async function processLocationUpdate(location: Location.LocationObject) {
       isStopping = false;
     }
     return;
+  }
+
+  // Check if location is within authorized boundary
+  const currentLocation = {
+    latitude: location.coords.latitude,
+    longitude: location.coords.longitude,
+  };
+
+  const isInBounds = isWithinAuthorizedArea(currentLocation);
+
+  if (!isInBounds) {
+    outOfBoundsCount++;
+    console.warn(
+      `[BackgroundLocation] Out of bounds warning (${outOfBoundsCount}/${OUT_OF_BOUNDS_THRESHOLD})`,
+      currentLocation
+    );
+
+    // If user has been out of bounds for threshold consecutive updates, stop the ride
+    if (outOfBoundsCount >= OUT_OF_BOUNDS_THRESHOLD) {
+      console.error('[BackgroundLocation] User exited authorized area - stopping ride');
+      
+      // End the ride
+      await RideStateManager.endRide();
+      
+      // Stop background tracking
+      if (!isStopping) {
+        isStopping = true;
+        await BackgroundLocationService.stop();
+        isStopping = false;
+      }
+      
+      // Reset counter
+      outOfBoundsCount = 0;
+      
+      return;
+    }
+    
+    // Don't broadcast location if out of bounds, but continue tracking
+    // This allows a brief excursion without immediately stopping the ride
+    return;
+  }
+
+  // Reset out of bounds counter if back in authorized area
+  if (outOfBoundsCount > 0) {
+    console.log('[BackgroundLocation] Back in authorized area');
+    outOfBoundsCount = 0;
+  }
+
+  // Update keepalive periodically (even if we skip the location point)
+  const now = Date.now();
+  if (now - lastKeepaliveUpdate > KEEPALIVE_INTERVAL) {
+    await RideStateManager.updateKeepalive();
+    lastKeepaliveUpdate = now;
   }
 
   const point: RidePoint = {
@@ -392,6 +464,19 @@ export class BackgroundLocationService {
         const bgAvailable = await (Location as any).isBackgroundLocationAvailableAsync();
         if (!bgAvailable) {
           console.error('[BackgroundLocation] Background location is not available on this device');
+          return false;
+        }
+      }
+
+      // Verify task is registered before starting
+      const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);
+      if (!isRegistered) {
+        console.warn('[BackgroundLocation] Task not registered, attempting to define...');
+        defineBackgroundTask();
+        // Double-check registration
+        const stillNotRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);
+        if (stillNotRegistered === false) {
+          console.error('[BackgroundLocation] Failed to register background task');
           return false;
         }
       }

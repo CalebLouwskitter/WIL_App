@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, ScrollView, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import MapView, { Polyline, PROVIDER_DEFAULT, Marker } from 'react-native-maps';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { getRides } from '../../services/RideStorage';
+import { getCurrentUserRides } from '../../services/UserAnalyticsService';
 import type { RideData } from '../../hooks/useRideTracker';
-import { Colors, resolvePalette } from '../../constants/colors';
+import { resolvePalette } from '../../constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface RouteParams { startTime: number }
@@ -15,25 +15,61 @@ const RideDetailMapScreen = () => {
   const nav = useNavigation<any>();
   const { startTime } = (route.params || {}) as RouteParams;
   const [ride, setRide] = useState<RideData | null>(null);
+  const [loading, setLoading] = useState(true);
   const mapRef = useRef<MapView | null>(null);
   const colorScheme = useColorScheme();
   const theme = resolvePalette(colorScheme);
 
   useEffect(() => {
     (async () => {
-      const rides = await getRides();
-      const r = rides.find(x => x.startTime === startTime) || null;
-      setRide(r);
+      try {
+        setLoading(true);
+        const rides = await getCurrentUserRides();
+        const r = rides.find(x => x.startTime === startTime) || null;
+        setRide(r);
+      } catch (error) {
+        console.error('Error loading ride from Firebase:', error);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [startTime]);
 
   const coords = useMemo(() => ride?.path?.map(p => ({ latitude: p.latitude, longitude: p.longitude })) || [], [ride]);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
+        <View style={styles.headerContainer}>
+          <TouchableOpacity 
+            onPress={() => nav.goBack()} 
+            style={[styles.backBtn, { backgroundColor: theme.surface }]}
+            activeOpacity={0.8}
+          >
+            <Feather name="arrow-left" size={22} color={theme.onSurface} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.brandPrimary} />
+          <Text style={[styles.loadingText, { color: theme.onSurfaceVariant }]}>
+            Loading ride from Firebase...
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   if (!ride) {
     return (
       <View style={[styles.center, { backgroundColor: theme.backgroundLight }]}>
         <Feather name="map-pin" size={48} color={theme.onSurfaceVariant} />
         <Text style={[styles.notFoundText, { color: theme.onSurface }]}>Ride not found</Text>
+        <TouchableOpacity 
+          onPress={() => nav.goBack()}
+          style={[styles.backButton, { backgroundColor: theme.brandPrimary }]}
+        >
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -199,16 +235,38 @@ const styles = StyleSheet.create({
   map: { 
     flex: 1 
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
   center: { 
     flex: 1, 
     alignItems: 'center', 
     justifyContent: 'center',
     gap: 16,
+    padding: 32,
   },
   notFoundText: {
     fontSize: 18,
     fontWeight: '600',
     marginTop: 8,
+  },
+  backButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  backButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   markerContainer: {
     width: 36,

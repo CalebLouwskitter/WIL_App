@@ -17,6 +17,7 @@ import { resolvePalette } from '../../constants/colors';
 import { auth } from '../../services/firebase';
 import SettingsModal from '../../components/Modals/SettingsModal';
 import NotificationsModal from '../../components/Modals/NotificationsModal';
+import { AnalyticsDownloadButton } from '../../components/AnalyticsDownloadButton';
 
 const { width: screenWidth } = Dimensions.get('window');
 const CHART_WIDTH = screenWidth - 64;
@@ -198,6 +199,15 @@ const GlobalTrailStatsScreen = () => {
             </View>
           </LinearGradient>
 
+          {/* Download Button */}
+          <View style={styles.downloadSection}>
+            <AnalyticsDownloadButton 
+              onDownloadStart={() => console.log('Export started')}
+              onDownloadComplete={() => console.log('Export complete')}
+              onDownloadError={(error) => console.error('Export error:', error)}
+            />
+          </View>
+
           {/* Quick Stats Grid */}
           <View style={styles.quickStatsGrid}>
             <View style={[styles.quickStatCard, { backgroundColor: theme.surface }]}>
@@ -313,8 +323,6 @@ const GlobalTrailStatsScreen = () => {
               </View>
             </View>
           ) : null}
-
-          {/* Average Speed Line Chart - REMOVED, only use real Firebase data */}
 
           {/* Detailed Trail List */}
           <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}>
@@ -537,6 +545,9 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  downloadSection: {
+    marginBottom: 16,
   },
   quickStatsGrid: {
     flexDirection: 'row',
