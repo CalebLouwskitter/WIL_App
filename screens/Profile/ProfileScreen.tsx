@@ -452,69 +452,30 @@ const ProfileScreen: React.FC = () => {
 
         {/* Recent Rides */}
         <View style={styles.ridesSection}>
-          <View style={styles.ridesSectionHeader}>
+          <TouchableOpacity
+            onPress={() => handleNavigate('RideHistory')}
+            activeOpacity={0.85}
+            style={styles.ridesSectionHeader}
+            accessibilityLabel="Open ride history"
+            accessibilityRole="button"
+            accessibilityHint="Navigate to ride history screen"
+          >
             <View>
-              <Text style={styles.ridesSectionTitle}>Recent Rides</Text>
-              <Text style={styles.ridesSectionSubtitle}>Your latest activity</Text>
+              <Text style={styles.ridesSectionTitle}>Ride History</Text>
+              <Text style={styles.ridesSectionSubtitle}>See all your past rides</Text>
             </View>
-            <TouchableOpacity
-              onPress={() => handleNavigate('RideHistory')}
-              activeOpacity={0.7}
-              style={styles.ridesIconButton}
-              accessibilityLabel="View ride history"
-              accessibilityRole="button"
-              accessibilityHint="Navigate to ride history screen"
-            >
+            <View style={styles.ridesIconButton}>
               <LinearGradient
                 colors={['#3B82F6', '#2563EB'] as const}
                 style={styles.ridesIconGradient}
               >
                 <Icon name="clock" size={24} color="#fff" />
               </LinearGradient>
-            </TouchableOpacity>
-          </View>
-          {recentRides.length > 0 ? (
-            <View style={styles.ridesList}>
-              {recentRides.map((r, idx) => (
-                <TouchableOpacity
-                  key={`${r.startTime}-${idx}`}
-                  style={styles.rideCard}
-                  activeOpacity={0.8}
-                  onPress={() => handleNavigate('RideDetail', { startTime: r.startTime })}
-                  accessibilityLabel={`View ride details for ride #${recentRides.length - idx}`}
-                  accessibilityRole="button"
-                  accessibilityHint="Navigate to ride detail screen"
-                >
-                  <View style={styles.rideIconWrapper}>
-                    <Icon name="navigation" size={20} color="#3B82F6" />
-                  </View>
-                  <View style={styles.rideDetails}>
-                    <Text style={styles.rideTitle}>Ride #{recentRides.length - idx}</Text>
-                    <Text style={styles.rideMeta}>
-                      {new Date(r.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      {r.horseName ? ` • ${r.horseName}` : ''}
-                    </Text>
-                  </View>
-                  <View style={styles.rideDistance}>
-                    <Text style={styles.rideDistanceValue}>{(r.totalDistance / 1000).toFixed(1)}</Text>
-                    <Text style={styles.rideDistanceUnit}>km</Text>
-                  </View>
-                  <Icon name="chevron-right" size={20} color="#CBD5E1" />
-                </TouchableOpacity>
-              ))}
             </View>
-          ) : (
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIconCircle}>
-                <Icon name="map" size={32} color="#94A3B8" />
-              </View>
-              <Text style={styles.emptyStateTitle}>No rides yet</Text>
-              <Text style={styles.emptyStateText}>Start your first ride to see it here</Text>
-            </View>
-          )}
+          </TouchableOpacity>
         </View>
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 28 }} />
       </ScrollView>
 
       {settingsVisible && (
@@ -1011,7 +972,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 0,
   },
   ridesSectionTitle: {
     fontSize: 22,
