@@ -114,7 +114,7 @@ export const getUserRideStats = async (): Promise<UserRideStats[]> => {
     if (!userMap.has(userId)) {
       userMap.set(userId, {
         userId,
-        userName: (ride as any).userName || undefined,
+        userName: (ride as any).displayName || undefined,
         rideCount: 0,
         totalDistance: 0,
         totalDuration: 0,
