@@ -10,6 +10,7 @@ import RideStatsCard from '../../components/RideStatsCard';
 import SettingsModal from '../../components/Modals/SettingsModal';
 import NotificationsModal from '../../components/Modals/NotificationsModal';
 import { useRideRecovery } from '../../contexts/RideRecoveryContext';
+import { isWithinAuthorizedArea } from '../../utils/geofencing';
 
 import Feather from 'react-native-vector-icons/Feather';
 import { FontAwesome5 as FAIcon } from '@expo/vector-icons';
@@ -231,6 +232,25 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
     }
 
     try {
+      // Check if user is within authorized boundary before starting ride
+      const currentLocation = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const isInBounds = isWithinAuthorizedArea({
+        latitude: currentLocation.coords.latitude,
+        longitude: currentLocation.coords.longitude,
+      });
+
+      if (!isInBounds) {
+        Alert.alert(
+          'Outside Authorized Area',
+          'You must be within the designated trail area to start a ride. Please move to the trail system before starting.',
+          [{ text: 'OK', style: 'cancel' }]
+        );
+        return;
+      }
+
       // Start ride with background tracking and horse information
       const success = await startRide(horse.id, horse.name);
       

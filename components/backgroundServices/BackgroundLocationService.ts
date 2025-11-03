@@ -15,6 +15,7 @@ import haversine from 'haversine';
 import type { RidePoint, TrailProximity } from '../../hooks/useRideTracker';
 import { trailData } from '../../constants/trails';
 import { buildTrailsIndex, snapToTrails } from '../../utils/routeSnapping';
+import { isWithinAuthorizedArea } from '../../utils/geofencing';
 
 // Task name for background location tracking
 const BACKGROUND_LOCATION_TASK = 'BACKGROUND_LOCATION_TASK';
@@ -56,6 +57,10 @@ const TRAILS_INDEX = buildTrailsIndex(trailData);
 // Last keepalive update time
 let lastKeepaliveUpdate = 0;
 const KEEPALIVE_INTERVAL = 5000; // 5 seconds
+
+// Track consecutive out-of-bounds violations
+let outOfBoundsCount = 0;
+const OUT_OF_BOUNDS_THRESHOLD = 3; // Stop ride after 3 consecutive violations
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -138,6 +143,52 @@ async function processLocationUpdate(location: Location.LocationObject) {
       isStopping = false;
     }
     return;
+  }
+
+  // Check if location is within authorized boundary
+  const currentLocation = {
+    latitude: location.coords.latitude,
+    longitude: location.coords.longitude,
+  };
+
+  const isInBounds = isWithinAuthorizedArea(currentLocation);
+
+  if (!isInBounds) {
+    outOfBoundsCount++;
+    console.warn(
+      `[BackgroundLocation] Out of bounds warning (${outOfBoundsCount}/${OUT_OF_BOUNDS_THRESHOLD})`,
+      currentLocation
+    );
+
+    // If user has been out of bounds for threshold consecutive updates, stop the ride
+    if (outOfBoundsCount >= OUT_OF_BOUNDS_THRESHOLD) {
+      console.error('[BackgroundLocation] User exited authorized area - stopping ride');
+      
+      // End the ride
+      await RideStateManager.endRide();
+      
+      // Stop background tracking
+      if (!isStopping) {
+        isStopping = true;
+        await BackgroundLocationService.stop();
+        isStopping = false;
+      }
+      
+      // Reset counter
+      outOfBoundsCount = 0;
+      
+      return;
+    }
+    
+    // Don't broadcast location if out of bounds, but continue tracking
+    // This allows a brief excursion without immediately stopping the ride
+    return;
+  }
+
+  // Reset out of bounds counter if back in authorized area
+  if (outOfBoundsCount > 0) {
+    console.log('[BackgroundLocation] Back in authorized area');
+    outOfBoundsCount = 0;
   }
 
   // Update keepalive periodically (even if we skip the location point)

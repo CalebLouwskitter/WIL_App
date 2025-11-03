@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FIREBASE_ENABLED, auth, app } from './firebase';
 import { getFirestore, collection, doc, setDoc, getDocs, query, where, orderBy, Timestamp, onSnapshot, type Unsubscribe } from 'firebase/firestore';
 import * as Location from 'expo-location';
+import { isWithinAuthorizedArea } from '../utils/geofencing';
 
 export type OnlineUser = {
   uid: string;
@@ -60,6 +61,17 @@ export async function startLocationBroadcast({ isRiding = false }: StartLocation
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
+
+      // Check if location is within authorized boundary
+      const isInBounds = isWithinAuthorizedArea({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      if (!isInBounds) {
+        console.warn('[OnlineUserService] Location outside authorized area - not broadcasting');
+        return;
+      }
 
       const db = getFirestore(app as any);
       const currentUser = auth?.currentUser;
