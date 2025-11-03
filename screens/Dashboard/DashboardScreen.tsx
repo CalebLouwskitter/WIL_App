@@ -192,23 +192,27 @@ const DashboardScreen = () => {
             <View style={styles.mapWidgetOverlay} />
           </TouchableOpacity>
 
-          <View style={styles.widgetGrid}>
-            <TouchableOpacity
-              style={styles.navWidgetContainer}
-              activeOpacity={0.8}
-              onPress={() =>
-                (navigation as any).navigate('Mapping', {
-                  screen: 'LiveTracking',
-                  params: { autoStart: true },
-                } as never)
-              }
-            >
-              <View style={[styles.iconCircle, { backgroundColor: `#10b98130` }]}>
-                <Feather name="play" size={24} color="#10b981" />
+          {/* Start Ride wide widget */}
+          <TouchableOpacity
+            style={styles.startRideContainer}
+            activeOpacity={0.9}
+            onPress={() =>
+              (navigation as any).navigate('Mapping', {
+                screen: 'LiveTracking',
+                params: { autoStart: true },
+              } as never)
+            }
+          >
+            <View style={styles.startRideHeader}>
+              <View style={[styles.iconCircle, { backgroundColor: '#10b98120' }]}> 
+                <Feather name="play" size={22} color="#10b981" />
               </View>
-              <Text style={styles.navWidgetTitle}>Start Ride</Text>
-              <Text style={styles.navWidgetSubtitle}>Begin recording now</Text>
-            </TouchableOpacity>
+              <Text style={styles.startRideTitle}>Start Ride</Text>
+            </View>
+            <Text style={styles.startRideSubtitle}>Begin recording your ride immediately</Text>
+          </TouchableOpacity>
+
+          <View style={styles.widgetGrid}>
             {renderNavWidget('My Profile', 'user', '#3b82f6', 'ProfilePage', 'View stats & edit settings')}
             {renderNavWidget('Ride History', 'calendar', '#64748b', 'RideHistoryPage', 'Browse past rides & metrics')}
             {renderNavWidget('Personal Stats', 'activity', '#059669', 'PersonalStats', 'Check your performance metrics')}
@@ -308,6 +312,10 @@ const styles = StyleSheet.create({
   chartTrend: { fontSize: 12, color: '#16a34a', fontWeight: '600' },
   chartBars: { flexDirection: 'row', alignItems: 'flex-end', height: 80, marginBottom: 8 },
   chartBar: { flex: 1, backgroundColor: '#3b82f6', borderRadius: 2, marginHorizontal: 3 },
+  startRideContainer: { backgroundColor: 'white', marginHorizontal: PADDING_HORIZONTAL, marginBottom: 12, padding: 16, borderRadius: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
+  startRideHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  startRideTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginLeft: 10 },
+  startRideSubtitle: { fontSize: 12, color: '#6b7280', marginLeft: 58 - 48 },
 });
 
 export default DashboardScreen;
