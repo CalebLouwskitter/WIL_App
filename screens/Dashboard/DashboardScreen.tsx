@@ -193,6 +193,22 @@ const DashboardScreen = () => {
           </TouchableOpacity>
 
           <View style={styles.widgetGrid}>
+            <TouchableOpacity
+              style={styles.navWidgetContainer}
+              activeOpacity={0.8}
+              onPress={() =>
+                (navigation as any).navigate('Mapping', {
+                  screen: 'LiveTracking',
+                  params: { autoStart: true },
+                } as never)
+              }
+            >
+              <View style={[styles.iconCircle, { backgroundColor: `#10b98130` }]}>
+                <Feather name="play" size={24} color="#10b981" />
+              </View>
+              <Text style={styles.navWidgetTitle}>Start Ride</Text>
+              <Text style={styles.navWidgetSubtitle}>Begin recording now</Text>
+            </TouchableOpacity>
             {renderNavWidget('My Profile', 'user', '#3b82f6', 'ProfilePage', 'View stats & edit settings')}
             {renderNavWidget('Ride History', 'calendar', '#64748b', 'RideHistoryPage', 'Browse past rides & metrics')}
             {renderNavWidget('Personal Stats', 'activity', '#059669', 'PersonalStats', 'Check your performance metrics')}

@@ -46,6 +46,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const route = useRoute<any>();
   const followSosDisplayName: string | undefined = route?.params?.followSosDisplayName;
   const followSosUid: string | undefined = route?.params?.followSosUid;
+  const autoStartedRef = useRef(false);
 
   const nav = useNavigation<any>();
   
@@ -121,6 +122,16 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
       stopLocationBroadcast();
     };
   }, []);
+
+  // Auto-start a ride when navigated with autoStart flag
+  useEffect(() => {
+    const shouldAutoStart = route?.params?.autoStart === true;
+    if (shouldAutoStart && !isRiding && !autoStartedRef.current) {
+      autoStartedRef.current = true;
+      // bypass UI confirmation and trigger the same start flow
+      handleStart();
+    }
+  }, [route?.params?.autoStart, isRiding]);
 
   // Track device heading/compass when riding (only in foreground)
   useEffect(() => {
