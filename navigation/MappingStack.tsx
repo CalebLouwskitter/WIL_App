@@ -10,7 +10,7 @@ import ObstacleViewUpdated from '../screens/Mapping/ObstacleViewUpdated';
 import type { RideData } from '@/hooks/useRideTracker';
 
 export type MappingStackParamList = {
-  LiveTracking: { followSosUid?: string; followSosDisplayName?: string } | undefined;
+  LiveTracking: { followSosUid?: string; followSosDisplayName?: string; autoStart?: boolean } | undefined;
   SelectHorse: undefined;
   RideReviewScreen: { rideData?: RideData; rideId?: string } | undefined;
   MarkObstacle: { location?: { latitude: number; longitude: number } } | undefined;

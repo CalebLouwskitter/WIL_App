@@ -86,7 +86,7 @@ const UserMapView: React.FC = () => {
           accessibilityLabel="Free Ride filter"
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Text style={styles.segmentText}>Free Ride</Text>
+          <Text style={styles.segmentText}>Start Ride</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

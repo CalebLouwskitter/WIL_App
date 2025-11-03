@@ -334,15 +334,16 @@ const createStyles = (palette: any, insets: EdgeInsets) =>
     },
     // Background tracking section
     permissionRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 12,
+      flexDirection: 'column',
+      alignItems: 'flex-start',
+      justifyContent: 'flex-start',
+      gap: 8,
     },
     permissionStatus: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
+      flex: 1,
     },
     statusDot: {
       width: 10,
@@ -357,6 +358,7 @@ const createStyles = (palette: any, insets: EdgeInsets) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
+      alignSelf: 'flex-start',
     },
     smallBtn: {
       paddingVertical: 8,

@@ -132,6 +132,22 @@ export class RideStateManager {
   }
 
   /**
+   * Update keepalive timestamp to prevent stale ride detection
+   * Called periodically by background location service
+   */
+  static async updateKeepalive(): Promise<void> {
+    const state = await this.getRideState();
+    
+    if (!state || !state.isActive) {
+      return;
+    }
+
+    state.lastUpdateTime = Date.now();
+    this.currentState = state;
+    await this.saveState(state);
+  }
+
+  /**
    * End the current ride
    */
   static async endRide(): Promise<PersistedRideState | null> {
