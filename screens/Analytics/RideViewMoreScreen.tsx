@@ -1,19 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, ScrollView, Dimensions, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import MapView, { Polyline, PROVIDER_DEFAULT, Marker } from 'react-native-maps';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { getRides } from '../../services/RideStorage';
-import type { RideData as BaseRideData } from '../../hooks/useRideTracker';
-import { Colors, resolvePalette } from '../../constants/colors';
+import { getCurrentUserRides } from '../../services/UserAnalyticsService';
+import type { RideData } from '../../hooks/useRideTracker';
+import { resolvePalette } from '../../constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { primaryPreviewRoutes } from '../../constants/trails';
-
-type RideData = BaseRideData & { 
-  routeDistances?: Record<string, number>;
-  maxSpeed?: number;
-  endTime?: number;
-};
 
 interface RouteParams { startTime: number }
 
@@ -24,19 +18,53 @@ const RideViewMoreScreen = () => {
   const nav = useNavigation<any>();
   const { startTime } = (route.params || {}) as RouteParams;
   const [ride, setRide] = useState<RideData | null>(null);
+  const [loading, setLoading] = useState(true);
   const mapRef = useRef<MapView | null>(null);
   const colorScheme = useColorScheme();
   const theme = resolvePalette(colorScheme);
 
   useEffect(() => {
     (async () => {
-      const rides = await getRides();
-      const r = rides.find(x => x.startTime === startTime) || null;
-      setRide(r);
+      try {
+        setLoading(true);
+        const rides = await getCurrentUserRides();
+        const r = rides.find(x => x.startTime === startTime) || null;
+        setRide(r);
+      } catch (error) {
+        console.error('Error loading ride from Firebase:', error);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [startTime]);
 
   const coords = useMemo(() => ride?.path?.map(p => ({ latitude: p.latitude, longitude: p.longitude })) || [], [ride]);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
+        <View style={[styles.header, { backgroundColor: theme.surface }]}>
+          <TouchableOpacity 
+            onPress={() => nav.goBack()} 
+            style={styles.headerBackBtn}
+            activeOpacity={0.7}
+          >
+            <Feather name="arrow-left" size={24} color={theme.onSurface} />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={[styles.headerTitle, { color: theme.onSurface }]}>Ride Details</Text>
+          </View>
+          <View style={styles.headerSpacer} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.brandPrimary} />
+          <Text style={[styles.loadingText, { color: theme.onSurfaceVariant }]}>
+            Loading ride from Firebase...
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   if (!ride) {
     return (
@@ -63,8 +91,8 @@ const RideViewMoreScreen = () => {
   const avgSpeed = ride.duration > 0 
     ? ((ride.totalDistance / 1000) / (ride.duration / 1000 / 3600)).toFixed(1)
     : '0';
-  const maxSpeed = (ride.maxSpeed || ride.maxSpeed === 0) ? ride.maxSpeed.toFixed(1) : 'N/A';
-  const calories = Math.round((ride.totalDistance / 1000) * 65); // Rough estimate
+  const maxSpeed = ((ride as any).maxSpeed || (ride as any).maxSpeed === 0) ? (ride as any).maxSpeed.toFixed(1) : 'N/A';
+  const calories = Math.round((ride.totalDistance / 1000) * 65);
   
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString('en-US', { 
@@ -131,11 +159,11 @@ const RideViewMoreScreen = () => {
                   Started at {formatTime(ride.startTime)}
                 </Text>
               </View>
-              {ride.endTime && (
+              {(ride as any).endTime && (
                 <View style={styles.timeRow}>
                   <Feather name="flag" size={14} color={theme.onSurfaceVariant} />
                   <Text style={[styles.timeText, { color: theme.onSurfaceVariant }]}>
-                    Ended at {formatTime(ride.endTime)}
+                    Ended at {formatTime((ride as any).endTime)}
                   </Text>
                 </View>
               )}
@@ -300,229 +328,50 @@ const RideViewMoreScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1,
-  },
-  center: { 
-    flex: 1, 
-    alignItems: 'center', 
-    justifyContent: 'center',
-    gap: 16,
-    padding: 32,
-  },
-  notFoundText: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 8,
-  },
-  backButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 16,
-  },
-  backButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerBackBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitleContainer: {
-    flex: 1,
-    marginLeft: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    marginTop: 4,
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  scrollContent: {
-    padding: 16,
-    paddingTop: 12,
-  },
-  card: {
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-    borderWidth: 1,
-  },
-  rideHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  rideIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rideInfo: {
-    flex: 1,
-  },
-  rideName: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 10,
-    letterSpacing: -0.3,
-  },
-  timeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
-  },
-  timeText: {
-    fontSize: 14,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 18,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-  },
-  mapContainer: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    height: 240,
-  },
-  map: {
-    width: '100%',
-    height: '100%',
-  },
-  markerContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  statCard: {
-    width: (width - 64) / 2,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  statIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  statValue: {
-    fontSize: 26,
-    fontWeight: '700',
-    marginBottom: 4,
-    letterSpacing: -0.5,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  detailsList: {
-    gap: 4,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  detailLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  detailLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  detailValue: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  detailDivider: {
-    height: 1,
-  },
-  routesList: {
-    gap: 14,
-  },
-  routeItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  routeBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  routeInfo: {
-    flex: 1,
-  },
-  routeName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  routeDistance: {
-    fontSize: 14,
-  },
-  bottomSpacing: {
-    height: 32,
-  },
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
+  loadingText: { fontSize: 15, fontWeight: '500' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32 },
+  notFoundText: { fontSize: 18, fontWeight: '600', marginTop: 8 },
+  backButton: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, marginTop: 16 },
+  backButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 50, paddingBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 3 },
+  headerBackBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+  headerTitleContainer: { flex: 1, marginLeft: 8 },
+  headerTitle: { fontSize: 20, fontWeight: '700', letterSpacing: -0.3 },
+  headerSubtitle: { fontSize: 13, marginTop: 4 },
+  headerSpacer: { width: 40 },
+  scrollContent: { padding: 16, paddingTop: 12 },
+  card: { borderRadius: 16, padding: 18, marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3, borderWidth: 1 },
+  rideHeader: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  rideIconCircle: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
+  rideInfo: { flex: 1 },
+  rideName: { fontSize: 22, fontWeight: '700', marginBottom: 10, letterSpacing: -0.3 },
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  timeText: { fontSize: 14 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 18 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', letterSpacing: -0.2 },
+  mapContainer: { borderRadius: 12, overflow: 'hidden', height: 240 },
+  map: { width: '100%', height: '100%' },
+  markerContainer: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 5, borderWidth: 2, borderColor: '#FFFFFF' },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  statCard: { width: (width - 64) / 2, padding: 16, borderRadius: 12, alignItems: 'center' },
+  statIconCircle: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  statValue: { fontSize: 26, fontWeight: '700', marginBottom: 4, letterSpacing: -0.5 },
+  statLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  detailsList: { gap: 4 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16 },
+  detailLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  detailLabel: { fontSize: 15, fontWeight: '500' },
+  detailValue: { fontSize: 16, fontWeight: '700' },
+  detailDivider: { height: 1 },
+  routesList: { gap: 14 },
+  routeItem: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  routeBadge: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  routeInfo: { flex: 1 },
+  routeName: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
+  routeDistance: { fontSize: 14 },
+  bottomSpacing: { height: 32 },
 });
 
 export default RideViewMoreScreen;

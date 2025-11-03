@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, A
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { getAllUsers, approveUser, disapproveUser, deleteUserDoc, seedUsersRbac, setUserRole } from '../../services/FirebaseUserService';
 import { User } from '../../types/User'; // Assuming a User type exists
 import type { ProfileStackParamList } from '../../navigation/ProfileStack';
@@ -82,7 +83,7 @@ export default function AdminManagementScreen() {
   };
 
   const handleDelete = async (userId: string) => {
-    Alert.alert('Delete User', 'Are you sure you want to delete this user document?', [
+    Alert.alert('Remove User', 'This will permanently delete the user and their data. Continue?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive', onPress: async () => {
@@ -188,6 +189,7 @@ export default function AdminManagementScreen() {
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
+        <Text style={styles.hintText}>Search by email to filter users</Text>
       </View>
       <View style={styles.adminCardsContainer}>
         <TouchableOpacity 
@@ -214,11 +216,28 @@ export default function AdminManagementScreen() {
         >
           <View style={styles.adminCardContent}>
             <View style={[styles.adminIconContainer, styles.obstacleIconContainer]}>
-              <Ionicons name="warning" size={24} color="#dc2626" />
+              <MaterialCommunityIcons name="traffic-cone" size={24} color="#dc2626" />
             </View>
             <View style={styles.adminTextContainer}>
               <Text style={styles.adminCardTitle}>Manage Obstacles</Text>
               <Text style={styles.adminCardSubtitle}>Add, edit, or remove map obstacles</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </View>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.adminCard}
+          onPress={() => navigation.navigate('AdminSosManagement')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.adminCardContent}>
+            <View style={[styles.adminIconContainer, styles.sosIconContainer]}>
+              <Ionicons name="alert-circle" size={24} color="#b91c1c" />
+            </View>
+            <View style={styles.adminTextContainer}>
+              <Text style={styles.adminCardTitle}>Manage SOS Alerts</Text>
+              <Text style={styles.adminCardSubtitle}>View active alerts and cancel if needed</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </View>
@@ -278,7 +297,7 @@ export default function AdminManagementScreen() {
                   {operationLoading === item.uid ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={styles.buttonText}>Deny</Text>
+                    <Text style={styles.buttonText}>Block</Text>
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -390,7 +409,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#28a745',
   },
   disapproveButton: {
-    backgroundColor: '#dc3545',
+    backgroundColor: '#b91c1c',
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -485,6 +504,9 @@ const styles = StyleSheet.create({
   obstacleIconContainer: {
     backgroundColor: '#FEF2F2',
   },
+  sosIconContainer: {
+    backgroundColor: '#FEE2E2',
+  },
   adminTextContainer: {
     flex: 1,
   },
@@ -499,8 +521,15 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     lineHeight: 20,
   },
-  obstacleCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#F59E0B',
+  hintText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+    textAlign: 'left',
   },
+  obstacleCard: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+
 });

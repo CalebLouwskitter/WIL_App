@@ -422,7 +422,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                 },
               ]}
             >
-              <BlurView intensity={100} tint="dark" style={styles.statsCardContainer}>
+              <BlurView intensity={80} tint="light" style={styles.statsCardContainer}>
                 <LinearGradient
                   colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.05)']}
                   style={styles.statsGradient}
@@ -488,7 +488,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             </Animated.View>
 
             <TouchableOpacity
-              style={[styles.reportButton, { bottom: insets.bottom + 240 }]}
+              style={[styles.reportButton, { top: insets.top + 100 }]}
               activeOpacity={0.9}
               onPress={() =>
                 navigation.navigate('DuringRideScreen', {
@@ -497,21 +497,18 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                 })
               }
             >
-              <LinearGradient
-                colors={['#f59e0b', '#ea580c']}
-                style={styles.reportButtonGradient}
-              >
+              <BlurView intensity={60} tint="light" style={styles.reportButtonBlur}>
                 <View style={styles.reportButtonInner}>
-                  <Feather name="alert-triangle" size={24} color="white" />
-                  <Text style={styles.reportButtonText}>Report Obstacle</Text>
+                  <Feather name="alert-triangle" size={20} color="#EA580C" />
+                  <Text style={styles.reportButtonText}>Report</Text>
                 </View>
-              </LinearGradient>
+              </BlurView>
             </TouchableOpacity>
 
             {/* Compass/Heading Indicator */}
             {userHeading !== null && (
-              <View style={[styles.compassContainer, { top: insets.top + 100 }]}>
-                <BlurView intensity={80} tint="dark" style={styles.compassBlur}>
+              <View style={[styles.compassContainer, { top: insets.top + 170 }]}>
+                <BlurView intensity={60} tint="light" style={styles.compassBlur}>
                   <LinearGradient
                     colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.08)']}
                     style={styles.compassGradient}
@@ -522,7 +519,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                         { transform: [{ rotate: `${userHeading}deg` }] }
                       ]}
                     >
-                      <Feather name="navigation" size={24} color="#6ee7b7" />
+                      <Feather name="navigation" size={20} color="#059669" />
                     </Animated.View>
                     <Text style={styles.compassText}>
                       {getCardinalDirection(userHeading)}
@@ -547,7 +544,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                 },
               ]}
             >
-              <BlurView intensity={100} tint="dark" style={styles.bottomSheetBlur}>
+              <BlurView intensity={80} tint="light" style={styles.bottomSheetBlur}>
                 <LinearGradient
                   colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.05)']}
                   style={styles.bottomSheetGradient}
@@ -566,14 +563,14 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                     }}
                     activeOpacity={0.7}
                   >
-                    <Feather name="award" size={20} color="#6ee7b7" />
+                    <Feather name="award" size={20} color="#2C5530" />
                     <View style={styles.horseSelectorText}>
                       <Text style={styles.horseSelectorLabel}>Active Horse</Text>
                       <Text style={styles.horseSelectorValue}>
                         {activeHorseName || 'Tap to select'}
                       </Text>
                     </View>
-                    <Feather name="chevron-right" size={20} color="#94a3b8" />
+                    <Feather name="chevron-right" size={20} color="#6B7280" />
                   </TouchableOpacity>
 
                   {/* Manual Resume Button */}
@@ -681,13 +678,13 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                     }
                   ]}
                 >
-                  <BlurView intensity={100} tint="dark" style={styles.confirmBlur}>
+                  <BlurView intensity={80} tint="light" style={styles.confirmBlur}>
                     <LinearGradient
-                      colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']}
+                      colors={['rgba(255, 255, 255, 0.1)', 'rgba(175, 91, 91, 0.05)']}
                       style={styles.confirmGradientBg}
                     >
                       <View style={styles.confirmHeader}>
-                        <Feather name="navigation" size={24} color="#6ee7b7" />
+                        <Feather name="navigation" size={24} color="#059669" />
                         <Text style={styles.confirmTitle}>Start Your Ride?</Text>
                       </View>
                       {activeHorseName && (
@@ -830,55 +827,54 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   statsCardContainer: {
-    borderRadius: 32,
+    borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
   },
   statsGradient: {
-    padding: 24,
+    padding: 20,
   },
   statsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   statsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1F2937',
   },
   recordingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    backgroundColor: '#DCFCE7',
     gap: 6,
   },
   recordingDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#10b981',
-    shadowColor: '#10b981',
+    backgroundColor: '#059669',
+    shadowColor: '#059669',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
+    shadowOpacity: 0.6,
+    shadowRadius: 3,
   },
   recordingText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#6ee7b7',
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#059669',
   },
   statsGrid: {
     flexDirection: 'row',
@@ -890,79 +886,79 @@ const styles = StyleSheet.create({
   statItemBorder: {
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(0, 0, 0, 0.08)',
   },
   statValue: {
-    fontSize: 32,
-    fontWeight: '900',
+    fontSize: 28,
+    fontWeight: '800',
     marginBottom: 4,
   },
   statValueEmerald: {
-    color: '#6ee7b7',
+    color: '#059669',
   },
   statValueOrange: {
-    color: '#fdba74',
+    color: '#EA580C',
   },
   statValueBlue: {
-    color: '#93c5fd',
+    color: '#3B82F6',
   },
   statValuePurple: {
-    color: '#d8b4fe',
+    color: '#9333EA',
   },
   statLabel: {
-    fontSize: 11,
-    color: '#94a3b8',
+    fontSize: 10,
+    color: '#6B7280',
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   stopButton: {
-    borderRadius: 28,
+    borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#f43f5e',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
   },
   stopButtonGradient: {
-    paddingVertical: 20,
+    paddingVertical: 16,
     alignItems: 'center',
   },
   stopButtonText: {
     color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '700',
   },
-  // Report button styles
   reportButton: {
     position: 'absolute',
-    right: 20,
-    borderRadius: 25,
+    left: 24,
+    borderRadius: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  reportButtonGradient: {
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderRadius: 25,
-    flexDirection: 'row',
-    alignItems: 'center',
+  reportButtonBlur: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
   },
   reportButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     gap: 8,
   },
   reportButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#EA580C',
+    fontSize: 14,
+    fontWeight: '700',
   },
-
   quickActionsRow: {
     position: 'absolute',
     left: 24,
@@ -1082,7 +1078,8 @@ const styles = StyleSheet.create({
   confirmBlur: {
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)'
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
   },
   confirmRow: {
     flexDirection: 'row',
@@ -1230,31 +1227,32 @@ const styles = StyleSheet.create({
   compassContainer: {
     position: 'absolute',
     right: 24,
-    borderRadius: 20,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   compassBlur: {
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 20,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
   },
   compassGradient: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
   },
   compassIcon: {
-    marginBottom: 4,
+    marginBottom: 2,
   },
   compassText: {
-    color: '#6ee7b7',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: '#059669',
+    fontSize: 14,
+    fontWeight: '700',
   },
   compassDegrees: {
-    color: '#94a3b8',
-    fontSize: 11,
+    color: '#6B7280',
+    fontSize: 10,
     fontWeight: '600',
   },
   // Enhanced confirmation dialog styles
@@ -1270,12 +1268,12 @@ const styles = StyleSheet.create({
   },
   confirmTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
+    fontWeight: '700',
+    color: '#1F2937',
   },
   confirmSubtitle: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: '#6B7280',
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -1299,7 +1297,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
   },
   bottomSheetGradient: {
     flex: 1,
@@ -1314,31 +1313,37 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   horseSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#0051f3ff',
     marginBottom: 16,
     gap: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   horseSelectorText: {
     flex: 1,
   },
   horseSelectorLabel: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: '#6B7280',
     marginBottom: 4,
+    fontWeight: '600',
   },
   horseSelectorValue: {
     fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
+    fontWeight: '700',
+    color: '#1F2937',
   },
   resumeRideButton: {
     borderRadius: 12,
