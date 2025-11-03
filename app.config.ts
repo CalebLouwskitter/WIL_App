@@ -120,6 +120,8 @@ const config: ExpoConfig = {
         color: '#2563eb',
         sounds: ['./assets/sounds/notification.wav'],
         mode: 'production',
+        // Enable Firebase Cloud Messaging for push notifications
+        usesFcm: true,
       },
     ],
   ],

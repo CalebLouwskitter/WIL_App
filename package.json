@@ -50,7 +50,8 @@
     "react-native-svg": "^15.12.1",
     "react-native-vector-icons": "^10.3.0",
     "vector-icons": "^0.1.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "expo": "~54.0.21"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
