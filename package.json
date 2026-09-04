@@ -9,14 +9,18 @@
     "web": "expo start --web",
     "check-firebase": "node scripts/checkFirebase.js",
     "check-notifications": "node scripts/checkNotifications.js",
-    "test-notifications": "node scripts/testNotifications.js"
+    "test-notifications": "node scripts/testNotifications.js",
+    "typecheck": "tsc --noEmit",
+    "test:integration": "node --test tests/integration.test.cjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-google-signin/google-signin": "^16.0.0",
     "@react-navigation/bottom-tabs": "^7.4.5",
+    "@react-navigation/native": "7.1.17",
     "@react-navigation/stack": "^7.4.5",
+    "expo": "~54.0.21",
     "expo-auth-session": "~7.0.8",
     "expo-blur": "~15.0.7",
     "expo-constants": "~18.0.10",
@@ -27,8 +31,10 @@
     "expo-font": "~14.0.9",
     "expo-image-picker": "~17.0.8",
     "expo-linear-gradient": "~15.0.7",
+    "expo-linking": "8.0.8",
     "expo-location": "~19.0.7",
     "expo-media-library": "~18.2.0",
+    "expo-navigation-bar": "~5.0.9",
     "expo-notifications": "~0.32.12",
     "expo-sharing": "~14.0.7",
     "expo-splash-screen": "~31.0.10",
@@ -50,8 +56,7 @@
     "react-native-svg": "^15.12.1",
     "react-native-vector-icons": "^10.3.0",
     "vector-icons": "^0.1.0",
-    "xlsx": "^0.18.5",
-    "expo": "~54.0.21"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

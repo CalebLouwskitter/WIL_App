@@ -1,8 +1,8 @@
-declare module 'firebase/auth' {
-  export * from '@firebase/auth';
-  export { Auth, User, initializeAuth, getReactNativePersistence } from '@firebase/auth';
-}
+import 'firebase/auth';
+import type { Persistence, ReactNativeAsyncStorage } from 'firebase/auth';
 
-declare module 'firebase/auth/react-native' {
-  export * from 'firebase/auth';
+// Augment the public SDK types without replacing its existing exports.
+// Firebase 11 exposes this helper in the React Native runtime entry point.
+declare module 'firebase/auth' {
+  export function getReactNativePersistence(storage: ReactNativeAsyncStorage): Persistence;
 }
