@@ -1,7 +1,7 @@
 // services/ProfilePictureService.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Alert } from 'react-native';
 import { auth, FIREBASE_ENABLED, app } from './firebase';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';

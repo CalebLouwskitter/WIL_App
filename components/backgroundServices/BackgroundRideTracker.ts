@@ -177,30 +177,16 @@ export function useBackgroundRideTracker(): UseBackgroundRideTrackerResult {
     setIsBackgroundEnabled(hasPerms);
   };
 
-  // Handle app state changes
+  // Read persisted activity rather than the status captured on initial mount.
   const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-    const hasActive = await RideStateManager.hasActiveRide();
-    
-    if (!hasActive) return;
-
+    if (!(await RideStateManager.hasActiveRide())) return;
     if (nextAppState === 'background' || nextAppState === 'inactive') {
-      // App going to background
-      if (status === 'active_foreground') {
-        setStatus('active_background');
-        console.log('[BackgroundRideTracker] App backgrounded, ride continues');
-      }
+      setStatus('active_background');
     } else if (nextAppState === 'active') {
-      // App coming to foreground
-      if (status === 'active_background') {
-        setStatus('active_foreground');
-        console.log('[BackgroundRideTracker] App foregrounded, ride continues');
-        
-        // Refresh ride data
-        const data = await RideStateManager.toRideData();
-        if (data) {
-          setRideData(data);
-        }
-      }
+      const data = await RideStateManager.toRideData();
+      if (!(await RideStateManager.hasActiveRide())) return;
+      setStatus('active_foreground');
+      if (data) setRideData(data);
     }
   };
 

@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
-import { initializeAuth, getReactNativePersistence, type Auth } from "firebase/auth";   
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { initializeAuth, getAuth, getReactNativePersistence, type Auth } from "firebase/auth";
+import { initializeFirestore, getFirestore, type Firestore } from "firebase/firestore";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
@@ -54,12 +54,11 @@ try {
     // Initialize Auth with React Native persistence
     try {
       authInstance = initializeAuth(appInstance, {
-        persistence: getReactNativePersistence(AsyncStorage as any)
+        persistence: getReactNativePersistence(AsyncStorage)
       });
     } catch (authError: any) {
       // Auth may already be initialized
       if (authError.code === 'auth/already-initialized') {
-        const { getAuth } = require('firebase/auth');
         authInstance = getAuth(appInstance);
       } else {
         throw authError;
@@ -67,7 +66,16 @@ try {
     }
     
     // Initialize Firestore
-    firestoreInstance = getFirestore(appInstance);
+    // Configure Firestore before any consumer calls getFirestore.
+    try {
+      firestoreInstance = initializeFirestore(appInstance, {
+        experimentalForceLongPolling: true,
+      });
+    } catch (error: any) {
+      if (error.code !== 'failed-precondition') throw error;
+      // Fast Refresh can preserve an already initialized SDK instance.
+      firestoreInstance = getFirestore(appInstance);
+    }
     
   } else if (__DEV__) {
     // Only spam in dev

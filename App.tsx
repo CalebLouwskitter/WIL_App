@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { ActivityIndicator, View, Platform, Alert } from 'react-native';
+import { ActivityIndicator, View, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import AppNavigator from './navigation/AppNavigator';
 import AuthNavigator from './navigation/AuthNavigator';
@@ -9,6 +9,7 @@ import { useCurrentUser } from './hooks/useCurrentUser';
 import PendingApprovalScreen from './screens/Auth/PendingApprovalScreen';
 import { logFirebaseStatus } from './services/firebaseConnectionCheck';
 import { StatusBar } from 'expo-status-bar';
+import * as NavigationBar from 'expo-navigation-bar';
 import { useNotifications } from './hooks/useNotifications';
 import { SosProvider } from './contexts/SosContext';
 import { RideRecoveryProvider } from './contexts/RideRecoveryContext';
@@ -31,17 +32,14 @@ export default function App() {
 
   // Ride recovery is now handled by RideRecoveryHandler component
 
-  // Attempt to hide Android navigation bar globally (requires expo-navigation-bar)
+  // Hide Android navigation controls; the app uses edge-to-edge layout.
   useEffect(() => {
     if (Platform.OS === 'android') {
       (async () => {
         try {
-          const NavigationBar = require('expo-navigation-bar');
           await NavigationBar.setVisibilityAsync('hidden');
-          await NavigationBar.setBehaviorAsync('overlay-swipe');
-          await NavigationBar.setBackgroundColorAsync('#00000000');
         } catch (e) {
-          // Module may not be installed; ignore to avoid crashing
+          if (__DEV__) console.warn('Unable to hide Android navigation bar', e);
         }
       })();
     }
