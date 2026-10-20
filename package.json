@@ -17,6 +17,7 @@
     "@react-native-google-signin/google-signin": "^16.0.0",
     "@react-navigation/bottom-tabs": "^7.4.5",
     "@react-navigation/stack": "^7.4.5",
+    "expo": "~54.0.21",
     "expo-auth-session": "~7.0.8",
     "expo-blur": "~15.0.7",
     "expo-constants": "~18.0.10",
@@ -49,9 +50,7 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "^15.12.1",
     "react-native-vector-icons": "^10.3.0",
-    "vector-icons": "^0.1.0",
-    "xlsx": "^0.18.5",
-    "expo": "~54.0.21"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

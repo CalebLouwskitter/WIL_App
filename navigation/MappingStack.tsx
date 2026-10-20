@@ -15,7 +15,7 @@ export type MappingStackParamList = {
   RideReviewScreen: { rideData?: RideData; rideId?: string } | undefined;
   MarkObstacle: { location?: { latitude: number; longitude: number } } | undefined;
   OnlineUsers: undefined;
-  DuringRideScreen: { rideData?: RideData; initialTab?: 'sighting' | 'report' | 'obstacles' } | undefined;
+  DuringRideScreen: { rideData?: RideData; rideId?: string; initialTab?: 'sighting' | 'report' | 'obstacles' } | undefined;
   ObstacleViewUpdated: { rideData?: RideData; rideId?: string; initialTab?: 'sighting' | 'report' | 'obstacles' } | undefined;
 };
 
