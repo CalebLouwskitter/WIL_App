@@ -72,7 +72,7 @@ const HistoryScreen: React.FC = () => {
         ) : (
           <FlatList
             data={rides}
-            keyExtractor={(item, index) => `${item.startTime}-${index}`}
+            keyExtractor={(item, index) => item.id ?? `${item.startTime}-${index}`}
             renderItem={({ item, index }) => (
               <TouchableOpacity
                 style={styles.item}
@@ -91,6 +91,12 @@ const HistoryScreen: React.FC = () => {
                       {new Date(item.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       {item.horseName ? ` • ${item.horseName}` : ''}
                     </Text>
+                    {item.pendingSync ? (
+                      <View style={styles.pendingRow}>
+                        <Feather name="cloud-off" size={12} color="#B45309" />
+                        <Text style={styles.pendingText}>Saved on device, will upload when online</Text>
+                      </View>
+                    ) : null}
                   </View>
                 </View>
                 <View style={styles.itemRight}>
@@ -154,6 +160,8 @@ const styles = StyleSheet.create({
   },
   itemTitle: { fontSize: 16, fontWeight: '600', color: '#0F172A' },
   itemSub: { fontSize: 12, color: '#64748B', marginTop: 2 },
+  pendingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  pendingText: { fontSize: 11, color: '#B45309' },
   itemRight: { alignItems: 'flex-end' },
   itemDistValue: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
   itemDistUnit: { fontSize: 12, color: '#64748B' },

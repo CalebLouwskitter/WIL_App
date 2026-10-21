@@ -13,6 +13,7 @@ import { useNotifications } from './hooks/useNotifications';
 import { SosProvider } from './contexts/SosContext';
 import { RideRecoveryProvider } from './contexts/RideRecoveryContext';
 import { RideRecoveryHandler } from './components/RideRecoveryHandler';
+import { startRideSync } from './services/RideStorage';
 
 export default function App() {
   const { user, initializing, isAuthenticated } = useFirebaseAuth();
@@ -21,6 +22,12 @@ export default function App() {
 
   // Register for push notifications when user is logged in
   useNotifications(user?.uid);
+
+  // Upload rides that were saved while offline, now and whenever we reconnect
+  useEffect(() => {
+    if (!user?.uid) return;
+    return startRideSync();
+  }, [user?.uid]);
 
   // Log Firebase connection status on app start (dev only)
   useEffect(() => {

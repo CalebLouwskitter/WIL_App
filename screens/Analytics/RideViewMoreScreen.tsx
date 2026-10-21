@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, ScrollView, D
 import { Feather } from '@expo/vector-icons';
 import MapView, { Polyline, PROVIDER_DEFAULT, Marker } from 'react-native-maps';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { getCurrentUserRides } from '../../services/UserAnalyticsService';
+import { getRides } from '../../services/RideStorage';
 import type { RideData } from '../../hooks/useRideTracker';
 import { resolvePalette } from '../../constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,7 +27,8 @@ const RideViewMoreScreen = () => {
     (async () => {
       try {
         setLoading(true);
-        const rides = await getCurrentUserRides();
+        // Includes rides saved on the device that haven't been uploaded yet
+        const rides = await getRides();
         const r = rides.find(x => x.startTime === startTime) || null;
         setRide(r);
       } catch (error) {
@@ -59,7 +60,7 @@ const RideViewMoreScreen = () => {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.brandPrimary} />
           <Text style={[styles.loadingText, { color: theme.onSurfaceVariant }]}>
-            Loading ride from Firebase...
+            Loading ride...
           </Text>
         </View>
       </View>
