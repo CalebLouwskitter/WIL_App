@@ -1,9 +1,9 @@
 import { Paths, File, Directory } from 'expo-file-system';
-import * as MediaLibrary from 'expo-media-library';
+import * as MediaLibrary from 'expo-media-library/legacy';
 import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
 
-// (Farley, 2022) 
+// (Farley, 2022)
 export interface ReportData {
   timeSlot: 'day' | 'week' | 'month' | '3month' | '6month' | '1year';
   userStats: {
@@ -23,7 +23,7 @@ export interface ReportData {
   generatedDate: string;
 }
 
-// (Farley, 2022) 
+// (Farley, 2022)
 export class ReportDownload {
   
   static async generateExcelReport(data: ReportData): Promise<string> {
@@ -45,7 +45,7 @@ export class ReportDownload {
       ['Last Ride', data.userStats.lastRide],
     ];
 
-    // (Farley, 2022) 
+    // (Farley, 2022)
     const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
     XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
 
@@ -106,7 +106,7 @@ export class ReportDownload {
     return file.uri;
   }
 
-  // (Farley, 2022) 
+  // (Farley, 2022)
   static async generateAndShareReport(data: ReportData): Promise<void> {
     try {
       const filename = await this.generateExcelReport(data);
@@ -245,4 +245,4 @@ static async saveReportLocally(data: ReportData): Promise<string> {
 // Available at: https://www.youtube.com/watch?v=iH9cMDfysOw&t=25s 
 // (Accessed: 04 June 2025). 
 
-// (Farley, 2022) 
+// (Farley, 2022)

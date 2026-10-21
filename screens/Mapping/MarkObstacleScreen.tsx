@@ -39,7 +39,7 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [gettingLocation, setGettingLocation] = useState(false);
   const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme ?? 'light'];
+  const palette = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
   const styles = useMemo(() => createStyles(palette), [palette]);
 
   const obstacleTypes: { type: ObstacleType; label: string; icon: string }[] = [

@@ -1,10 +1,12 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, useColorScheme } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { getRides } from '../../services/RideStorage';
 import type { RideData } from '../../hooks/useRideTracker';
 import { useCallback, useState } from 'react';
+import { Colors } from '../../constants/colors';
+import { BorderRadius, Shadows, Spacing, Typography } from '../../constants/styleguide';
 
 type RouteParams = {
   fromDashboard?: boolean;
@@ -14,6 +16,9 @@ type RouteParams = {
 const HistoryScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<any>();
+  const scheme = useColorScheme();
+  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [rides, setRides] = useState<RideData[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -58,10 +63,10 @@ const HistoryScreen: React.FC = () => {
           accessibilityLabel="Go back"
           accessibilityRole="button"
         >
-          <Feather name="arrow-left" size={22} color="#0F172A" />
+          <Feather name="chevron-left" size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.title}>Ride History</Text>
-        <View style={{ width: 44 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.body}>
@@ -83,9 +88,9 @@ const HistoryScreen: React.FC = () => {
               >
                 <View style={styles.itemLeft}>
                   <View style={styles.itemIconCircle}>
-                    <Feather name="navigation" size={18} color="#3B82F6" />
+                    <Feather name="navigation" size={18} color={colors.brandPrimary} />
                   </View>
-                  <View>
+                  <View style={styles.itemText}>
                     <Text style={styles.itemTitle}>Ride #{rides.length - index}</Text>
                     <Text style={styles.itemSub}>
                       {new Date(item.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -93,7 +98,7 @@ const HistoryScreen: React.FC = () => {
                     </Text>
                     {item.pendingSync ? (
                       <View style={styles.pendingRow}>
-                        <Feather name="cloud-off" size={12} color="#B45309" />
+                        <Feather name="cloud-off" size={12} color={colors.onSurfaceVariant} />
                         <Text style={styles.pendingText}>Saved on device, will upload when online</Text>
                       </View>
                     ) : null}
@@ -105,8 +110,8 @@ const HistoryScreen: React.FC = () => {
                 </View>
               </TouchableOpacity>
             )}
-            ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-            contentContainerStyle={{ paddingVertical: 12 }}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            contentContainerStyle={styles.listContent}
           />
         )}
       </View>
@@ -114,57 +119,57 @@ const HistoryScreen: React.FC = () => {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundLight },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 60,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
+    paddingTop: Spacing.xxl,
+    paddingBottom: Spacing.lg,
+    paddingHorizontal: Spacing.md,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#fff',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: 24, fontWeight: '700', color: '#0F172A' },
-  body: { flex: 1, padding: 20 },
-  placeholder: { color: '#64748B', fontSize: 14, textAlign: 'center', marginTop: 24 },
+  title: { ...Typography.subtitle, flex: 1, textAlign: 'center', color: colors.onSurface },
+  headerSpacer: { width: 48 },
+  body: { flex: 1, paddingHorizontal: Spacing.md },
+  listContent: { paddingBottom: Spacing.xl },
+  separator: { height: Spacing.md },
+  placeholder: { ...Typography.body, color: colors.onSurfaceVariant, textAlign: 'center', marginTop: Spacing.lg },
   item: {
+    ...Shadows.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    backgroundColor: colors.surface,
+    gap: Spacing.sm,
   },
-  itemLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  itemLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  itemText: { flex: 1 },
   itemIconCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: colors.chipNeutral,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
-  itemTitle: { fontSize: 16, fontWeight: '600', color: '#0F172A' },
-  itemSub: { fontSize: 12, color: '#64748B', marginTop: 2 },
-  pendingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  pendingText: { fontSize: 11, color: '#B45309' },
+  itemTitle: { ...Typography.body, fontWeight: '600', color: colors.onSurface },
+  itemSub: { ...Typography.caption, fontWeight: '400', color: colors.onSurfaceVariant, marginTop: Spacing.xs },
+  pendingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.xs },
+  pendingText: { ...Typography.caption, flex: 1, fontWeight: '400', color: colors.onSurfaceVariant },
   itemRight: { alignItems: 'flex-end' },
-  itemDistValue: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
-  itemDistUnit: { fontSize: 12, color: '#64748B' },
+  itemDistValue: { ...Typography.subtitle, color: colors.onSurface },
+  itemDistUnit: { ...Typography.caption, fontWeight: '400', color: colors.onSurfaceVariant },
 });
 
 export default HistoryScreen;

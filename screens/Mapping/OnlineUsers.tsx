@@ -38,7 +38,7 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme ?? 'light'];
+  const palette = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
   useEffect(() => {
     let cancelled = false;

@@ -26,7 +26,7 @@ type Props = {
 const NotificationsModal: React.FC<Props> = ({ visible, onClose, onRequestNotificationsScreen }) => {
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
-  const palette = Colors[scheme ?? 'light'];
+  const palette = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);

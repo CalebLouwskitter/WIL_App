@@ -15,7 +15,7 @@ const RegisterScreen = ({ navigation }: { navigation: any }) => {
   const [loading, setLoading] = useState(false);
 
   const scheme = useColorScheme();
-  const colors = Colors[scheme ?? 'light'];
+  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
   const handleRegister = async () => {
     if (!email || !password) {

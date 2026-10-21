@@ -1,12 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import * as Notifications from 'expo-notifications';
+import type * as ExpoNotifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { saveFCMToken } from '../services/FirebaseNotificationService';
 import { NOTIFICATIONS_ENABLED } from '../constants/config';
 
+// Expo Go does not contain the native Android push-notification modules.
+const Notifications: typeof ExpoNotifications | null =
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient
+    ? null
+    : require('expo-notifications');
+
 // Configure how notifications are handled when app is in foreground
-if (NOTIFICATIONS_ENABLED) {
+if (NOTIFICATIONS_ENABLED && Notifications) {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
@@ -20,12 +27,12 @@ if (NOTIFICATIONS_ENABLED) {
 
 export function useNotifications(userId?: string) {
   const [expoPushToken, setExpoPushToken] = useState('');
-  const [notification, setNotification] = useState<Notifications.Notification | null>(null);
-  const notificationListener = useRef<Notifications.Subscription | undefined>(undefined);
-  const responseListener = useRef<Notifications.Subscription | undefined>(undefined);
+  const [notification, setNotification] = useState<ExpoNotifications.Notification | null>(null);
+  const notificationListener = useRef<ExpoNotifications.Subscription | undefined>(undefined);
+  const responseListener = useRef<ExpoNotifications.Subscription | undefined>(undefined);
 
   useEffect(() => {
-    if (!NOTIFICATIONS_ENABLED) return () => {};
+    if (!NOTIFICATIONS_ENABLED || !Notifications) return () => {};
     // Register for push notifications and get token
     registerForPushNotificationsAsync().then(token => {
       if (token) {
@@ -37,6 +44,8 @@ export function useNotifications(userId?: string) {
           });
         }
       }
+    }).catch(error => {
+      console.warn('Push notification registration failed:', error);
     });
 
     // Listener for notifications received while app is in foreground
@@ -73,6 +82,7 @@ export function useNotifications(userId?: string) {
  * @returns Expo push token or undefined if registration fails
  */
 async function registerForPushNotificationsAsync() {
+  if (!Notifications) return;
   let token;
 
   // Configure Android notification channel

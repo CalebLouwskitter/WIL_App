@@ -31,7 +31,7 @@ const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const [navDisabled, setNavDisabled] = useState<boolean>(false);
   const scheme = useColorScheme();
-  const colors = Colors[scheme ?? 'light'];
+  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const [settingsVisible, setSettingsVisible] = useState<boolean>(false);
   const [notificationsVisible, setNotificationsVisible] = useState<boolean>(false);
   

@@ -14,7 +14,7 @@ const ForgotPasswordScreen = ({ navigation }: { navigation: any }) => {
   const [emailSent, setEmailSent] = useState(false);
 
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
   const handleResetPassword = async () => {
     if (!email) {

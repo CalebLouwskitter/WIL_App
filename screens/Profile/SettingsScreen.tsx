@@ -27,7 +27,7 @@ const firebaseAuthModule = async () => import('firebase/auth');
 const SettingsScreen: React.FC = () => {
   const navigation = useNavigation();
   const scheme = useColorScheme();
-  const colors = Colors[scheme ?? 'light'];
+  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const { isMetric, toggle: toggleUnits } = useUnits();
 
   // User Profile State

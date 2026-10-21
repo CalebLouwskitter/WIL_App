@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { saveHorse } from '../../services/HorseStorage';
 import { useColorScheme } from 'react-native';
 import { Colors } from '../../constants/colors';
+import { BorderRadius, ComponentStyles, Spacing, Typography } from '../../constants/styleguide';
 
 const CreateHorseScreen = () => {
   const nav = useNavigation<any>();
@@ -16,7 +17,7 @@ const CreateHorseScreen = () => {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const scheme = useColorScheme();
-  const colors = Colors[scheme ?? 'light'];
+  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const styles = useMemo(() => createStyles(colors), [colors]);
   const placeholderColor = colors.placeholder;
 
@@ -63,6 +64,8 @@ const CreateHorseScreen = () => {
             }}
             style={styles.backBtn}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
           >
             <Icon name="chevron-left" size={24} color={colors.onSurface} />
           </TouchableOpacity>
@@ -91,6 +94,7 @@ const CreateHorseScreen = () => {
           <Text style={styles.label}>Name</Text>
           <TextInput
             value={name}
+            accessibilityLabel="Horse name"
             onChangeText={setName}
             placeholder="e.g. Thunder"
             placeholderTextColor={placeholderColor}
@@ -101,6 +105,7 @@ const CreateHorseScreen = () => {
           <Text style={styles.label}>Breed (optional)</Text>
           <TextInput
             value={breed}
+            accessibilityLabel="Breed (optional)"
             onChangeText={setBreed}
             placeholder="e.g. Arabian"
             placeholderTextColor={placeholderColor}
@@ -111,6 +116,7 @@ const CreateHorseScreen = () => {
           <Text style={styles.label}>Age (optional)</Text>
           <TextInput
             value={age}
+            accessibilityLabel="Age in years (optional)"
             onChangeText={setAge}
             placeholder="e.g. 7"
             placeholderTextColor={placeholderColor}
@@ -122,6 +128,7 @@ const CreateHorseScreen = () => {
           <Text style={styles.label}>Notes (optional)</Text>
           <TextInput
             value={notes}
+            accessibilityLabel="Notes (optional)"
             onChangeText={setNotes}
             placeholder="Temperament, training notes, etc."
             placeholderTextColor={placeholderColor}
@@ -137,6 +144,9 @@ const CreateHorseScreen = () => {
           onPress={onSave}
           activeOpacity={0.85}
           disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel={saving ? 'Saving horse' : 'Save horse'}
+          accessibilityState={{ disabled: saving, busy: saving }}
         >
           <LinearGradient
             colors={[colors.brandPrimary, colors.brandPrimaryAlt] as const}
@@ -157,14 +167,14 @@ type ThemeColors = typeof Colors.light;
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     flex: { flex: 1, backgroundColor: colors.backgroundLight },
-    container: { flexGrow: 1, padding: 20, paddingTop: 48 },
-    headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+    container: { flexGrow: 1, padding: Spacing.md, paddingTop: Spacing.xxl, paddingBottom: Spacing.xl },
+    headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.lg },
     backBtn: {
-      width: 40,
-      height: 40,
+      width: 48,
+      height: 48,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 20,
+      borderRadius: 24,
       backgroundColor: colors.surface,
       shadowColor: colors.shadowStrong,
       shadowOpacity: 0.12,
@@ -172,17 +182,17 @@ const createStyles = (colors: ThemeColors) =>
       shadowOffset: { width: 0, height: 4 },
       elevation: 4,
     },
-    headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '700', color: colors.onSurface },
-    headerSpacer: { width: 40 },
+    headerTitle: { ...Typography.subtitle, flex: 1, textAlign: 'center', color: colors.onSurface },
+    headerSpacer: { width: 48 },
     heroCard: {
-      borderRadius: 20,
-      padding: 20,
+      borderRadius: BorderRadius.xl,
+      padding: Spacing.md,
       shadowColor: colors.shadowStrong,
       shadowOpacity: 0.18,
       shadowRadius: 16,
       shadowOffset: { width: 0, height: 10 },
       elevation: 6,
-      marginBottom: 24,
+      marginBottom: Spacing.lg,
     },
     heroContent: { flexDirection: 'row', alignItems: 'center', gap: 14 },
     heroIconWrapper: {
@@ -198,30 +208,29 @@ const createStyles = (colors: ThemeColors) =>
     heroSubtitle: { fontSize: 14, color: colors.onPrimary, opacity: 0.85 },
     card: {
       backgroundColor: colors.surface,
-      borderRadius: 20,
-      padding: 20,
+      borderRadius: BorderRadius.xl,
+      padding: Spacing.md,
       shadowColor: colors.shadowStrong,
       shadowOpacity: 0.12,
       shadowRadius: 12,
       shadowOffset: { width: 0, height: 6 },
       elevation: 5,
     },
-    label: { fontSize: 14, fontWeight: '600', marginTop: 14, color: colors.onSurface },
+    label: { ...Typography.caption, marginTop: Spacing.md, color: colors.onSurface },
     input: {
-      marginTop: 8,
-      borderWidth: 1,
+      ...ComponentStyles.input,
+      marginTop: Spacing.sm,
       borderColor: colors.borderMuted,
-      borderRadius: 14,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
+      borderRadius: BorderRadius.lg,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
       backgroundColor: colors.surfaceVariant,
       color: colors.onSurface,
-      fontSize: 15,
     },
     notes: { minHeight: 120, textAlignVertical: 'top' },
     saveBtnContainer: {
-      marginTop: 28,
-      borderRadius: 18,
+      marginTop: Spacing.lg,
+      borderRadius: BorderRadius.lg,
       overflow: 'hidden',
       shadowColor: colors.shadowStrong,
       shadowOpacity: 0.25,
@@ -230,8 +239,8 @@ const createStyles = (colors: ThemeColors) =>
       elevation: 6,
     },
     saveBtnDisabled: { opacity: 0.7 },
-    saveBtn: { paddingVertical: 16, alignItems: 'center' },
-    saveTxt: { color: colors.onPrimary, fontWeight: '700', fontSize: 16 },
+    saveBtn: { ...ComponentStyles.button.primary, paddingVertical: Spacing.md },
+    saveTxt: { ...Typography.button, color: colors.onPrimary },
   });
 
 export default CreateHorseScreen;
