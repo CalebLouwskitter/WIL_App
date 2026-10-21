@@ -411,7 +411,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
           </View>
         )}
 
-        <View style={StyleSheet.absoluteFillObject}>
+        <View style={StyleSheet.absoluteFill}>
           <MapViewTracker
             path={rideData?.snappedPath ?? rideData?.path}
             nearestTrail={rideData?.nearestTrail}
@@ -422,10 +422,10 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
           />
         </View>
 
-        <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <LinearGradient
             colors={['rgba(16, 185, 129, 0.15)', 'transparent', 'rgba(59, 130, 246, 0.15)']}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
         </View>
 

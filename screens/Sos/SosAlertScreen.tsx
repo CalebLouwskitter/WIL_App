@@ -250,7 +250,6 @@ const SosAlertScreen = () => {
     <View style={[styles.container, activated ? styles.redBackground : null]}>
       <StatusBar
         barStyle={activated ? "light-content" : "dark-content"}
-        backgroundColor={activated ? "#FF0000" : "#FFFFFF"}
       />
 
       {activated && !helpSent && (

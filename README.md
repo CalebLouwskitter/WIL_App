@@ -35,7 +35,7 @@ requirements and enhance the rider experience.
 
 ## Technology Stack
 
--   **App**: Expo (SDK 54) / React Native, TypeScript, React Navigation
+-   **App**: Expo (SDK 58) / React Native, TypeScript, React Navigation
 -   **Backend**: Firebase (Authentication, Firestore, Cloud Messaging)
 -   **Mapping & GPS**: react-native-maps (Google Maps), expo-location,
     expo-task-manager for background tracking
@@ -46,7 +46,7 @@ requirements and enhance the rider experience.
 
 ### Prerequisites
 
--   Node.js 20 (see `.nvmrc`)
+-   Node.js 22 or newer (see `.nvmrc`)
 -   A Firebase project with Authentication (email/password) and
     Firestore enabled
 -   A Google Maps API key (Maps SDK for Android, and iOS if needed)

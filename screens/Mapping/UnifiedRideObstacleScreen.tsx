@@ -1107,7 +1107,7 @@ export default function UnifiedRideObstacleScreen({
                     }}
                     showsUserLocation={true}
                     showsMyLocationButton={false}
-                    showsPointsOfInterest={false}
+                    showsPointsOfInterests={false}
                     showsBuildings={false}
                     showsIndoors={false}
                     showsTraffic={false}

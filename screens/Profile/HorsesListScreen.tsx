@@ -67,7 +67,7 @@ const HorsesListScreen = () => {
               <Text style={styles.ctaText}>Add your first horse</Text>
             </TouchableOpacity>
           </View>
-        ) : null}
+        ) : undefined}
       />
     </View>
   );

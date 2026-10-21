@@ -34,14 +34,8 @@ const config: ExpoConfig = {
   orientation: 'portrait',
   icon: './assets/icons/icon.png',
   userInterfaceStyle: 'light',
-  newArchEnabled: true,
   scheme: 'sbhraapp',
   owner: 'caleblouwskiter', // Expo account owner
-  splash: {
-    image: './assets/icons/splash-icon.png',
-    resizeMode: 'contain',
-    backgroundColor: '#ffffff',
-  },
   ios: {
     supportsTablet: true,
     // Google Maps iOS SDK key
@@ -65,7 +59,6 @@ const config: ExpoConfig = {
       foregroundImage: './assets/icons/adaptive-icon.png',
       backgroundColor: '#ffffff',
     },
-    edgeToEdgeEnabled: true,
     package: 'com.sbhra.app',
     googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
     // Google Maps Android SDK key
@@ -100,6 +93,15 @@ const config: ExpoConfig = {
     FIREBASE_APP_ID: process.env.FIREBASE_APP_ID ?? '',
   },
   plugins: [
+    [
+      'expo-splash-screen',
+      {
+        image: './assets/icons/splash-icon.png',
+        resizeMode: 'contain',
+        backgroundColor: '#ffffff',
+        imageWidth: 240,
+      },
+    ],
     [
       'expo-location',
       {

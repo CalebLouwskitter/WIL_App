@@ -22,7 +22,7 @@ const ONLINE_THRESHOLD = 30 * 60 * 1000;
 
 const storageKey = 'ONLINE_USERS_LOCAL';
 const deviceIdKey = 'DEVICE_ID';
-let updateTimer: NodeJS.Timeout | null = null;
+let updateTimer: ReturnType<typeof setInterval> | null = null;
 
 async function getOrCreateDeviceId(): Promise<string> {
   try {

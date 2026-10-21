@@ -4,7 +4,6 @@
   },
   "build": {
     "production": {
-      "node": "20.19.4",
       "android": {
         "buildType": "apk"
       },

@@ -42,10 +42,10 @@ export function useBackgroundRideTracker(): UseBackgroundRideTrackerResult {
   const [isBackgroundEnabled, setIsBackgroundEnabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const refreshInterval = useRef<NodeJS.Timeout | null>(null);
+  const refreshInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const stateUnsubscribe = useRef<(() => void) | null>(null);
   const appStateSubscription = useRef<any>(null);
-  const healthCheckInterval = useRef<NodeJS.Timeout | null>(null);
+  const healthCheckInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Check for background permission on mount
   useEffect(() => {

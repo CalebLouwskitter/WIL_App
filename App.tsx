@@ -64,7 +64,7 @@ export default function App() {
     <RideRecoveryProvider>
       <SosProvider>
         <NavigationContainer>
-          <StatusBar style="dark" hidden={false} translucent backgroundColor="transparent" />
+          <StatusBar style="dark" hidden={false} />
           <RideRecoveryHandler />
           {allowBypass ? (
             <AppNavigator />
