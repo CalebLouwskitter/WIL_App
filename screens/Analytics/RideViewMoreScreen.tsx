@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, ScrollView, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, ScrollView, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import MapView, { Polyline, PROVIDER_DEFAULT, Marker } from 'react-native-maps';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { getCurrentUserRides } from '../../services/UserAnalyticsService';
+import { getRides } from '../../services/RideStorage';
+import { shareRideAsGpx } from '../../services/GpxExportService';
 import type { RideData } from '../../hooks/useRideTracker';
 import { resolvePalette } from '../../constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,6 +20,7 @@ const RideViewMoreScreen = () => {
   const { startTime } = (route.params || {}) as RouteParams;
   const [ride, setRide] = useState<RideData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const mapRef = useRef<MapView | null>(null);
   const colorScheme = useColorScheme();
   const theme = resolvePalette(colorScheme);
@@ -27,7 +29,8 @@ const RideViewMoreScreen = () => {
     (async () => {
       try {
         setLoading(true);
-        const rides = await getCurrentUserRides();
+        // Includes rides saved on the device that haven't been uploaded yet
+        const rides = await getRides();
         const r = rides.find(x => x.startTime === startTime) || null;
         setRide(r);
       } catch (error) {
@@ -59,7 +62,7 @@ const RideViewMoreScreen = () => {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.brandPrimary} />
           <Text style={[styles.loadingText, { color: theme.onSurfaceVariant }]}>
-            Loading ride from Firebase...
+            Loading ride...
           </Text>
         </View>
       </View>
@@ -111,6 +114,17 @@ const RideViewMoreScreen = () => {
     });
   };
 
+  const handleExportGpx = async () => {
+    setExporting(true);
+    try {
+      await shareRideAsGpx(ride);
+    } catch (e) {
+      Alert.alert('Export failed', e instanceof Error ? e.message : 'Could not export this ride.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const routeLines = primaryPreviewRoutes
     .map((r) => {
       const meters = ride.routeDistances?.[r.id] || 0;
@@ -136,7 +150,20 @@ const RideViewMoreScreen = () => {
             {formatDate(ride.startTime)}
           </Text>
         </View>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity
+          onPress={handleExportGpx}
+          disabled={exporting}
+          style={styles.headerBackBtn}
+          activeOpacity={0.7}
+          accessibilityLabel="Export ride as GPX"
+          accessibilityRole="button"
+        >
+          {exporting ? (
+            <ActivityIndicator size="small" color={theme.onSurface} />
+          ) : (
+            <Feather name="share" size={22} color={theme.onSurface} />
+          )}
+        </TouchableOpacity>
       </View>
 
       <ScrollView 

@@ -323,7 +323,7 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
       // Disabled 3D features to prevent glitches - using standard 2D map
       showsBuildings={false}
       showsIndoors={false}
-      showsPointsOfInterest
+      showsPointsOfInterests
       ref={mapRef}
     >
       {/* Static preview routes (A-C) */}

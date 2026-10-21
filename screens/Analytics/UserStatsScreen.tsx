@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   modalContent: {
     borderRadius: 16,

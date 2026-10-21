@@ -6,7 +6,7 @@ The **SBHRA Mobile Application** was developed for the **Sardinia Bay
 Horse Riders Association (SBHRA)** to streamline trail usage
 documentation, animal sighting reports, and rider safety tracking.
 
-Built with **React Native**, **Firebase**, and **Google Maps API**, the
+Built with **Expo / React Native**, **Firebase**, and **Google Maps**, the
 app ensures accurate, real-time data collection to meet compliance
 requirements and enhance the rider experience.
 
@@ -17,7 +17,10 @@ requirements and enhance the rider experience.
 -   **Horse Management**: Track individual horse profiles, ride stats,
     and achievements.\
 -   **GPS Trail Tracking**: Real-time ride tracking with official trail
-    identification.\
+    identification. Rides are saved on the device first and uploaded
+    when there is signal, so a ride recorded offline is not lost.\
+-   **GPX Export**: Share any ride as a `.gpx` file from the ride details
+    screen (Strava, Garmin Connect, Google Earth, QGIS).\
 -   **Obstacle & Trail Updates**: Riders can log trail issues or
     obstructions.\
 -   **SOS Alert System**: Emergency alerts with live location sharing.\
@@ -32,11 +35,10 @@ requirements and enhance the rider experience.
 
 ## Technology Stack
 
--   **Frontend**: React Native (cross-platform: iOS + Android)\
--   **Backend**: Firebase (Firestore, Authentication, Functions,
-    Storage)\
--   **Mapping & GPS**: Google Maps API\
--   **Notifications**: Firebase Cloud Messaging
+-   **App**: Expo (SDK 58) / React Native, TypeScript, React Navigation
+-   **Backend**: Firebase (Authentication, Firestore, Cloud Messaging)
+-   **Mapping & GPS**: react-native-maps (Google Maps), expo-location,
+    expo-task-manager for background tracking
 
 ------------------------------------------------------------------------
 
@@ -44,42 +46,55 @@ requirements and enhance the rider experience.
 
 ### Prerequisites
 
--   Node.js (\>=16)
--   React Native CLI
--   Firebase project & credentials
--   Google Maps API key
+-   Node.js 22 or newer (see `.nvmrc`)
+-   A Firebase project with Authentication (email/password) and
+    Firestore enabled
+-   A Google Maps API key (Maps SDK for Android, and iOS if needed)
+-   For Android push notifications: the Firebase `google-services.json`
+-   Android Studio and/or Xcode if you build locally; otherwise an
+    [Expo](https://expo.dev) account for EAS cloud builds
+
+The app uses background location and other native modules that Expo
+Go does not include, so run it as a **development build**, not in Expo Go.
 
 ### Steps
 
-1.  Clone the repository:
+1.  Clone the repository and install dependencies:
 
     ``` bash
-    git clone https://github.com/strata/sbhra-app.git
-    cd sbhra-app
-    ```
-
-2.  Install dependencies:
-
-    ``` bash
+    git clone https://github.com/CalebLouwskitter/WIL_App.git
+    cd WIL_App
     npm install
     ```
 
-3.  Configure Firebase:
-
-    -   Add your Firebase config to `firebaseConfig.js`
-    -   Enable Firestore, Authentication, and Storage in your Firebase
-        Console.
-
-4.  Add Google Maps API Key:
-
-    -   Insert your key into `app.json` under
-        `android.config.googleMaps.apiKey`.
-
-5.  Run the app:
+2.  Configure environment variables. Copy `.env_default` to `.env` and
+    fill in the Firebase web config and Google Maps keys.
+    `app.config.ts` reads them and passes them to the app. Check them with:
 
     ``` bash
-    npx react-native run-android
-    npx react-native run-ios
+    npm run check-firebase
+    ```
+
+3.  For Android push notifications, place `google-services.json` in the
+    project root (it is git-ignored). EAS builds can instead read it from
+    the `GOOGLE_SERVICES_JSON` environment variable.
+
+4.  Build and run a development build on a device or emulator:
+
+    ``` bash
+    npx expo run:android
+    npx expo run:ios
+    ```
+
+    Or build in the cloud with EAS (`npx eas-cli build --profile preview
+    --platform android`). Once a dev build is installed, `npm start`
+    serves the JavaScript.
+
+5.  Checks:
+
+    ``` bash
+    npm run typecheck
+    npm test
     ```
 
 ------------------------------------------------------------------------

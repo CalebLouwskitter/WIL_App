@@ -4,12 +4,15 @@
     "strict": true,
     "jsx": "react-native",
     "esModuleInterop": true,
-    "baseUrl": "./",
     "paths": {
-      "@/*": ["*"],
-      "@expo/vector-icons": ["./node_modules/expo/node_modules/@expo/vector-icons"]
+      "@/*": [
+        "./*"
+      ]
     },
-    "typeRoots": ["./types", "./node_modules/@types"],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "types": [
+      "node",
+      "jest"
+    ]
   }
 }

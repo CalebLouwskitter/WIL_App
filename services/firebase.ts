@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { initializeAuth, getReactNativePersistence, type Auth } from "firebase/auth";   
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { initializeFirestore, getFirestore, type Firestore } from "firebase/firestore";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
@@ -62,9 +62,16 @@ try {
       }
     }
     
-    // Note: Firestore initialization is handled in FirebaseFirestoreService.ts
-    // for React Native specific configuration (long polling)
-    firestoreInstance = getFirestore(appInstance);
+    // Firestore must be initialised here, before anything calls getFirestore(),
+    // or the React Native long-polling settings are silently ignored.
+    try {
+      firestoreInstance = initializeFirestore(appInstance, {
+        experimentalForceLongPolling: true,
+      });
+    } catch {
+      // Already initialised (fast refresh)
+      firestoreInstance = getFirestore(appInstance);
+    }
     
   } else if (__DEV__) {
     // Only spam in dev

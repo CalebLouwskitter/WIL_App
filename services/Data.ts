@@ -13,7 +13,6 @@ import {
 	where as fsWhere,
 	orderBy as fsOrderBy,
 	limit as fsLimit,
-	writeBatch,
 	runTransaction,
 	deleteDoc,
 	type QueryDocumentSnapshot,
@@ -661,13 +660,14 @@ export async function listDocs<T>(
 export async function saveRideAndUpdateAggregates(ride: RideDTO) {
 	if (!FIREBASE_ENABLED || !app) return ride;
 	const db = getFirestore(app);
-	const batch = writeBatch(db);
 	const rideRef = doc(collection(db, COLLECTIONS.rides), ride.id).withConverter(rideConverter);
-	batch.set(rideRef, ride, { merge: false });
-
 	const profRef = doc(collection(db, COLLECTIONS.users), ride.userId).withConverter(userProfileConverter);
 	const achievementsToAward: { id: string; meta?: Record<string, any> }[] = [];
-	await runTransaction(db, async (tx) => {
+	// The ride and the profile totals are written in one transaction, and a ride
+	// that already exists is skipped, so the offline sync queue can safely retry.
+	const alreadySaved = await runTransaction(db, async (tx) => {
+		const rideSnap = await tx.get(rideRef);
+		if (rideSnap.exists()) return true;
 		const profSnap = await tx.get(profRef);
 		let profile = profSnap.exists() ? profSnap.data() : newUserProfile({ uid: ride.userId });
 		const prevTotalRides = profile.totalRides;
@@ -677,6 +677,7 @@ export async function saveRideAndUpdateAggregates(ride: RideDTO) {
 		profile.totalDurationMs += ride.duration;
 		profile.points = profile.totalRides * 10 + Math.round(profile.totalDistanceM / 1000);
 		profile.updatedAt = Date.now();
+		tx.set(rideRef, ride, { merge: false });
 		tx.set(profRef, profile, { merge: true });
 		if (prevTotalRides === 0 && profile.totalRides >= 1) {
 			achievementsToAward.push({ id: 'first-ride', meta: { rideId: ride.id, startTime: ride.startTime } });
@@ -685,7 +686,9 @@ export async function saveRideAndUpdateAggregates(ride: RideDTO) {
 		if (prevTotalDistanceM < hundredKm && profile.totalDistanceM >= hundredKm) {
 			achievementsToAward.push({ id: 'distance-100', meta: { totalDistanceM: profile.totalDistanceM } });
 		}
+		return false;
 	});
+	if (alreadySaved) return ride;
 
 	const rideDurationGoal = 4 * 60 * 60 * 1000;
 	if (ride.duration >= rideDurationGoal) {
@@ -695,8 +698,6 @@ export async function saveRideAndUpdateAggregates(ride: RideDTO) {
 	if (rideStartHour < 6) {
 		achievementsToAward.push({ id: 'early-bird', meta: { rideId: ride.id, startTime: ride.startTime } });
 	}
-
-	await batch.commit();
 
 	if (achievementsToAward.length > 0) {
 		await Promise.all(achievementsToAward.map((ach) => awardAchievement(ride.userId, ach.id, ach.meta)));

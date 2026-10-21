@@ -26,6 +26,8 @@ export type TrailProximity = {
 };
 
 export type RideData = {
+  id?: string; // stable ride id, assigned when the ride is saved
+  pendingSync?: boolean; // saved on the device but not yet uploaded
   startTime: number;
   path: RidePoint[];
   snappedPath?: RidePoint[];
