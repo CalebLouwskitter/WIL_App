@@ -17,7 +17,10 @@ requirements and enhance the rider experience.
 -   **Horse Management**: Track individual horse profiles, ride stats,
     and achievements.\
 -   **GPS Trail Tracking**: Real-time ride tracking with official trail
-    identification.\
+    identification. Rides are saved on the device first and uploaded
+    when there is signal, so a ride recorded offline is not lost.\
+-   **GPX Export**: Share any ride as a `.gpx` file from the ride details
+    screen (Strava, Garmin Connect, Google Earth, QGIS).\
 -   **Obstacle & Trail Updates**: Riders can log trail issues or
     obstructions.\
 -   **SOS Alert System**: Emergency alerts with live location sharing.\
