@@ -21,6 +21,49 @@ export type Obstacle = {
   updatedAt: number;
 };
 
+/**
+ * Where the hazard feed stands. Only `live` means the data came from the server;
+ * `cached` is Firestore's offline cache, `unavailable` means Firebase is not configured
+ * and `error` means the read or subscription failed.
+ */
+export type ObstacleFeedStatus = 'unavailable' | 'connecting' | 'live' | 'cached' | 'error';
+
+export type ObstacleFetchResult = {
+  obstacles: Obstacle[];
+  status: Exclude<ObstacleFeedStatus, 'connecting'>;
+  fetchedAt: number;
+};
+
+/** How long to wait for the server to acknowledge a report before calling it "not published". */
+const PUBLISH_TIMEOUT_MS = 10_000;
+
+const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timed out')), ms);
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); }
+    );
+  });
+
+const toObstacle = (o: ObstacleDTO): Obstacle => ({
+  id: o.id,
+  userId: o.userId,
+  userName: o.userName,
+  type: o.type,
+  severity: o.severity,
+  status: o.status,
+  title: o.title,
+  description: o.description,
+  location: o.location,
+  photoUrl: o.photoUrl,
+  reportedAt: o.reportedAt,
+  resolvedAt: o.resolvedAt,
+  verifiedBy: o.verifiedBy || [],
+  createdAt: o.createdAt,
+  updatedAt: o.updatedAt,
+});
+
 const storageKey = (uid?: string) => `OBSTACLES_${uid || 'local'}`;
 const globalStorageKey = 'OBSTACLES_GLOBAL';
 
@@ -45,9 +88,13 @@ async function getUserDisplayName(uid: string): Promise<string | undefined> {
 }
 
 /**
- * Save a new obstacle report
+ * Save a new obstacle report on this device and try to publish it to Firestore.
+ * `published` is true only when the server acknowledged the write; otherwise the
+ * report exists on this device only and other riders cannot see it yet.
  */
-export async function saveObstacle(obstacle: Omit<Obstacle, 'id' | 'createdAt' | 'updatedAt' | 'reportedAt' | 'userId' | 'userName' | 'verifiedBy'>) {
+export async function saveObstacle(
+  obstacle: Omit<Obstacle, 'id' | 'createdAt' | 'updatedAt' | 'reportedAt' | 'userId' | 'userName' | 'verifiedBy'>
+): Promise<Obstacle & { published: boolean }> {
   const uid = FIREBASE_ENABLED ? auth?.currentUser?.uid : undefined;
   const key = storageKey(uid);
   const existing = await AsyncStorage.getItem(key);
@@ -72,6 +119,7 @@ export async function saveObstacle(obstacle: Omit<Obstacle, 'id' | 'createdAt' |
   await AsyncStorage.setItem(key, JSON.stringify(list));
 
   // Also persist to Firestore global collection when enabled and signed in
+  let published = false;
   try {
     if (FIREBASE_ENABLED && app && auth?.currentUser?.uid) {
       console.log('[ObstacleService] Saving obstacle to Firestore:', newObstacleObj.id);
@@ -92,95 +140,88 @@ export async function saveObstacle(obstacle: Omit<Obstacle, 'id' | 'createdAt' |
         updatedAt: newObstacleObj.updatedAt,
       });
       const ref = doc(collection(db, COLLECTIONS.obstacles), dto.id).withConverter(Converters?.obstacle as any);
-      await setDoc(ref, dto as any, { merge: false });
+      // setDoc only settles once the server answers, so an offline write would hang the form.
+      await withTimeout(setDoc(ref, dto as any, { merge: false }), PUBLISH_TIMEOUT_MS);
+      published = true;
       console.log('[ObstacleService] Successfully saved obstacle to Firestore');
     }
   } catch (e) {
     console.warn('[ObstacleService] Failed to save obstacle to Firestore:', e);
   }
-  
-  return newObstacleObj;
+
+  return { ...newObstacleObj, published };
+}
+
+/**
+ * Get obstacles together with how trustworthy the read is. A local-storage fallback
+ * (Firebase off, or the server read failed) is reported as `unavailable` / `error`
+ * so callers never present it as a checked, up-to-date feed.
+ */
+export async function fetchObstacles(filters?: { status?: ObstacleStatus; limit?: number }): Promise<ObstacleFetchResult> {
+  const uid = FIREBASE_ENABLED ? auth?.currentUser?.uid : undefined;
+  let status: ObstacleFetchResult['status'] = 'unavailable';
+
+  // Prefer Firestore when available (global collection)
+  if (FIREBASE_ENABLED && app) {
+    try {
+      const db = getFirestore(app as any);
+      const obstaclesCol = collection(db, COLLECTIONS.obstacles).withConverter(Converters?.obstacle as any);
+
+      let q = query(obstaclesCol, fsOrderBy('createdAt', 'desc'));
+
+      if (filters?.status) {
+        q = query(q, fsWhere('status', '==', filters.status));
+      }
+
+      if (filters?.limit) {
+        q = query(q, fsLimit(filters.limit));
+      }
+
+      const snap = await getDocs(q);
+      const obstacles: Obstacle[] = snap.docs.map(d => toObstacle(d.data() as ObstacleDTO));
+      return { obstacles, status: snap.metadata?.fromCache ? 'cached' : 'live', fetchedAt: Date.now() };
+    } catch (e) {
+      console.warn('Failed to load obstacles from Firestore, falling back to local:', e);
+      status = 'error';
+    }
+  }
+
+  // Local fallback - merge user's own obstacles with global cache
+  const key = storageKey(uid);
+  const globalKey = globalStorageKey;
+
+  const [userObstacles, globalObstacles] = await Promise.all([
+    AsyncStorage.getItem(key),
+    AsyncStorage.getItem(globalKey),
+  ]);
+
+  const userList: Obstacle[] = userObstacles ? JSON.parse(userObstacles) : [];
+  const globalList: Obstacle[] = globalObstacles ? JSON.parse(globalObstacles) : [];
+
+  // Merge and deduplicate
+  const mergedMap = new Map<string, Obstacle>();
+  [...globalList, ...userList].forEach(o => mergedMap.set(o.id, o));
+
+  let list = Array.from(mergedMap.values());
+
+  if (filters?.status) {
+    list = list.filter(o => o.status === filters.status);
+  }
+
+  list = list.sort((a, b) => b.createdAt - a.createdAt);
+
+  if (filters?.limit) {
+    list = list.slice(0, filters.limit);
+  }
+
+  return { obstacles: list, status, fetchedAt: Date.now() };
 }
 
 /**
  * Get all obstacles (global - visible to all users)
  */
 export async function getObstacles(filters?: { status?: ObstacleStatus; limit?: number }) {
-  const uid = FIREBASE_ENABLED ? auth?.currentUser?.uid : undefined;
-  
-  // Prefer Firestore when available (global collection)
-  if (FIREBASE_ENABLED && app) {
-    try {
-      const db = getFirestore(app as any);
-      const obstaclesCol = collection(db, COLLECTIONS.obstacles).withConverter(Converters?.obstacle as any);
-      
-      let q = query(obstaclesCol, fsOrderBy('createdAt', 'desc'));
-      
-      if (filters?.status) {
-        q = query(q, fsWhere('status', '==', filters.status));
-      }
-      
-      if (filters?.limit) {
-        q = query(q, fsLimit(filters.limit));
-      }
-      
-      const snap = await getDocs(q);
-      const obstacles: Obstacle[] = snap.docs.map(d => {
-        const o = d.data() as ObstacleDTO;
-        return {
-          id: o.id,
-          userId: o.userId,
-          userName: o.userName,
-          type: o.type,
-          severity: o.severity,
-          status: o.status,
-          title: o.title,
-          description: o.description,
-          location: o.location,
-          photoUrl: o.photoUrl,
-          reportedAt: o.reportedAt,
-          resolvedAt: o.resolvedAt,
-          verifiedBy: o.verifiedBy || [],
-          createdAt: o.createdAt,
-          updatedAt: o.updatedAt,
-        } as Obstacle;
-      });
-      
-      return obstacles;
-    } catch (e) {
-      console.warn('Failed to load obstacles from Firestore, falling back to local:', e);
-    }
-  }
-  
-  // Local fallback - merge user's own obstacles with global cache
-  const key = storageKey(uid);
-  const globalKey = globalStorageKey;
-  
-  const [userObstacles, globalObstacles] = await Promise.all([
-    AsyncStorage.getItem(key),
-    AsyncStorage.getItem(globalKey),
-  ]);
-  
-  const userList: Obstacle[] = userObstacles ? JSON.parse(userObstacles) : [];
-  const globalList: Obstacle[] = globalObstacles ? JSON.parse(globalObstacles) : [];
-  
-  // Merge and deduplicate
-  const mergedMap = new Map<string, Obstacle>();
-  [...globalList, ...userList].forEach(o => mergedMap.set(o.id, o));
-  
-  let list = Array.from(mergedMap.values());
-  
-  if (filters?.status) {
-    list = list.filter(o => o.status === filters.status);
-  }
-  
-  list = list.sort((a, b) => b.createdAt - a.createdAt);
-  
-  if (filters?.limit) {
-    list = list.slice(0, filters.limit);
-  }
-  
-  return list;
+  return (await fetchObstacles(filters)).obstacles;
 }
 
 /**
@@ -344,52 +385,42 @@ export async function getMyObstacles() {
 }
 
 /**
- * Subscribe to real-time obstacle updates
- * Returns an unsubscribe function
+ * Subscribe to real-time obstacle updates.
+ * `onStatus` reports whether the data is really live: `connecting` until the first
+ * snapshot, then `live` (server data) or `cached` (offline cache), `unavailable` when
+ * Firebase is not configured, and `error` when the listener fails (the one-shot fetch
+ * fallback still runs so the callback receives whatever is stored on the device).
+ * Returns an unsubscribe function.
  */
 export function subscribeToObstacles(
   callback: (obstacles: Obstacle[]) => void,
-  filters?: { status?: ObstacleStatus }
+  filters?: { status?: ObstacleStatus },
+  onStatus?: (status: ObstacleFeedStatus) => void
 ): () => void {
   if (!FIREBASE_ENABLED || !app) {
     console.warn('Real-time subscriptions require Firebase');
+    onStatus?.('unavailable');
     return () => {}; // Return empty unsubscribe function
   }
 
+  onStatus?.('connecting');
+
   const db = getFirestore(app as any);
   const obstaclesCol = collection(db, COLLECTIONS.obstacles).withConverter(Converters?.obstacle as any);
-  
+
   let q = query(obstaclesCol, fsOrderBy('createdAt', 'desc'));
-  
+
   if (filters?.status) {
     q = query(q, fsWhere('status', '==', filters.status));
   }
 
-  const unsubscribe = onSnapshot(q, (snapshot) => {
-    const obstacles: Obstacle[] = snapshot.docs.map(d => {
-      const o = d.data() as ObstacleDTO;
-      return {
-        id: o.id,
-        userId: o.userId,
-        userName: o.userName,
-        type: o.type,
-        severity: o.severity,
-        status: o.status,
-        title: o.title,
-        description: o.description,
-        location: o.location,
-        photoUrl: o.photoUrl,
-        reportedAt: o.reportedAt,
-        resolvedAt: o.resolvedAt,
-        verifiedBy: o.verifiedBy || [],
-        createdAt: o.createdAt,
-        updatedAt: o.updatedAt,
-      } as Obstacle;
-    });
-    
-    callback(obstacles);
+  // includeMetadataChanges so a cached snapshot is followed by another once the server answers
+  const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+    onStatus?.(snapshot.metadata.fromCache ? 'cached' : 'live');
+    callback(snapshot.docs.map(d => toObstacle(d.data() as ObstacleDTO)));
   }, (error) => {
     console.warn('[ObstacleService] Real-time subscription error:', error);
+    onStatus?.('error');
     // Fallback to manual fetch on error
     getObstacles(filters).then(callback).catch(err => {
       console.warn('[ObstacleService] Fallback fetch failed:', err);
