@@ -16,6 +16,15 @@ npm run test:emulator
 This starts the auth, firestore and storage emulators for `demo-sbhra` (ports in `firebase.json`: auth 9099, firestore 8080, storage 9199), runs `jest -c jest.emulator.config.js` over `__emulator__/`, then shuts them down. The normal `npm test` (jest-expo) ignores `__emulator__/` and needs no emulator.
 
 - `__emulator__/rules.test.ts` covers the authorization matrix for unauthenticated, pending, approved member, admin and other-user actors.
+- `__emulator__/data.test.ts` runs the real `services/Data.ts` and `FirebaseUserService.ts` code as a signed-in emulator client, subject to the rules. It covers aggregate rebuild preserving identity, ride upload with a failed award followed by a retry, missing-profile creation, profile reads that never write, and the seed script.
+
+## Seeding the emulator
+
+```bash
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npm run seed:emulator
+```
+
+`scripts/seedEmulator.ts` refuses to run unless `FIRESTORE_EMULATOR_HOST` is set, and it always targets `demo-sbhra`. It writes four synthetic profiles (`seed-admin`, `seed-member`, `seed-pending`, `seed-legacy`; Firestore documents only, with no Auth accounts) and then runs `seedUsersRbac`, which fills in a missing `role` as `member` and a missing `status` as `pending`, never `approved`. The app itself no longer runs any seeding at launch. On Windows PowerShell, set the variable first with `$env:FIRESTORE_EMULATOR_HOST="127.0.0.1:8080"`.
 
 ## Running the app against the emulators
 
@@ -34,7 +43,7 @@ Emulator mode only works in development builds (`__DEV__`). It ignores the `FIRE
 
 No code path promotes a user to admin or approves a user automatically. The rules only let an existing admin change `role` or `status`, and a new user can only create a `role: 'member'`, `status: 'pending'` profile. The first admin has to be set up outside the app:
 
-- **Emulator:** sign up in the app (this creates `users/{uid}` as a pending member). Then open the Emulator UI → Firestore → `users/{uid}` and set `role` to `admin` and `status` to `approved`. The Emulator UI bypasses the rules.
+- **Emulator:** sign up in the app (this creates `users/{uid}` as a pending member), copy the uid from the Emulator UI's Authentication tab, then run `SEED_ADMIN_UID=<uid> npm run seed:emulator` (with `FIRESTORE_EMULATOR_HOST` set as above). Editing `users/{uid}` in the Emulator UI also works, since the UI bypasses the rules.
 - **New Firebase project (owner step):** sign up in the app with the owner account, then in the Firebase console → Firestore → `users/{uid}` set `role: "admin"` and `status: "approved"`. The console bypasses the rules. Every later approval and promotion happens in the app's admin screens.
 
 ## What these checks do NOT prove
@@ -59,4 +68,5 @@ The following are open owner decisions that the rules currently resolve one way:
 
 - **Rides are readable by any approved user,** because the community trail-stats screen reads all rides. Ride paths are location history, so decide whether that is acceptable or whether global stats should come from a trusted aggregate.
 - **Exact SOS and presence locations are readable by any approved user,** which matches the current dashboard and online-users screens.
-- **Awards are written by the client** under deterministic `{uid}_{achievementId}` ids and are write-once. A user could still award themselves directly. Move awards to a trusted function if that matters.
+- **Awards are written by the client** under deterministic `{uid}_{achievementId}` ids and are write-once. After a ride upload, and again on every retry of an already-saved ride, `saveRideAndUpdateAggregates` reconciles awards from the stored totals, so a failed award write is filled in on the next sync. A user could still award themselves directly. Move awards to a trusted function if that matters.
+- **`recalcUserAggregates` is admin-only** under these rules, because it changes totals without a new ride. It writes only the aggregate fields and `updatedAt`, and it does not create a missing profile.
