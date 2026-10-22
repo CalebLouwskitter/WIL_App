@@ -358,6 +358,18 @@ describe('notifications', () => {
     await assertFails(setDoc(doc(collection(as(PENDING), 'notifications'), 'pending'), report({ createdBy: PENDING })));
   });
 
+  it('lets the creator mark their notification queued once, with server time only', async () => {
+    const { sentAt: _sentAt, ...unqueued } = report();
+    const mine = doc(as(MEMBER), 'notifications', 'to-queue');
+    await assertSucceeds(setDoc(mine, unqueued));
+    await assertFails(updateDoc(mine, { queuedAt: 5 }));
+    await assertFails(updateDoc(mine, { queuedAt: serverTimestamp(), title: 'changed' }));
+    await assertFails(updateDoc(doc(as(OTHER), 'notifications', 'to-queue'), { queuedAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(mine, { queuedAt: serverTimestamp() }));
+    await assertFails(updateDoc(mine, { queuedAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(doc(as(ADMIN), 'notifications', 'to-queue'), { title: 'edited', updatedAt: serverTimestamp() }));
+  });
+
   it('lets admins author anything and members read by audience', async () => {
     await assertSucceeds(
       setDoc(doc(as(ADMIN), 'notifications', 'news'), { type: 'event', title: 't', body: 'b', audience: 'all', createdBy: ADMIN, createdAt: serverTimestamp() })

@@ -239,12 +239,24 @@ service cloud.firestore {
         && get(obstaclePath).data.userId == request.auth.uid;
     }
 
+    // FirebaseNotificationService queuePushRequest: after the push request is
+    // stored, the notification's creator marks it queued, once, with server time.
+    function isCreatorMarkingQueued() {
+      return signedIn()
+        && resource.data.createdBy == request.auth.uid
+        && !('queuedAt' in resource.data)
+        && changedKeys().hasOnly(['queuedAt', 'updatedAt'])
+        && incoming().queuedAt == request.time
+        && serverTimeIfPresent(incoming(), 'updatedAt');
+    }
+
     match /notifications/{notificationId} {
       allow read: if isAdmin()
         || (isApproved() && resource.data.audience in ['users', 'all']);
       allow create: if (isAdmin() && incoming().keys().hasOnly(notificationKeys()))
         || (isApproved() && isObstacleReportNotification());
-      allow update: if isAdmin() && incoming().keys().hasOnly(notificationKeys());
+      allow update: if (isAdmin() && incoming().keys().hasOnly(notificationKeys()))
+        || isCreatorMarkingQueued();
       allow delete: if isAdmin();
     }
 
