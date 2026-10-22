@@ -41,3 +41,9 @@ export const mapAnalytics = <A, B>(
       return analyticsError(result.error, data);
   }
 };
+
+/** The first non-'ok' result (errors before unavailable), or null when every read succeeded. */
+export const firstProblem = (
+  results: ReadonlyArray<AnalyticsResult<unknown>>,
+): AnalyticsResult<unknown> | null =>
+  results.find((r) => r.status === 'error') ?? results.find((r) => r.status === 'unavailable') ?? null;

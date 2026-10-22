@@ -9,6 +9,7 @@ import {
   type UserRideStats,
   type GlobalTrailUsage
 } from './GlobalAnalyticsService';
+import { firstProblem } from './analyticsResult';
 
 export interface GlobalAnalyticsExport {
   exportDate: string;
@@ -39,6 +40,10 @@ export const fetchGlobalAnalyticsForExport = async (): Promise<GlobalAnalyticsEx
     getUserRideStats(),
     getGlobalTrailUsage(),
   ]);
+  if (firstProblem([globalStatsResult, userStatsResult, trailUsageResult])) {
+    // Never export zeros that only mean "could not read".
+    throw new Error('Analytics are unavailable, so there is nothing to export.');
+  }
   const globalStats = globalStatsResult.data;
   const userStats = userStatsResult.data;
   const trailUsage = trailUsageResult.data;
