@@ -13,12 +13,14 @@ import ObservationsScreen from '../screens/Profile/ObservationsScreen';
 import AdminNotificationManagement from '../screens/Profile/AdminNotificationManagement';
 import AdminObstacleManagement from '../screens/Profile/AdminObstacleManagement';
 import AdminSosManagement from '../screens/Profile/AdminSosManagement';
-
 import RideViewMoreScreen from '../screens/Analytics/RideViewMoreScreen';
 import HistoryScreen from '../screens/Profile/HistoryScreen';
 import UserNotificationsScreen from '../screens/Profile/UserNotificationsScreen';
+import type { ProfileStackParamList } from './types';
 
-const Stack = createStackNavigator();
+export type { ProfileStackParamList };
+
+const Stack = createStackNavigator<ProfileStackParamList>();
 
 const ProfileStack = () => {
   return (
@@ -40,22 +42,6 @@ const ProfileStack = () => {
       {/* Add more profile screens as needed */}
     </Stack.Navigator>
   );
-};
-export type ProfileStackParamList = {
-  ProfileMain: undefined;              // no params
-  PersonalStats: undefined;            // no params
-  AchievementsScreen: undefined;      // no params or define params if any
-  Settings: undefined;                 // settings screen
-  CreateHorse: undefined;
-  HorsesList: undefined;
-  AdminManagement: undefined;
-  AdminNotificationManagement: undefined;
-  AdminObstacleManagement: undefined;
-  AdminSosManagement: undefined;
-  Notifications: undefined;
-  Observations: undefined;
-  RideHistory: undefined;
-  RideDetail: { startTime: number };
 };
 
 export default ProfileStack;

@@ -16,8 +16,9 @@ import SosAlertScreen from '../screens/Sos/SosAlertScreen';
 import AnalyticsStack from './AnalyticsStack';
 
 import { Colors } from '../constants/colors';
+import type { TabParamList } from './types';
 
-const Tab = createBottomTabNavigator();
+const Tab = createBottomTabNavigator<TabParamList>();
 
 const CustomTabBarButton = ({ children, onPress }: { children: ReactNode; onPress?: (e: any) => void }) => (
   <TouchableOpacity style={styles.sosButtonWrapper} onPress={onPress} activeOpacity={0.9}>
