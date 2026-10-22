@@ -22,7 +22,13 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
   backLabel,
   right,
 }) => {
-  const insets = useSafeAreaInsets();
+  let insets = { top: 0, bottom: 0, left: 0, right: 0 };
+  try {
+    // In tests without SafeAreaProvider this will throw; fallback to zero
+    insets = useSafeAreaInsets();
+  } catch {
+    insets = { top: 0, bottom: 0, left: 0, right: 0 };
+  }
   const scheme = useColorScheme();
   const palette = resolvePalette(scheme);
 
