@@ -250,13 +250,18 @@ export const getRides = async (): Promise<RideData[]> => {
         .sort(byNewest);
     }
   }
-  return local.map(toRideData).sort(byNewest);
+  // Signed out: only rides recorded signed out, never another account's.
+  return local
+    .filter((r) => r.userId === null)
+    .map(toRideData)
+    .sort(byNewest);
 };
 
 /** Number of rides on this device still waiting to be uploaded. */
 export const getPendingRideCount = async (): Promise<number> => {
   const uid = currentUid();
-  return (await readStored()).filter((r) => r.syncState === 'pending' && (!uid || r.userId === uid)).length;
+  if (!uid) return 0;
+  return (await readStored()).filter((r) => r.syncState === 'pending' && r.userId === uid).length;
 };
 
 /**
