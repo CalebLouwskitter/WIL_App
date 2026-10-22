@@ -34,6 +34,7 @@ export type MappingStackParamList = {
 export type AnalyticsStackParamList = {
   Stats: undefined;
   DetailedStats: { fromDashboard?: boolean } | undefined;
+  PersonalStats: { fromDashboard?: boolean } | undefined;
   RideHistory: { fromDashboard?: boolean } | undefined;
   RideDetail: { startTime: number };
   TrailStats: undefined;

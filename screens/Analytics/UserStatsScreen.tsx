@@ -260,7 +260,7 @@ const UserStatsScreen = () => {
           <TouchableOpacity
             style={[styles.actionCard, { backgroundColor: theme.surface }]}
             activeOpacity={0.8}
-            onPress={() => navigation.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('ProfileStack', { screen: 'PersonalStats' })}
+            onPress={() => navigation.navigate('PersonalStats')}
           >
             <LinearGradient
               colors={['#F59E0B11', '#F59E0B05']}
