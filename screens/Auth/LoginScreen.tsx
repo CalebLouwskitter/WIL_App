@@ -15,7 +15,7 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
   const [loading, setLoading] = useState(false);
 
   const scheme = useColorScheme();
-  const palette = Colors[scheme ?? 'light'];
+  const palette = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
   const handleLogin = async () => {
     if (!email || !password) {

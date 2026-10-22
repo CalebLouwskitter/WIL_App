@@ -14,6 +14,7 @@ import {
 	orderBy as fsOrderBy,
 	limit as fsLimit,
 	runTransaction,
+	updateDoc,
 	deleteDoc,
 	type QueryDocumentSnapshot,
 	type FirestoreDataConverter,
@@ -49,18 +50,9 @@ export async function getOrCreateUserProfile(user: User): Promise<UserProfile> {
 	const userSnap = await getDoc(userRef);
 
 	if (userSnap.exists()) {
-		const data = userSnap.data();
-		if (!data.role || !data.status) {
-			const patched: UserProfile = {
-				...data,
-				role: data.role ?? 'member',
-				status: data.status ?? 'approved',
-				updatedAt: Date.now(),
-			};
-			await setDoc(userRef, patched);
-			return patched;
-		}
-		return data;
+		// Never patched from the client: the converter reads a missing role/status
+		// as member/pending, and only an admin can change either (firestore.rules).
+		return userSnap.data();
 	} else {
 		const newUserProfile: UserProfile = {
 			uid: user.uid,
@@ -103,6 +95,9 @@ export interface UserProfile {
 	totalDistanceM: number; // meters
 	totalDurationMs: number;
 	points: number;         // gamified points (rides*10 + km, etc.)
+	// Id of the ride that last changed the totals. The rules accept a totals
+	// change only together with the creation of this ride (firestore.rules).
+	lastRideId?: string;
 }
 
 // ---------- Ride / Tracking ---------- //
@@ -404,6 +399,7 @@ export const userProfileConverter: FirestoreDataConverter<UserProfile> = {
 			totalDistanceM: data.totalDistanceM || 0,
 			totalDurationMs: data.totalDurationMs || 0,
 			points: data.points || 0,
+			lastRideId: data.lastRideId,
 		};
 	},
 };
@@ -444,13 +440,15 @@ export const achievementConverter: FirestoreDataConverter<AchievementDTO> = {
 	toFirestore: (achievement: AchievementDTO) => {
 		const data = { ...achievement };
 		delete (data as any).id;
-		return data;
+		return stripUndefined(data);
 	},
 	fromFirestore: (snapshot: QueryDocumentSnapshot, options: SnapshotOptions): AchievementDTO => {
 		const data = snapshot.data(options);
+		// Documents are stored as {userId}_{achievementId}; id is the achievement id.
+		const prefix = `${data.userId}_`;
 		return {
 			...data,
-			id: snapshot.id,
+			id: snapshot.id.startsWith(prefix) ? snapshot.id.slice(prefix.length) : snapshot.id,
 		} as AchievementDTO;
 	},
 };
@@ -657,54 +655,75 @@ export async function listDocs<T>(
 // Domain-Specific Helpers
 // --------------------------------------------------------------------------
 
+type AwardCandidate = { id: string; meta?: Record<string, any> };
+
+// Awards follow from the stored totals and the ride itself, so every
+// transaction attempt and every upload retry gives the same answer.
+function awardCandidates(totals: Pick<UserProfile, 'totalRides' | 'totalDistanceM'>, ride: RideDTO): AwardCandidate[] {
+	const candidates: AwardCandidate[] = [];
+	if (totals.totalRides >= 1) {
+		candidates.push({ id: 'first-ride', meta: { rideId: ride.id, startTime: ride.startTime } });
+	}
+	if (totals.totalDistanceM >= 100_000) {
+		candidates.push({ id: 'distance-100', meta: { totalDistanceM: totals.totalDistanceM } });
+	}
+	if (ride.duration >= 4 * 60 * 60 * 1000) {
+		candidates.push({ id: 'trail-marathon', meta: { durationMs: ride.duration, rideId: ride.id } });
+	}
+	if (new Date(ride.startTime).getHours() < 6) {
+		candidates.push({ id: 'early-bird', meta: { rideId: ride.id, startTime: ride.startTime } });
+	}
+	return candidates;
+}
+
 export async function saveRideAndUpdateAggregates(ride: RideDTO) {
 	if (!FIREBASE_ENABLED || !app) return ride;
 	const db = getFirestore(app);
 	const rideRef = doc(collection(db, COLLECTIONS.rides), ride.id).withConverter(rideConverter);
 	const profRef = doc(collection(db, COLLECTIONS.users), ride.userId).withConverter(userProfileConverter);
-	const achievementsToAward: { id: string; meta?: Record<string, any> }[] = [];
+	// Untyped ref so an existing profile gets only the aggregate fields written.
+	const profAggRef = doc(collection(db, COLLECTIONS.users), ride.userId);
 	// The ride and the profile totals are written in one transaction, and a ride
 	// that already exists is skipped, so the offline sync queue can safely retry.
-	const alreadySaved = await runTransaction(db, async (tx) => {
+	// Award candidates are recomputed inside the callback on every attempt.
+	const candidates = await runTransaction(db, async (tx) => {
 		const rideSnap = await tx.get(rideRef);
-		if (rideSnap.exists()) return true;
 		const profSnap = await tx.get(profRef);
-		let profile = profSnap.exists() ? profSnap.data() : newUserProfile({ uid: ride.userId });
-		const prevTotalRides = profile.totalRides;
-		const prevTotalDistanceM = profile.totalDistanceM;
-		profile.totalRides += 1;
-		profile.totalDistanceM += ride.totalDistance;
-		profile.totalDurationMs += ride.duration;
-		profile.points = profile.totalRides * 10 + Math.round(profile.totalDistanceM / 1000);
-		profile.updatedAt = Date.now();
+		if (rideSnap.exists()) {
+			return profSnap.exists() ? awardCandidates(profSnap.data(), ride) : [];
+		}
+		const profile = profSnap.exists() ? profSnap.data() : newUserProfile({ uid: ride.userId });
+		const totalRides = profile.totalRides + 1;
+		const totalDistanceM = profile.totalDistanceM + ride.totalDistance;
+		const aggregates = {
+			totalRides,
+			totalDistanceM,
+			totalDurationMs: profile.totalDurationMs + ride.duration,
+			points: totalRides * 10 + Math.round(totalDistanceM / 1000),
+			lastRideId: ride.id,
+			updatedAt: Date.now(),
+		};
 		tx.set(rideRef, ride, { merge: false });
-		tx.set(profRef, profile, { merge: true });
-		if (prevTotalRides === 0 && profile.totalRides >= 1) {
-			achievementsToAward.push({ id: 'first-ride', meta: { rideId: ride.id, startTime: ride.startTime } });
+		if (profSnap.exists()) {
+			tx.update(profAggRef, aggregates);
+		} else {
+			tx.set(profRef, { ...profile, ...aggregates });
 		}
-		const hundredKm = 100_000;
-		if (prevTotalDistanceM < hundredKm && profile.totalDistanceM >= hundredKm) {
-			achievementsToAward.push({ id: 'distance-100', meta: { totalDistanceM: profile.totalDistanceM } });
-		}
-		return false;
+		return awardCandidates(aggregates, ride);
 	});
-	if (alreadySaved) return ride;
 
-	const rideDurationGoal = 4 * 60 * 60 * 1000;
-	if (ride.duration >= rideDurationGoal) {
-		achievementsToAward.push({ id: 'trail-marathon', meta: { durationMs: ride.duration, rideId: ride.id } });
-	}
-	const rideStartHour = new Date(ride.startTime).getHours();
-	if (rideStartHour < 6) {
-		achievementsToAward.push({ id: 'early-bird', meta: { rideId: ride.id, startTime: ride.startTime } });
-	}
-
-	if (achievementsToAward.length > 0) {
-		await Promise.all(achievementsToAward.map((ach) => awardAchievement(ride.userId, ach.id, ach.meta)));
-	}
+	// Awards are written after the commit, on the first upload and on every
+	// retry of an already saved ride, so one that failed earlier is filled in.
+	// Award ids are deterministic and awardAchievement skips existing ones. A
+	// failure rejects, which keeps the ride pending in RideStorage for a retry.
+	await Promise.all(candidates.map((c) => awardAchievement(ride.userId, c.id, c.meta)));
 	return ride;
 }
 
+// Rebuilds the ride totals from the rides collection. Writes only the
+// aggregate fields and updatedAt; identity, role, status and createdAt are
+// left alone, and a missing profile is not created. The rules allow this
+// only for admins.
 export async function recalcUserAggregates(userId: string) {
 	if (!FIREBASE_ENABLED || !app) return null;
 	const db = getFirestore(app);
@@ -719,10 +738,15 @@ export async function recalcUserAggregates(userId: string) {
 		totalDistanceM += r.totalDistance;
 		totalDurationMs += r.duration;
 	});
-	const profile = newUserProfile({ uid: userId, totalRides, totalDistanceM, totalDurationMs, points: totalRides * 10 + Math.round(totalDistanceM / 1000) });
-	const ref = doc(collection(db, COLLECTIONS.users), userId).withConverter(userProfileConverter);
-	await setDoc(ref, profile, { merge: true });
-	return profile;
+	const aggregates = {
+		totalRides,
+		totalDistanceM,
+		totalDurationMs,
+		points: totalRides * 10 + Math.round(totalDistanceM / 1000),
+		updatedAt: Date.now(),
+	};
+	await updateDoc(doc(collection(db, COLLECTIONS.users), userId), aggregates);
+	return aggregates;
 }
 
 
@@ -738,7 +762,11 @@ export async function awardAchievement(userId: string, achievementId: string, me
 }
 
 export async function listUserAchievements(userId: string) {
-	return listDocs<AchievementDTO>(COLLECTIONS.achievements, { where: ['userId', '==', userId] });
+	// The converter restores `id` (the achievement id) from the document.
+	return listDocs<AchievementDTO>(COLLECTIONS.achievements, {
+		where: ['userId', '==', userId],
+		converter: achievementConverter,
+	});
 }
 
 export async function setNotificationPrefs(prefs: NotificationPrefDTO) {

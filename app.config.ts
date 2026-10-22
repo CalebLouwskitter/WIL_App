@@ -1,7 +1,8 @@
 import 'dotenv/config';
 import type { ExpoConfig } from 'expo/config';
 import * as fs from 'fs';
-import * as path from 'path';
+// The explicit .ts extension is needed: Expo's config loader does not resolve extensionless TS imports.
+import { resolveGoogleServicesFile } from './config/googleServices.ts';
 
 // This replaces app.json and allows reading keys from .env
 // Expected vars in .env:
@@ -17,15 +18,10 @@ import * as path from 'path';
 const androidMapsApiKey = process.env.GOOGLE_MAPS_API_KEY ?? '';
 const iosMapsApiKey = process.env.IOS_GOOGLE_MAPS_API_KEY ?? process.env.GOOGLE_MAPS_API_KEY ?? '';
 
-// Write google-services.json from environment variable if available (for EAS Build)
-if (process.env.GOOGLE_SERVICES_JSON) {
-  try {
-    const googleServicesPath = path.join(__dirname, 'google-services.json');
-    fs.writeFileSync(googleServicesPath, process.env.GOOGLE_SERVICES_JSON, 'utf8');
-  } catch (error) {
-    console.warn('Failed to write google-services.json from environment variable:', error);
-  }
-}
+// GOOGLE_SERVICES_JSON is either an EAS file secret (a path) or a raw JSON payload,
+// which is written to google-services.json. See docs/firebase/PUSH_CONTRACT.md.
+// (The explicit .ts extension is required: Expo's config loader does not resolve extensionless TS imports.)
+const googleServicesFile = resolveGoogleServicesFile(process.env, fs, __dirname);
 
 const config: ExpoConfig = {
   name: 'SBHRA_App',
@@ -60,7 +56,7 @@ const config: ExpoConfig = {
       backgroundColor: '#ffffff',
     },
     package: 'com.sbhra.app',
-    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
+    googleServicesFile,
     // Google Maps Android SDK key
     config: {
       googleMaps: {
@@ -91,6 +87,9 @@ const config: ExpoConfig = {
     FIREBASE_STORAGE_BUCKET: process.env.FIREBASE_STORAGE_BUCKET ?? '',
     FIREBASE_MESSAGING_SENDER_ID: process.env.FIREBASE_MESSAGING_SENDER_ID ?? '',
     FIREBASE_APP_ID: process.env.FIREBASE_APP_ID ?? '',
+    // Dev-only local emulators (docs/firebase/EMULATOR.md)
+    FIREBASE_USE_EMULATOR: process.env.FIREBASE_USE_EMULATOR ?? 'false',
+    FIREBASE_EMULATOR_HOST: process.env.FIREBASE_EMULATOR_HOST ?? '',
   },
   plugins: [
     [

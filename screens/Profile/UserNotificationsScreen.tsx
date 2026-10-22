@@ -14,52 +14,67 @@ import { useNavigation } from '@react-navigation/native';
 import { Feather as Icon } from '@expo/vector-icons';
 import { getNotificationsForRole, deleteNotification, createTestNotification, markNotificationAsRead } from '../../services/FirebaseNotificationService';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
+import { FIREBASE_ENABLED } from '../../services/firebase';
 import { Notification } from '../../types/Notification';
 import { NotificationList, NotificationItem } from '../../components/Notifications';
 
 export default function UserNotificationsScreen() {
   const navigation = useNavigation();
-  const { profile } = useCurrentUser();
+  const { profile, loading: profileLoading } = useCurrentUser();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadNotifications = async () => {
-    if (!profile) return;
-    
+  // Every path ends in a resolved state: loading, no profile, error, empty or list.
+  const loadNotifications = async (showSpinner = true) => {
+    if (!profile) {
+      setNotifications([]);
+      setLoadError(null);
+      setLoading(false);
+      return;
+    }
+
     try {
-      setLoading(true);
-      console.log('Loading notifications for user:', profile.uid);
+      if (showSpinner) setLoading(true);
+      setLoadError(null);
       // Get notifications for regular users
       const userNotifications = await getNotificationsForRole('member');
-      console.log('Loaded notifications:', userNotifications.length);
       setNotifications(userNotifications);
     } catch (error) {
       console.error('Error loading notifications:', error);
-      Alert.alert('Error', 'Could not load notifications.');
+      setLoadError('Could not load notifications.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (profileLoading) return;
     loadNotifications();
-  }, [profile]);
+  }, [profile, profileLoading]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadNotifications();
-    setRefreshing(false);
+    try {
+      await loadNotifications(false);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleDeleteNotification = async (notification: Notification) => {
     try {
       await deleteNotification(notification.id);
       Alert.alert('Success', 'Notification deleted successfully');
-      await loadNotifications();
+      await loadNotifications(false);
     } catch (error) {
       console.error('Error deleting notification:', error);
-      Alert.alert('Error', 'Failed to delete notification');
+      const denied = (error as any)?.code === 'permission-denied';
+      Alert.alert(
+        denied ? 'Not allowed' : 'Error',
+        denied ? "You don't have permission to delete this notification." : 'Failed to delete notification'
+      );
     }
   };
 
@@ -74,7 +89,7 @@ export default function UserNotificationsScreen() {
     try {
       await createTestNotification(profile.uid);
       Alert.alert('Success', 'Test notification created');
-      await loadNotifications();
+      await loadNotifications(false);
     } catch (error) {
       console.error('Error creating test notification:', error);
       Alert.alert('Error', 'Failed to create test notification');
@@ -86,7 +101,7 @@ export default function UserNotificationsScreen() {
       // Mark notification as read in user's subcollection
       await markNotificationAsRead(notification.id, profile?.uid || '');
       Alert.alert('Success', 'Notification marked as read');
-      await loadNotifications();
+      await loadNotifications(false);
     } catch (error) {
       console.error('Error marking notification as read:', error);
       Alert.alert('Error', 'Failed to mark notification as read');
@@ -103,7 +118,7 @@ export default function UserNotificationsScreen() {
       );
       await Promise.all(markPromises);
       Alert.alert('Success', 'All notifications marked as read');
-      await loadNotifications();
+      await loadNotifications(false);
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
       Alert.alert('Error', 'Failed to mark all notifications as read');
@@ -148,28 +163,68 @@ export default function UserNotificationsScreen() {
     </View>
   );
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
-            accessibilityHint="Navigate back to previous screen"
-            activeOpacity={0.7}
-          >
-            <Icon name="arrow-left" size={22} color="#0F172A" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Notifications</Text>
-          <View style={styles.backButton} />
+  const renderStatePanel = (content: React.ReactNode) => (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+          accessibilityHint="Navigate back to previous screen"
+          activeOpacity={0.7}
+        >
+          <Icon name="arrow-left" size={22} color="#0F172A" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Notifications</Text>
+        <View style={styles.backButton} />
+      </View>
+      <View style={styles.loadingContainer}>{content}</View>
+    </SafeAreaView>
+  );
+
+  if (profileLoading || (loading && profile)) {
+    return renderStatePanel(
+      <>
+        <ActivityIndicator size="large" color="#3B82F6" />
+        <Text style={styles.loadingText}>Loading notifications...</Text>
+      </>
+    );
+  }
+
+  if (!profile) {
+    return renderStatePanel(
+      <>
+        <View style={styles.emptyIconCircle}>
+          <Icon name={FIREBASE_ENABLED ? 'log-in' : 'wifi-off'} size={32} color="#94A3B8" />
         </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Loading notifications...</Text>
+        <Text style={styles.emptyStateTitle}>{FIREBASE_ENABLED ? 'Sign in to see notifications' : 'Not connected'}</Text>
+        <Text style={styles.emptyStateText}>
+          {FIREBASE_ENABLED
+            ? 'Notifications are tied to your SBHRA account.'
+            : 'Notifications need a connection to SBHRA servers.'}
+        </Text>
+      </>
+    );
+  }
+
+  if (loadError && notifications.length === 0) {
+    return renderStatePanel(
+      <>
+        <View style={styles.emptyIconCircle}>
+          <Icon name="alert-circle" size={32} color="#F59E0B" />
         </View>
-      </SafeAreaView>
+        <Text style={styles.emptyStateTitle}>{loadError}</Text>
+        <Text style={styles.emptyStateText}>Check your connection and try again.</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => loadNotifications()}
+          accessibilityRole="button"
+          accessibilityLabel="Retry loading notifications"
+        >
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </>
     );
   }
 
@@ -231,7 +286,7 @@ export default function UserNotificationsScreen() {
               <Icon name="bell" size={32} color="#94A3B8" />
             </View>
             <Text style={styles.emptyStateTitle}>No notifications</Text>
-            <Text style={styles.emptyStateText}>You're all caught up!</Text>
+            <Text style={styles.emptyStateText}>Nothing has been sent to you yet.</Text>
           </View>
         }
       />
@@ -386,6 +441,18 @@ const styles = StyleSheet.create({
     color: '#475569',
     marginBottom: 6,
     letterSpacing: -0.2,
+  },
+  retryButton: {
+    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#3B82F6',
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   emptyStateText: {
     fontSize: 14,

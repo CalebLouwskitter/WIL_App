@@ -35,7 +35,7 @@ requirements and enhance the rider experience.
 
 ## Technology Stack
 
--   **App**: Expo (SDK 58) / React Native, TypeScript, React Navigation
+-   **App**: Expo (SDK 57) / React Native, TypeScript, React Navigation
 -   **Backend**: Firebase (Authentication, Firestore, Cloud Messaging)
 -   **Mapping & GPS**: react-native-maps (Google Maps), expo-location,
     expo-task-manager for background tracking
@@ -54,8 +54,10 @@ requirements and enhance the rider experience.
 -   Android Studio and/or Xcode if you build locally; otherwise an
     [Expo](https://expo.dev) account for EAS cloud builds
 
-The app uses background location and other native modules that Expo
-Go does not include, so run it as a **development build**, not in Expo Go.
+For an interface review, use **Expo Go for SDK 57** and start the server
+with `npx expo start --go`. Full feature testing requires a **development
+build** because Expo Go does not include background location or Android
+remote push notifications.
 
 ### Steps
 

@@ -254,14 +254,19 @@ const AdminNotificationManagement: React.FC = () => {
       if (editingNotification) {
         await handleUpdateNotification();
       } else {
-        await createAdminNotification(
+        const { pushQueued } = await createAdminNotification(
           profile.uid,
           notificationType,
           title.trim(),
           body.trim(),
           audience
         );
-        Alert.alert('Success', 'Notification sent successfully!');
+        Alert.alert(
+          pushQueued ? 'Notification saved' : 'Saved without push',
+          pushQueued
+            ? 'The notification is saved and a push request was queued. Delivery depends on the push worker.'
+            : 'The notification is saved and visible in the app, but the push request could not be queued.'
+        );
       }
       
       // Reset form

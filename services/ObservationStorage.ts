@@ -84,12 +84,16 @@ export const saveObservation = async (observation: Omit<RideObservation, 'id' | 
   // Sync to Firebase if enabled
   if (FIREBASE_ENABLED && userId) {
     try {
-      // Save sighting if exists
-      if (observation.sighting) {
+      // Save sighting if exists. Without a real location it stays on this device: a
+      // made-up (0, 0) would put the sighting in the ocean for everyone else.
+      if (observation.sighting && !observation.sighting.location) {
+        console.warn('Sighting has no location; kept on this device only');
+      }
+      if (observation.sighting?.location) {
         const sightingDTO: SightingDTO = newSighting({
           id: generateUUID(),
           animalName: observation.sighting.wildlifeType,
-          location: observation.sighting.location || { latitude: 0, longitude: 0 },
+          location: observation.sighting.location,
           description: observation.sighting.notes,
           photoUrl: observation.sighting.photoUri,
           timestamp: new Date(timestamp).toISOString(),

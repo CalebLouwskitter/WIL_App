@@ -26,7 +26,7 @@ type Props = {
 const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSettings }) => {
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
-  const palette = Colors[scheme ?? 'light'];
+  const palette = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const { isMetric, toggle } = useUnits();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [locationTracking, setLocationTracking] = useState(true);

@@ -16,6 +16,7 @@ import type { RidePoint, TrailProximity } from '../../hooks/useRideTracker';
 import { trailData } from '../../constants/trails';
 import { buildTrailsIndex, snapToTrails } from '../../utils/routeSnapping';
 import { isWithinAuthorizedArea } from '../../utils/geofencing';
+import { archiveEndedDraft } from '../../services/RideArchive';
 
 // Task name for background location tracking
 const BACKGROUND_LOCATION_TASK = 'BACKGROUND_LOCATION_TASK';
@@ -106,15 +107,7 @@ function defineBackgroundTask() {
 
       if (data) {
         const { locations } = data as { locations: Location.LocationObject[] };
-        
-        // Process each location update
-        for (const location of locations) {
-          try {
-            await processLocationUpdate(location);
-          } catch (err) {
-            console.error('[BackgroundLocation] Error processing location:', err);
-          }
-        }
+        await processBatch(locations);
       }
     });
     g[BG_TASK_DEFINED_KEY] = true;
@@ -127,6 +120,35 @@ defineBackgroundTask();
 
 // Track if we're already stopping to prevent race conditions
 let isStopping = false;
+
+// Batches are processed one after another, so each sample sees the state
+// written by the previous one even if the OS delivers batches back to back.
+let processingChain: Promise<void> = Promise.resolve();
+
+function processBatch(locations: Location.LocationObject[]): Promise<void> {
+  const run = processingChain.then(async () => {
+    for (const location of locations) {
+      try {
+        await processLocationUpdate(location);
+      } catch (err) {
+        console.error('[BackgroundLocation] Error processing location:', err);
+      }
+    }
+  });
+  processingChain = run.catch(() => undefined);
+  return run;
+}
+
+// A failed point/keepalive write is counted by RideStateManager (see
+// getPersistHealth) and the in-memory ride keeps the sample, so the next
+// successful write persists it. Recording carries on either way.
+async function persistOrWarn(write: Promise<void>, what: string) {
+  try {
+    await write;
+  } catch (err) {
+    console.warn(`[BackgroundLocation] Could not persist ${what}:`, err);
+  }
+}
 
 /**
  * Process a single location update
@@ -163,20 +185,33 @@ async function processLocationUpdate(location: Location.LocationObject) {
     // If user has been out of bounds for threshold consecutive updates, stop the ride
     if (outOfBoundsCount >= OUT_OF_BOUNDS_THRESHOLD) {
       console.error('[BackgroundLocation] User exited authorized area - stopping ride');
-      
-      // End the ride
-      await RideStateManager.endRide();
-      
+
+      // End the ride. If the ended draft can't be written, keep tracking so
+      // the next outside sample tries again rather than stranding the ride.
+      try {
+        await RideStateManager.endRide('boundary');
+      } catch (err) {
+        console.error('[BackgroundLocation] Could not end ride at boundary; will retry:', err);
+        return;
+      }
+      outOfBoundsCount = 0;
+
       // Stop background tracking
       if (!isStopping) {
         isStopping = true;
         await BackgroundLocationService.stop();
         isStopping = false;
       }
-      
-      // Reset counter
-      outOfBoundsCount = 0;
-      
+
+      // Save it to ride history now; this may be running with no screen
+      // mounted. If it fails the ended draft stays and is archived at the
+      // next launch or ride start.
+      try {
+        await archiveEndedDraft();
+      } catch (err) {
+        console.error('[BackgroundLocation] Ride ended at boundary but not archived yet:', err);
+      }
+
       return;
     }
     
@@ -194,7 +229,7 @@ async function processLocationUpdate(location: Location.LocationObject) {
   // Update keepalive periodically (even if we skip the location point)
   const now = Date.now();
   if (now - lastKeepaliveUpdate > KEEPALIVE_INTERVAL) {
-    await RideStateManager.updateKeepalive();
+    await persistOrWarn(RideStateManager.updateKeepalive(), 'keepalive');
     lastKeepaliveUpdate = now;
   }
 
@@ -349,31 +384,35 @@ async function processLocationUpdate(location: Location.LocationObject) {
     const mergedDistances = { ...(rideState.routeDistances || {}) } as Record<string, number>;
     Object.entries(segmentDistances).forEach(([k, v]) => { mergedDistances[k] = (mergedDistances[k] || 0) + v; });
 
-    await RideStateManager.addLocationPoint(usePoint, d, speed);
-    await RideStateManager.updateRideMetadata({
-      routeDistances: mergedDistances,
-      snappedPath: nextSnapped,
-      nearestTrail,
-      snappedCoordinate,
-      snapDistance,
-      snapRadius: activeRadius,
-      currentTrailId,
-      pendingSwitchId,
-      pendingCount,
-      farCount,
-    });
+    // Point and its metadata are one write
+    await persistOrWarn(
+      RideStateManager.addLocationPoint(usePoint, d, speed, {
+        routeDistances: mergedDistances,
+        snappedPath: nextSnapped,
+        nearestTrail,
+        snappedCoordinate,
+        snapDistance,
+        snapRadius: activeRadius,
+        currentTrailId,
+        pendingSwitchId,
+        pendingCount,
+        farCount,
+      }),
+      'location point'
+    );
   } else {
     // First point - always add without filtering
     console.log('[BackgroundLocation] Adding first GPS point');
-    await RideStateManager.addLocationPoint(point, 0, 0);
     const acc = typeof location.coords.accuracy === 'number' ? location.coords.accuracy : 25;
     const enterDist = clamp(Math.max(25, 0.6 * acc), 20, 60);
     const exitDist = clamp(Math.max(35, 0.9 * acc), 30, 60);
     const activeRadius = Math.max(enterDist, exitDist);
-    const state2 = await RideStateManager.getRideState();
-    const nextSnapped = Array.isArray(state2?.snappedPath) ? [...(state2?.snappedPath as any)] : [];
+    const nextSnapped = Array.isArray(rideState.snappedPath) ? [...rideState.snappedPath] : [];
     nextSnapped.push(point);
-    await RideStateManager.updateRideMetadata({ snappedPath: nextSnapped, snapRadius: activeRadius, nearestTrail: null, snappedCoordinate: null, snapDistance: null, currentTrailId: null, pendingSwitchId: null, pendingCount: 0, farCount: 0 });
+    await persistOrWarn(
+      RideStateManager.addLocationPoint(point, 0, 0, { snappedPath: nextSnapped, snapRadius: activeRadius, nearestTrail: null, snappedCoordinate: null, snapDistance: null, currentTrailId: null, pendingSwitchId: null, pendingCount: 0, farCount: 0 }),
+      'location point'
+    );
   }
 }
 
@@ -482,6 +521,7 @@ export class BackgroundLocationService {
       }
 
       // Start background location updates
+      outOfBoundsCount = 0;
       await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, BACKGROUND_LOCATION_CONFIG);
       
       this.isRunning = true;

@@ -63,7 +63,7 @@ const WORLD_REGION: Region = {
 
 export default function MapViewTracker({ path, mapType = 'standard', nearestTrail, snappedCoordinate, snapRadius, obstacleFilters, followUserDisplayName, followUserUid }: Props) {
   const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme ?? 'light'];
+  const palette = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
   const [region, setRegion] = useState<Region | null>(null);
   const mapRef = useRef<MapView | null>(null);
   const [heading, setHeading] = useState<number>(0);

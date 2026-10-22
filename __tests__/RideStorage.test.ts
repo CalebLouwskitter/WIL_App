@@ -128,6 +128,40 @@ describe('RideStorage offline sync', () => {
     expect((await getRides()).map((r) => r.startTime)).toEqual([7000]);
   });
 
+  it('saves a ride id only once', async () => {
+    offline();
+    const first = await saveRide({ ...ride(8000), id: 'ride-8000', endReason: 'boundary' });
+    const second = await saveRide({ ...ride(8000), id: 'ride-8000', totalDistance: 1 });
+    await flush();
+
+    const stored = JSON.parse((await AsyncStorage.getItem('rides')) as string);
+    expect(stored).toHaveLength(1);
+    expect(stored[0]).toMatchObject({ id: 'ride-8000', totalDistance: 1200, endReason: 'boundary' });
+    expect(second).toEqual(first);
+  });
+
+  it('files a ride under the account that recorded it', async () => {
+    online();
+    const signedOut = await saveRide({ ...ride(6000), ownerUid: null });
+    const other = await saveRide({ ...ride(6500), ownerUid: 'user-2' });
+    await flush();
+
+    expect(signedOut).toMatchObject({ userId: null, syncState: 'local' });
+    expect(other).toMatchObject({ userId: 'user-2', syncState: 'pending' });
+    expect(mockSaveRemote).not.toHaveBeenCalled();
+  });
+
+  it('shows only rides recorded signed out when nobody is signed in', async () => {
+    offline();
+    await saveRide(ride(1000)); // user-1, pending
+    mockAuth.currentUser = null;
+    await saveRide(ride(2000)); // signed out, local
+    await saveRide({ ...ride(3000), ownerUid: 'user-2' });
+
+    expect((await getRides()).map((r) => r.startTime)).toEqual([2000]);
+    expect(await getPendingRideCount()).toBe(0);
+  });
+
   it('never uploads rides stored before the queue existed', async () => {
     await AsyncStorage.setItem('rides', JSON.stringify([ride(100)]));
     online();

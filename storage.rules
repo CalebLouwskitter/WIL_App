@@ -1,0 +1,15 @@
+rules_version = '2';
+
+// SBHRA Storage rules. ProfilePictureService.ts uploads one JPEG per user to
+// users/{uid}/profile.jpg. Everything else is denied.
+// Tests: __emulator__/rules.test.ts.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /users/{uid}/profile.jpg {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size < 5 * 1024 * 1024;
+    }
+  }
+}

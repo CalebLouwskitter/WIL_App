@@ -39,7 +39,7 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [gettingLocation, setGettingLocation] = useState(false);
   const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme ?? 'light'];
+  const palette = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
   const styles = useMemo(() => createStyles(palette), [palette]);
 
   const obstacleTypes: { type: ObstacleType; label: string; icon: string }[] = [
@@ -128,16 +128,22 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
               reportedBy: savedObstacle.userName || 'Anonymous'
             }
           );
-          console.log('[MarkObstacleScreen] FCM notification sent to admins');
+          console.log('[MarkObstacleScreen] Admin notification saved');
         }
       } catch (notificationError) {
         console.warn('[MarkObstacleScreen] Failed to send FCM notification:', notificationError);
         // Non-fatal error - obstacle was still saved
       }
 
-      Alert.alert('Success', 'Obstacle reported successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      Alert.alert(
+        savedObstacle.published ? 'Success' : 'Saved on this device',
+        savedObstacle.published
+          ? 'Obstacle reported successfully!'
+          : 'Your report is saved on this device — not yet visible to others.',
+        [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]
+      );
     } catch (error) {
       Alert.alert('Error', 'Failed to report obstacle. Please try again.');
       console.error(error);

@@ -2,46 +2,54 @@
  * Background Ride Tracker
  * Enhanced ride tracker that supports background mode
  * Integrates with BackgroundLocationService and RideStateManager
- * 
+ *
  * This is the recommended tracker for production use.
- * Falls back gracefully to foreground-only tracking if background permissions are denied.
+ * It needs both foreground and background location permission; there is no
+ * foreground-only mode, so starting fails if either is denied.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import * as Location from 'expo-location';
 import { BackgroundLocationService } from './BackgroundLocationService';
-import { RideStateManager } from './RideStateManager';
-import type { RideData } from '../../hooks/useRideTracker';
+import { RideStateManager, type DraftRideData, type RecoveryKind } from './RideStateManager';
+import { archiveEndedDraft } from '../../services/RideArchive';
 import { AppState, AppStateStatus } from 'react-native';
 
-export type BackgroundRideStatus = 
-  | 'idle' 
-  | 'starting' 
-  | 'active_foreground' 
-  | 'active_background' 
-  | 'stopping' 
+export const PERSIST_WARNING = 'Recording may not be saved: this device could not store the latest GPS points.';
+
+export type BackgroundRideStatus =
+  | 'idle'
+  | 'starting'
+  | 'active_foreground'
+  | 'active_background'
+  | 'stopping'
   | 'error';
 
+export type StartRideResult = { ok: true } | { ok: false; error: string };
+
 export interface UseBackgroundRideTrackerResult {
-  rideData: RideData | null;
+  rideData: DraftRideData | null;
   status: BackgroundRideStatus;
   currentSpeed: number;
-  startRide: (horseId: string | null, horseName: string | null) => Promise<boolean>;
-  stopRide: () => Promise<RideData | null>;
+  startRide: (horseId: string | null, horseName: string | null) => Promise<StartRideResult>;
+  /** Ends the ride and returns it; the ended draft is kept until archived. */
+  stopRide: () => Promise<DraftRideData | null>;
   isBackgroundEnabled: boolean;
   error: string | null;
+  /** Set while the latest GPS points could not be written to the device. */
+  persistWarning: string | null;
 }
 
 /**
  * Custom hook for background-capable ride tracking
  */
 export function useBackgroundRideTracker(): UseBackgroundRideTrackerResult {
-  const [rideData, setRideData] = useState<RideData | null>(null);
+  const [rideData, setRideData] = useState<DraftRideData | null>(null);
   const [status, setStatus] = useState<BackgroundRideStatus>('idle');
   const [currentSpeed, setCurrentSpeed] = useState(0);
   const [isBackgroundEnabled, setIsBackgroundEnabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const [persistWarning, setPersistWarning] = useState<string | null>(null);
+
   const refreshInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const stateUnsubscribe = useRef<(() => void) | null>(null);
   const appStateSubscription = useRef<any>(null);
@@ -52,24 +60,22 @@ export function useBackgroundRideTracker(): UseBackgroundRideTrackerResult {
     checkBackgroundPermission();
   }, []);
 
-  // Initialize from persisted active ride on mount (e.g., after resume)
+  // Initialize from persisted active ride on mount (e.g., after resume).
+  // A stale draft is left for the recovery prompt instead of resumed silently.
   useEffect(() => {
     (async () => {
       try {
-        const hasActive = await RideStateManager.hasActiveRide();
-        if (hasActive) {
-          const data = await RideStateManager.toRideData();
-          if (data) {
-            setRideData(data);
-          }
+        const { kind, ride } = await RideStateManager.recoverFromCrash();
+        if (kind === 'active' && ride) {
+          setRideData(RideStateManager.draftToRideData(ride));
           // Set appropriate status based on app foreground/background
           const appState = AppState.currentState;
           setStatus(appState === 'active' ? 'active_foreground' : 'active_background');
 
           // Make sure background tracking is running
           const running = await BackgroundLocationService.isTaskRunning();
-          if (!running) {
-            await BackgroundLocationService.start();
+          if (!running && !(await BackgroundLocationService.start())) {
+            setError('Background tracking could not be restarted. Stop the ride to save what was recorded.');
           }
         }
       } catch (e) {
@@ -80,10 +86,11 @@ export function useBackgroundRideTracker(): UseBackgroundRideTrackerResult {
 
   // Subscribe to ride state changes
   useEffect(() => {
-    const unsubscribe = RideStateManager.subscribe(async (state) => {
+    const unsubscribe = RideStateManager.subscribe((state) => {
+      const health = RideStateManager.getPersistHealth();
+      setPersistWarning(state?.isActive && health.degraded ? PERSIST_WARNING : null);
       if (state && state.isActive) {
-        const rideData = await RideStateManager.toRideData();
-        setRideData(rideData);
+        setRideData(RideStateManager.draftToRideData(state));
         setCurrentSpeed(state.currentSpeed * 3.6); // m/s to km/h
         // Ensure status reflects an active ride
         setStatus(AppState.currentState === 'active' ? 'active_foreground' : 'active_background');
@@ -91,7 +98,7 @@ export function useBackgroundRideTracker(): UseBackgroundRideTrackerResult {
         // No active ride
         setRideData(null);
         setCurrentSpeed(0);
-        setStatus('idle');
+        setStatus((prev) => (prev === 'error' || prev === 'starting' ? prev : 'idle'));
       }
     });
 
@@ -152,7 +159,7 @@ export function useBackgroundRideTracker(): UseBackgroundRideTrackerResult {
     if (status === 'active_foreground' || status === 'active_background') {
       refreshInterval.current = setInterval(async () => {
         const data = await RideStateManager.toRideData();
-        if (data) {
+        if (data && data.endedAt === null) {
           setRideData(data);
         }
       }, 1000); // Update UI every second
@@ -177,29 +184,24 @@ export function useBackgroundRideTracker(): UseBackgroundRideTrackerResult {
     setIsBackgroundEnabled(hasPerms);
   };
 
-  // Handle app state changes
+  // Handle app state changes. The listener is installed once, so status is
+  // read through functional updates rather than a captured value.
   const handleAppStateChange = async (nextAppState: AppStateStatus) => {
     const hasActive = await RideStateManager.hasActiveRide();
-    
+
     if (!hasActive) return;
 
     if (nextAppState === 'background' || nextAppState === 'inactive') {
       // App going to background
-      if (status === 'active_foreground') {
-        setStatus('active_background');
-        console.log('[BackgroundRideTracker] App backgrounded, ride continues');
-      }
+      setStatus((prev) => (prev === 'active_foreground' ? 'active_background' : prev));
     } else if (nextAppState === 'active') {
       // App coming to foreground
-      if (status === 'active_background') {
-        setStatus('active_foreground');
-        console.log('[BackgroundRideTracker] App foregrounded, ride continues');
-        
-        // Refresh ride data
-        const data = await RideStateManager.toRideData();
-        if (data) {
-          setRideData(data);
-        }
+      setStatus((prev) => (prev === 'active_background' ? 'active_foreground' : prev));
+
+      // Refresh ride data
+      const data = await RideStateManager.toRideData();
+      if (data && data.endedAt === null) {
+        setRideData(data);
       }
     }
   };
@@ -208,20 +210,32 @@ export function useBackgroundRideTracker(): UseBackgroundRideTrackerResult {
    * Start tracking a ride
    */
   const startRide = useCallback(async (
-    horseId: string | null, 
+    horseId: string | null,
     horseName: string | null
-  ): Promise<boolean> => {
+  ): Promise<StartRideResult> => {
+    const fail = (message: string, nextStatus: BackgroundRideStatus = 'error'): StartRideResult => {
+      setError(message);
+      setStatus(nextStatus);
+      return { ok: false, error: message };
+    };
+
     try {
       setStatus('starting');
       setError(null);
 
-      // Check for active ride
-      const hasActive = await RideStateManager.hasActiveRide();
-      if (hasActive) {
+      // A previous recording must be saved before a new one can start
+      const existing = await RideStateManager.recoverFromCrash();
+      if (existing.kind === 'active' || existing.kind === 'stale') {
         console.warn('[BackgroundRideTracker] Active ride already exists');
-        setError('A ride is already in progress');
-        setStatus('idle');
-        return false;
+        return fail('A ride is already in progress. Resume or save it before starting another.', 'idle');
+      }
+      if (existing.kind === 'ended') {
+        try {
+          await archiveEndedDraft();
+        } catch (e) {
+          console.error('[BackgroundRideTracker] Could not archive previous ride:', e);
+          return fail('Your previous ride could not be saved to Ride History yet, so a new ride was not started. Please try again.');
+        }
       }
 
       // Request permissions
@@ -229,40 +243,44 @@ export function useBackgroundRideTracker(): UseBackgroundRideTrackerResult {
       if (!hasPerms) {
         const granted = await BackgroundLocationService.requestPermissions();
         if (!granted) {
-          setError('Location permissions are required');
-          setStatus('error');
-          return false;
+          return fail('Location permissions are required');
         }
         setIsBackgroundEnabled(true);
       }
 
-      // Initialize ride state
-      await RideStateManager.startRide(horseId, horseName);
+      // Initialize ride state; nothing is recorded unless this is on disk
+      let draft;
+      try {
+        draft = await RideStateManager.startRide(horseId, horseName);
+      } catch (e) {
+        console.error('[BackgroundRideTracker] Could not persist new ride:', e);
+        return fail('This device could not store ride data, so the ride was not started. Free some storage and try again.');
+      }
 
       // Start background location service
       const started = await BackgroundLocationService.start();
       if (!started) {
-        setError('Failed to start background location service');
-        setStatus('error');
-        await RideStateManager.clearRideState();
-        return false;
+        // Nothing was recorded yet, so this empty draft can go
+        await RideStateManager.clearRideState(draft.rideId).catch((e) =>
+          console.warn('[BackgroundRideTracker] Could not clear unstarted ride:', e)
+        );
+        return fail('Failed to start background location service');
       }
 
+      setPersistWarning(null);
       setStatus('active_foreground');
       console.log('[BackgroundRideTracker] Ride started successfully');
-      return true;
+      return { ok: true };
     } catch (err) {
       console.error('[BackgroundRideTracker] Failed to start ride:', err);
-      setError(err instanceof Error ? err.message : 'Failed to start ride');
-      setStatus('error');
-      return false;
+      return fail(err instanceof Error ? err.message : 'Failed to start ride');
     }
   }, []);
 
   /**
    * Stop tracking and return final ride data
    */
-  const stopRide = useCallback(async (): Promise<RideData | null> => {
+  const stopRide = useCallback(async (): Promise<DraftRideData | null> => {
     try {
       setStatus('stopping');
       setError(null);
@@ -270,26 +288,21 @@ export function useBackgroundRideTracker(): UseBackgroundRideTrackerResult {
       // Stop background location service
       await BackgroundLocationService.stop();
 
-      // End the ride
-      const finalState = await RideStateManager.endRide();
+      // End the ride. The ended draft stays stored until it is archived.
+      const finalState = await RideStateManager.endRide('user');
       if (!finalState) {
         console.warn('[BackgroundRideTracker] No active ride to stop');
         setStatus('idle');
         return null;
       }
 
-      // Convert to RideData format
-      const finalRideData = await RideStateManager.toRideData();
-
-      // Clear the ride state
-      await RideStateManager.clearRideState();
-
       setRideData(null);
       setCurrentSpeed(0);
+      setPersistWarning(null);
       setStatus('idle');
-      
+
       console.log('[BackgroundRideTracker] Ride stopped successfully');
-      return finalRideData;
+      return RideStateManager.draftToRideData(finalState);
     } catch (err) {
       console.error('[BackgroundRideTracker] Failed to stop ride:', err);
       setError(err instanceof Error ? err.message : 'Failed to stop ride');
@@ -306,44 +319,51 @@ export function useBackgroundRideTracker(): UseBackgroundRideTrackerResult {
     stopRide,
     isBackgroundEnabled,
     error,
+    persistWarning,
   };
 }
 
-/**
- * Utility function to recover from app crash
- * Call this during app initialization
- */
-export async function recoverActiveRide(): Promise<{
+export interface RecoverActiveRideResult {
+  kind: RecoveryKind;
   hasActiveRide: boolean;
-  rideData: RideData | null;
-}> {
+  rideData: DraftRideData | null;
+  /** True only if background tracking is actually running again. */
+  resumed: boolean;
+}
+
+/**
+ * Resume recording an interrupted (active or stale) ride. `resumed` reports
+ * whether the location service really restarted; on false the draft is kept
+ * untouched so it can still be saved.
+ */
+export async function recoverActiveRide(): Promise<RecoverActiveRideResult> {
   try {
-    const hasRecovered = await RideStateManager.recoverFromCrash();
-    
-    if (hasRecovered) {
-      const rideData = await RideStateManager.toRideData();
-      
+    const { kind, ride } = await RideStateManager.recoverFromCrash();
+
+    if ((kind === 'active' || kind === 'stale') && ride) {
       // Resume background tracking if ride was active
-      const started = await BackgroundLocationService.start();
-      if (!started) {
+      const resumed = await BackgroundLocationService.start();
+      if (!resumed) {
         console.warn('[BackgroundRideTracker] Failed to resume background tracking');
+      } else {
+        // Refresh the keepalive so the draft is no longer considered stale
+        // and subscribers see it as active again.
+        await RideStateManager.updateKeepalive().catch((e) =>
+          console.warn('[BackgroundRideTracker] Could not refresh keepalive:', e)
+        );
       }
-      
+
       return {
+        kind,
         hasActiveRide: true,
-        rideData,
+        rideData: RideStateManager.draftToRideData(ride),
+        resumed,
       };
     }
-    
-    return {
-      hasActiveRide: false,
-      rideData: null,
-    };
+
+    return { kind, hasActiveRide: false, rideData: null, resumed: false };
   } catch (error) {
     console.error('[BackgroundRideTracker] Failed to recover active ride:', error);
-    return {
-      hasActiveRide: false,
-      rideData: null,
-    };
+    return { kind: 'none', hasActiveRide: false, rideData: null, resumed: false };
   }
 }

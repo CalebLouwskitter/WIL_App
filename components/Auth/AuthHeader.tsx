@@ -9,7 +9,7 @@ type AuthHeaderProps = {
 
 const AuthHeader = ({ activeTab, onTabPress }: AuthHeaderProps) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
   return (
     <View style={styles.container}>

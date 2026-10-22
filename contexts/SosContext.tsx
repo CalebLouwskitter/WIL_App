@@ -20,11 +20,22 @@ export type SosState = {
   longitude?: number | null;
 };
 
+export type SosFailureCode = 'unavailable' | 'location' | 'write-failed';
+
+/**
+ * Outcome of an SOS write. `ok` is true only when every write succeeded.
+ * `partial` means the first write landed but a later one failed, so a record may exist.
+ */
+export type SosResult = { ok: boolean; error?: string; code?: SosFailureCode; partial?: boolean };
+
 type SosContextType = {
   state: SosState;
-  activate: (name: string | null | undefined, uid?: string | null | undefined) => Promise<void>;
-  clear: () => Promise<void>;
+  activate: (name: string | null | undefined, uid?: string | null | undefined) => Promise<SosResult>;
+  clear: () => Promise<SosResult>;
 };
+
+const NOT_CONNECTED = 'Not connected to SBHRA servers';
+const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 const SosContext = createContext<SosContextType | undefined>(undefined);
 
@@ -83,63 +94,76 @@ export const SosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [resolveActorId]);
 
   const activate = useCallback(
-    async (name: string | null | undefined, uid?: string | null | undefined) => {
-      if (FIREBASE_ENABLED && app) {
-        try {
-          const db = getFirestore(app);
+    async (name: string | null | undefined, uid?: string | null | undefined): Promise<SosResult> => {
+      if (!FIREBASE_ENABLED || !app) {
+        // Nothing can be sent, and we must not pretend an alert is active
+        return { ok: false, code: 'unavailable', error: NOT_CONNECTED };
+      }
 
-          // 🧭 Get current GPS coordinates
-          const { status } = await Location.requestForegroundPermissionsAsync();
-          if (status !== 'granted') throw new Error('Location permission denied');
-          const loc = await Location.getCurrentPositionAsync({});
-          const { latitude, longitude } = loc.coords;
+      let latitude: number;
+      let longitude: number;
+      try {
+        // 🧭 Get current GPS coordinates
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') throw new Error('Location permission denied');
+        const loc = await Location.getCurrentPositionAsync({});
+        ({ latitude, longitude } = loc.coords);
+      } catch (error) {
+        console.error('Error getting location for SOS:', error);
+        return { ok: false, code: 'location', error: messageOf(error) };
+      }
 
-          const actorId = await resolveActorId(uid);
-          const sosData = {
-            uid: actorId,
-            name: name ?? 'Unknown User',
-            latitude,
-            longitude,
-            status: 'active',
-            timestamp: serverTimestamp(),
-          };
+      let firstWriteLanded = false;
+      try {
+        const db = getFirestore(app);
+        const actorId = await resolveActorId(uid);
+        const sosData = {
+          uid: actorId,
+          name: name ?? 'Unknown User',
+          latitude,
+          longitude,
+          status: 'active',
+          timestamp: serverTimestamp(),
+        };
 
-          await setDoc(doc(db, 'sos_active', actorId), sosData);
+        await setDoc(doc(db, 'sos_active', actorId), sosData);
+        firstWriteLanded = true;
 
-          await setDoc(doc(db, 'SosAlerts', actorId), sosData, { merge: true });
+        await setDoc(doc(db, 'SosAlerts', actorId), sosData, { merge: true });
 
-          setState({ active: true, name: name ?? null, uid: actorId, latitude, longitude });
-        } catch (error) {
-          console.error('Error activating SOS:', error);
-        }
-      } else {
-        // No firebase: still reflect local state
-        setState({ active: true, name: name ?? null, uid: uid ?? null });
+        setState({ active: true, name: name ?? null, uid: actorId, latitude, longitude });
+        return { ok: true };
+      } catch (error) {
+        console.error('Error activating SOS:', error);
+        return { ok: false, code: 'write-failed', error: messageOf(error), partial: firstWriteLanded };
       }
     },
     [resolveActorId]
   );
 
-  const clear = useCallback(async () => {
-    setState({ active: false, name: null, uid: null });
+  const clear = useCallback(async (): Promise<SosResult> => {
+    if (!FIREBASE_ENABLED || !app) {
+      return { ok: false, code: 'unavailable', error: NOT_CONNECTED };
+    }
 
-    if (FIREBASE_ENABLED && app) {
-      try {
-        const db = getFirestore(app);
-        const actorId = await resolveActorId(state.uid);
+    try {
+      const db = getFirestore(app);
+      const actorId = await resolveActorId(state.uid);
 
-        // Only clear our own document
-        if (actorId) {
-          await deleteDoc(doc(db, 'sos_active', actorId));
-          await setDoc(
-            doc(db, 'SosAlerts', actorId),
-            { status: 'cleared', clearedAt: serverTimestamp() },
-            { merge: true }
-          );
-        }
-      } catch (error) {
-        console.error('Error clearing SOS:', error);
-      }
+      // Only clear our own document
+      await deleteDoc(doc(db, 'sos_active', actorId));
+      await setDoc(
+        doc(db, 'SosAlerts', actorId),
+        { status: 'cleared', clearedAt: serverTimestamp() },
+        { merge: true }
+      );
+
+      // Local state only changes once the server has accepted both writes
+      setState({ active: false, name: null, uid: null });
+      return { ok: true };
+    } catch (error) {
+      console.error('Error clearing SOS:', error);
+      return { ok: false, code: 'write-failed', error: messageOf(error) };
     }
   }, [resolveActorId, state.uid]);
 

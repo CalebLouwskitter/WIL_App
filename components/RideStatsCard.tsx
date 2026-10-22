@@ -18,7 +18,7 @@ export default function RideStatsCard({
   isMetric?: boolean;
 }) {
   const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme ?? 'light'];
+  const palette = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
   const styles = useMemo(() => createStyles(palette), [palette]);
   const distanceValue = isMetric ? distance / 1000 : distance / 1609.34;
   const distanceUnit = isMetric ? 'km' : 'mi';

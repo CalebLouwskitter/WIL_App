@@ -19,17 +19,31 @@ const UPLOAD_TIMEOUT_MS = 30_000;
  */
 export type SyncState = 'pending' | 'synced' | 'local';
 
+/** Why a recording ended: the rider stopped it, it left the riding area, or it was saved after an interruption. */
+export type RideEndReason = 'user' | 'boundary' | 'stale';
+
 export type StoredRide = RideData & {
   id: string;
   userId: string | null;
   syncState: SyncState;
+  endReason?: RideEndReason | null;
   attempts?: number;
   lastError?: string;
 };
 
+/**
+ * A ride being saved. ownerUid, when present, is the account the ride was
+ * recorded under (null = recorded signed out) and wins over whoever is signed
+ * in now.
+ */
+export type RideToSave = RideData & {
+  ownerUid?: string | null;
+  endReason?: RideEndReason | null;
+};
+
 export type SyncResult = { synced: number; failed: number };
 
-const currentUid = (): string | null => (FIREBASE_ENABLED ? auth?.currentUser?.uid ?? null : null);
+export const currentUid = (): string | null => (FIREBASE_ENABLED ? auth?.currentUser?.uid ?? null : null);
 
 export const makeRideId = (startTime: number) =>
   `${startTime}_${Math.random().toString(36).slice(2, 10)}`;
@@ -104,15 +118,36 @@ const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
 };
 
 let inFlightSync: Promise<SyncResult> | null = null;
+// Set when a sync is requested while one is running; that run then makes
+// another pass so a ride saved mid-upload doesn't wait for the next trigger.
+let syncDirty = false;
 
 /** Upload every pending ride that belongs to the signed-in user. */
 export const syncPendingRides = (): Promise<SyncResult> => {
-  if (!inFlightSync) {
-    inFlightSync = runSync().finally(() => {
-      inFlightSync = null;
-    });
+  if (inFlightSync) {
+    syncDirty = true;
+    return inFlightSync;
   }
+  inFlightSync = (async () => {
+    const total: SyncResult = { synced: 0, failed: 0 };
+    do {
+      syncDirty = false;
+      const pass = await runSync();
+      total.synced += pass.synced;
+      total.failed += pass.failed;
+    } while (syncDirty);
+    return total;
+  })().finally(() => {
+    inFlightSync = null;
+  });
   return inFlightSync;
+};
+
+/** Resolves once no sync is running. Does not start one. */
+export const whenRideSyncIdle = async (): Promise<void> => {
+  while (inFlightSync) {
+    await inFlightSync.catch(() => undefined);
+  }
 };
 
 const runSync = async (): Promise<SyncResult> => {
@@ -144,18 +179,27 @@ const runSync = async (): Promise<SyncResult> => {
 /**
  * Save a finished ride. Resolves as soon as it is on the device; the upload
  * runs in the background and is retried by startRideSync when back online.
+ * Saving an id that is already stored returns the stored row unchanged.
  */
-export const saveRide = async (ride: RideData): Promise<StoredRide> => {
-  const uid = currentUid();
-  const stored: StoredRide = {
+export const saveRide = async ({ ownerUid, ...ride }: RideToSave): Promise<StoredRide> => {
+  const owner = ownerUid !== undefined ? ownerUid : currentUid();
+  const candidate: StoredRide = {
     ...ride,
     id: ride.id ?? makeRideId(ride.startTime),
-    userId: uid,
-    syncState: uid ? 'pending' : 'local',
+    userId: owner,
+    syncState: owner ? 'pending' : 'local',
     pendingSync: undefined,
   };
-  await mutateStored((rides) => [...rides, stored]);
-  if (uid) {
+  let stored = candidate;
+  await mutateStored((rides) => {
+    const existing = rides.find((r) => r.id === candidate.id);
+    if (existing) {
+      stored = existing;
+      return rides;
+    }
+    return [...rides, candidate];
+  });
+  if (stored.syncState === 'pending') {
     syncPendingRides().catch((e) => console.warn('Ride sync failed:', e));
   }
   return stored;
@@ -206,13 +250,18 @@ export const getRides = async (): Promise<RideData[]> => {
         .sort(byNewest);
     }
   }
-  return local.map(toRideData).sort(byNewest);
+  // Signed out: only rides recorded signed out, never another account's.
+  return local
+    .filter((r) => r.userId === null)
+    .map(toRideData)
+    .sort(byNewest);
 };
 
 /** Number of rides on this device still waiting to be uploaded. */
 export const getPendingRideCount = async (): Promise<number> => {
   const uid = currentUid();
-  return (await readStored()).filter((r) => r.syncState === 'pending' && (!uid || r.userId === uid)).length;
+  if (!uid) return 0;
+  return (await readStored()).filter((r) => r.syncState === 'pending' && r.userId === uid).length;
 };
 
 /**

@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { ActivityIndicator, View, Platform, Alert } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import AppNavigator from './navigation/AppNavigator';
 import AuthNavigator from './navigation/AuthNavigator';
@@ -7,6 +8,8 @@ import useFirebaseAuth from './hooks/useFirebaseAuth';
 import { FIREBASE_ENABLED } from './services/firebase';
 import { useCurrentUser } from './hooks/useCurrentUser';
 import PendingApprovalScreen from './screens/Auth/PendingApprovalScreen';
+import SetupRequiredScreen from './screens/Auth/SetupRequiredScreen';
+import DemoModeBanner from './components/DemoModeBanner';
 import { logFirebaseStatus } from './services/firebaseConnectionCheck';
 import { StatusBar } from 'expo-status-bar';
 import { useNotifications } from './hooks/useNotifications';
@@ -18,7 +21,10 @@ import { startRideSync } from './services/RideStorage';
 export default function App() {
   const { user, initializing, isAuthenticated } = useFirebaseAuth();
   const { profile, loading } = useCurrentUser();
-  const allowBypass = !FIREBASE_ENABLED; // allow full app if firebase not configured
+  // Without Firebase config only development builds may run the app, flagged as demo mode.
+  // A release build with missing config shows the setup screen instead of a fake working app.
+  const allowBypass = !FIREBASE_ENABLED && __DEV__;
+  const setupRequired = !FIREBASE_ENABLED && !__DEV__;
 
   // Register for push notifications when user is logged in
   useNotifications(user?.uid);
@@ -60,14 +66,28 @@ export default function App() {
       </View>
     );
   }
+  if (setupRequired) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="dark" hidden={false} />
+        <SetupRequiredScreen />
+      </SafeAreaProvider>
+    );
+  }
   return (
+    <SafeAreaProvider>
     <RideRecoveryProvider>
       <SosProvider>
         <NavigationContainer>
           <StatusBar style="dark" hidden={false} />
           <RideRecoveryHandler />
           {allowBypass ? (
-            <AppNavigator />
+            <View style={{ flex: 1 }}>
+              <DemoModeBanner />
+              <View style={{ flex: 1 }}>
+                <AppNavigator />
+              </View>
+            </View>
           ) : !isAuthenticated ? (
             <AuthNavigator />
           ) : profile?.status === 'approved' ? (
@@ -78,5 +98,6 @@ export default function App() {
         </NavigationContainer>
       </SosProvider>
     </RideRecoveryProvider>
+    </SafeAreaProvider>
   );
 }

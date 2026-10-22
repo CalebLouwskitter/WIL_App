@@ -9,7 +9,7 @@ import AuthButton from '../../components/Auth/AuthButton';
 
 const VerifyEmailScreen = ({ navigation }: { navigation: any }) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
   const [resending, setResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 

@@ -27,7 +27,7 @@ const AuthInput = ({
   autoCapitalize,
 }: AuthInputProps) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
   return (
     <View style={styles.container}>

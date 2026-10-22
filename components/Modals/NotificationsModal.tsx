@@ -15,7 +15,8 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets, type EdgeInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
-import { getObstacles, type Obstacle } from '../../services/ObstacleService';
+import { fetchObstacles, type Obstacle, type ObstacleFeedStatus } from '../../services/ObstacleService';
+import { describeObstacleFeed } from '../../utils/obstacleFeed';
 
 type Props = {
   visible: boolean;
@@ -26,13 +27,17 @@ type Props = {
 const NotificationsModal: React.FC<Props> = ({ visible, onClose, onRequestNotificationsScreen }) => {
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
-  const palette = Colors[scheme ?? 'light'];
+  const palette = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'active' | 'resolved'>('active');
+  const [feedStatus, setFeedStatus] = useState<ObstacleFeedStatus>('connecting');
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const styles = useMemo(() => createStyles(palette, insets), [palette, insets]);
+  const feedView = describeObstacleFeed(feedStatus, obstacles.length, lastUpdated);
 
   useEffect(() => {
     if (!visible) return;
@@ -42,10 +47,15 @@ const NotificationsModal: React.FC<Props> = ({ visible, onClose, onRequestNotifi
       setLoading(true);
       try {
         const status = filter === 'all' ? undefined : filter;
-        const data = await getObstacles({ status, limit: 50 });
-        if (mounted) setObstacles(data);
+        const result = await fetchObstacles({ status, limit: 50 });
+        if (mounted) {
+          setObstacles(result.obstacles);
+          setFeedStatus(result.status);
+          setLastUpdated(result.fetchedAt);
+        }
       } catch {
-        if (mounted) setObstacles([]);
+        // A failed read is an error, never an empty "all clear"
+        if (mounted) setFeedStatus('error');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -54,14 +64,18 @@ const NotificationsModal: React.FC<Props> = ({ visible, onClose, onRequestNotifi
     return () => {
       mounted = false;
     };
-  }, [visible, filter]);
+  }, [visible, filter, reloadKey]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
       const status = filter === 'all' ? undefined : filter;
-      const data = await getObstacles({ status, limit: 50 });
-      setObstacles(data);
+      const result = await fetchObstacles({ status, limit: 50 });
+      setObstacles(result.obstacles);
+      setFeedStatus(result.status);
+      setLastUpdated(result.fetchedAt);
+    } catch {
+      setFeedStatus('error');
     } finally {
       setRefreshing(false);
     }
@@ -176,14 +190,35 @@ const NotificationsModal: React.FC<Props> = ({ visible, onClose, onRequestNotifi
                     <ActivityIndicator size="small" color={palette.brandPrimary || '#2563EB'} />
                     <Text style={[styles.emptyLabel, { color: palette.placeholder || '#9CA3AF' }]}>Loading alerts…</Text>
                   </View>
-                ) : obstacles.length === 0 ? (
+                ) : feedView.kind !== 'list' ? (
                   <View style={styles.emptyState}>
-                    <Feather name="check-circle" size={32} color={palette.placeholder || '#9CA3AF'} />
-                    <Text style={[styles.emptyLabel, { color: palette.placeholder || '#9CA3AF' }]}>All clear on the trails</Text>
-                    <Text style={[styles.emptySubLabel, { color: palette.placeholder || '#9CA3AF' }]}>No new reports in the last day</Text>
+                    <Feather
+                      name={feedView.kind === 'unavailable' ? 'wifi-off' : feedView.kind === 'error' ? 'alert-circle' : 'info'}
+                      size={32}
+                      color={palette.placeholder || '#9CA3AF'}
+                    />
+                    <Text style={[styles.emptyLabel, { color: palette.placeholder || '#9CA3AF' }]}>{feedView.title}</Text>
+                    {feedView.body ? (
+                      <Text style={[styles.emptySubLabel, { color: palette.placeholder || '#9CA3AF' }]}>{feedView.body}</Text>
+                    ) : null}
+                    {feedView.kind === 'error' ? (
+                      <TouchableOpacity
+                        style={[styles.viewAllButton, { backgroundColor: palette.brandPrimary || '#2563EB' }]}
+                        onPress={() => setReloadKey((k) => k + 1)}
+                      >
+                        <Text style={[styles.viewAllText, { color: palette.onPrimary || '#FFFFFF' }]}>Try again</Text>
+                      </TouchableOpacity>
+                    ) : null}
                   </View>
                 ) : (
                   <FlatList
+                    ListHeaderComponent={
+                      feedView.caveat ? (
+                        <Text style={[styles.emptySubLabel, { color: palette.placeholder || '#9CA3AF', marginBottom: 8 }]}>
+                          {feedView.caveat}
+                        </Text>
+                      ) : null
+                    }
                     style={styles.scrollView}
                     contentContainerStyle={styles.scrollContent}
                     data={obstacles}

@@ -12,7 +12,7 @@ import {
   Animated,
   KeyboardAvoidingView,
   Image,
-  PermissionsAndroid,
+  Linking,
   FlatList,
   SafeAreaView,
 } from 'react-native';
@@ -47,29 +47,10 @@ import { saveObstacle } from '../../services/ObstacleService';
 import { createAdminNotification } from '../../services/FirebaseNotificationService';
 import { trailData } from '@/constants/trails';
 import { Feather } from '@expo/vector-icons';
-import { getObstacles, subscribeToObstacles, type Obstacle } from '../../services/ObstacleService';
-
-// Type definitions for geolocation
-interface GeolocationPosition {
-  coords: {
-    latitude: number;
-    longitude: number;
-    altitude: number | null;
-    accuracy: number;
-    altitudeAccuracy: number | null;
-    heading: number | null;
-    speed: number | null;
-  };
-  timestamp: number;
-}
-
-interface GeolocationError {
-  code: number;
-  message: string;
-  PERMISSION_DENIED: number;
-  POSITION_UNAVAILABLE: number;
-  TIMEOUT: number;
-}
+import { fetchObstacles, subscribeToObstacles, type Obstacle, type ObstacleFeedStatus } from '../../services/ObstacleService';
+import { useForegroundLocation } from '../../hooks/useForegroundLocation';
+import { locationStatusMessage } from '../../utils/locationStatus';
+import { describeObstacleFeed } from '../../utils/obstacleFeed';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -176,11 +157,14 @@ export default function UnifiedRideObstacleScreen({
   const [reportLocation, setReportLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [selectedTrailId, setSelectedTrailId] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [reportLocationSource, setReportLocationSource] = useState<'gps' | 'map' | 'last-ride' | null>(null);
   const [isLoadingPhoto, setIsLoadingPhoto] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
+  const [feedStatus, setFeedStatus] = useState<ObstacleFeedStatus>('connecting');
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const [feedRetryKey, setFeedRetryKey] = useState(0);
   
   const mapRef = useRef<MapView | null>(null);
   const rideData = propRideData || route.params?.rideData;
@@ -221,13 +205,14 @@ export default function UnifiedRideObstacleScreen({
   // Set up real-time obstacle subscription
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
-    
+
     if (isRealTimeEnabled) {
       try {
         unsubscribe = subscribeToObstacles((newObstacles) => {
           setObstacles(newObstacles);
-        }, { status: 'active' });
-        
+          setLastUpdated(Date.now());
+        }, { status: 'active' }, setFeedStatus);
+
         console.log('[UnifiedRideObstacleScreen] Real-time obstacle subscription enabled');
       } catch (error) {
         console.warn('[UnifiedRideObstacleScreen] Failed to set up real-time subscription:', error);
@@ -246,133 +231,45 @@ export default function UnifiedRideObstacleScreen({
         console.log('[UnifiedRideObstacleScreen] Real-time subscription cleaned up');
       }
     };
-  }, [isRealTimeEnabled]);
+  }, [isRealTimeEnabled, feedRetryKey]);
 
   const loadObstacles = async () => {
     try {
-      const data = await getObstacles({ status: 'active' });
-      setObstacles(data);
+      const result = await fetchObstacles({ status: 'active' });
+      setObstacles(result.obstacles);
+      setFeedStatus(result.status);
+      setLastUpdated(result.fetchedAt);
     } catch (error) {
       console.warn('[UnifiedRideObstacleScreen] Failed to load obstacles:', error);
+      setFeedStatus('error');
     }
   };
 
-  // Get initial location and track updates
-  useEffect(() => {
-    let watchId: number | null = null;
+  const retryFeed = () => {
+    setFeedStatus('connecting');
+    setFeedRetryKey((k) => k + 1);
+  };
 
-    const requestLocationPermission = async () => {
-      if (Platform.OS === 'android') {
-        try {
-          const alreadyGranted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
-          if (alreadyGranted) {
-            return true;
-          }
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-            {
-              title: 'Location Permission',
-              message: 'This app needs access to your location to track your ride and mark issues on the map.',
-              buttonNeutral: 'Ask Me Later',
-              buttonNegative: 'Cancel',
-              buttonPositive: 'OK',
-            }
-          );
-          return granted === PermissionsAndroid.RESULTS.GRANTED;
-        } catch (err) {
-          console.warn(err);
-          return false;
-        }
-      }
-      return true;
-    };
+  // Real foreground location (expo-location). The watcher lives for the whole screen and is
+  // removed on unmount; tab switches never recreate it. The first real fix pre-selects the
+  // report location, but nothing is ever guessed.
+  const { state: locState, retry: retryLocation } = useForegroundLocation((coords) => {
+    setReportLocation((prev) => prev ?? coords);
+    setReportLocationSource((prev) => prev ?? 'gps');
+  });
+  const currentLocation = locState.coords;
 
-    const startLocationTracking = async () => {
-      const hasPermission = await requestLocationPermission();
-      if (!hasPermission) return;
-
-      // Get initial location using navigator.geolocation (built-in)
-      navigator.geolocation.getCurrentPosition(
-        (position: GeolocationPosition) => {
-          const coords = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          };
-          setCurrentLocation(coords);
-          setReportLocation(coords);
-        },
-        (error: GeolocationError) => {
-          console.log('Error getting location:', error.message);
-          // Set default location based on ride data or London fallback
-          let defaultCoords = { latitude: 51.5074, longitude: -0.1278 }; // London fallback
-          
-          if (rideData?.path && rideData.path.length > 0) {
-            const lastPoint = rideData.path[rideData.path.length - 1];
-            defaultCoords = {
-              latitude: lastPoint.latitude,
-              longitude: lastPoint.longitude,
-            };
-          } else if (rideData?.lastKnownLocation) {
-            defaultCoords = {
-              latitude: rideData.lastKnownLocation.latitude,
-              longitude: rideData.lastKnownLocation.longitude,
-            };
-          }
-          
-          console.log('Using fallback location:', defaultCoords);
-          setCurrentLocation(defaultCoords);
-          setReportLocation(defaultCoords);
-        },
-        { 
-          enableHighAccuracy: true, 
-          timeout: 20000, 
-          maximumAge: 1000 
-        }
-      );
-
-      // Watch position for updates
-      watchId = navigator.geolocation.watchPosition(
-        (position: GeolocationPosition) => {
-          const coords = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          };
-          setCurrentLocation(coords);
-
-          // Update map region to follow user (only when on report tab and map is likely rendered)
-          if (mapRef.current && activeTab === 'report' && currentLocation) {
-            // Add a small delay to ensure map is fully rendered
-            setTimeout(() => {
-              if (mapRef.current) {
-                mapRef.current.animateToRegion({
-                  latitude: coords.latitude,
-                  longitude: coords.longitude,
-                  latitudeDelta: 0.008,
-                  longitudeDelta: 0.008,
-                }, 1000);
-              }
-            }, 300);
-          }
-        },
-        (error: GeolocationError) => {
-          console.log('Error watching location:', error.message);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 2000,
-        }
-      );
-    };
-
-    startLocationTracking();
-
-    return () => {
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-      }
-    };
-  }, [activeTab, rideData]);
+  // Last recorded point of the ride being reviewed: only ever offered as an explicit choice
+  const lastRidePoint = useMemo(() => {
+    const path = rideData?.path;
+    if (path && path.length > 0) {
+      const p = path[path.length - 1];
+      return { latitude: p.latitude, longitude: p.longitude };
+    }
+    return rideData?.lastKnownLocation
+      ? { latitude: rideData.lastKnownLocation.latitude, longitude: rideData.lastKnownLocation.longitude }
+      : null;
+  }, [rideData]);
 
   // Center map when location changes or tab switches to report
   useEffect(() => {
@@ -420,9 +317,9 @@ export default function UnifiedRideObstacleScreen({
 
   // Track unsaved changes
   useEffect(() => {
-    const hasChanges = !!(selectedWildlife || sightingNotes || sightingPhoto || selectedIssue || reportNotes || reportLocation || selectedTrailId);
+    const hasChanges = !!(selectedWildlife || sightingNotes || sightingPhoto || selectedIssue || reportNotes || selectedTrailId);
     setHasUnsavedChanges(hasChanges);
-  }, [selectedWildlife, sightingNotes, sightingPhoto, selectedIssue, reportNotes, reportLocation, selectedTrailId]);
+  }, [selectedWildlife, sightingNotes, sightingPhoto, selectedIssue, reportNotes, selectedTrailId]);
 
   // Helper functions for obstacle display
   const getObstacleIcon = (type: string): string => {
@@ -449,6 +346,7 @@ export default function UnifiedRideObstacleScreen({
   const onMapPress = (e: any) => {
     const { coordinate } = e.nativeEvent;
     setReportLocation(coordinate);
+    setReportLocationSource('map');
   };
 
   const addQuickNote = (text: string) => {
@@ -560,6 +458,7 @@ export default function UnifiedRideObstacleScreen({
   const submitAll = async () => {
     try {
       setIsSubmitting(true);
+      let obstaclePublished: boolean | null = null;
 
       if (!selectedWildlife && !selectedIssue && !sightingNotes && !reportNotes && !selectedTrailId) {
         if (onClose) {
@@ -583,8 +482,8 @@ export default function UnifiedRideObstacleScreen({
         };
       }
 
-      // Handle trail reports by creating obstacles directly
-      if (selectedIssue || reportNotes || reportLocation || selectedTrailId) {
+      // Handle trail reports by creating obstacles directly. A location alone is not a report.
+      if (selectedIssue || reportNotes.trim() || selectedTrailId) {
         const chosenTrail = selectedTrailId ? trailData.find((trail) => trail.id === selectedTrailId) : undefined;
         const issueLabel = selectedIssue ? TRAIL_ISSUES.find((i) => i.id === selectedIssue)?.label || 'Other' : 'Other';
         
@@ -602,8 +501,8 @@ export default function UnifiedRideObstacleScreen({
         
         const obstacleType = obstacleTypeMap[issueLabel] || 'other';
         const severity = (selectedIssue === 'i_hazard' ? 'high' : 'medium') as ObstacleSeverity;
-        const location = reportLocation || currentLocation;
-        
+        const location = reportLocation;
+
         if (location) {
           try {
             const savedObstacle = await saveObstacle({
@@ -614,12 +513,13 @@ export default function UnifiedRideObstacleScreen({
               description: reportNotes || undefined,
               location: location,
             });
+            obstaclePublished = savedObstacle.published;
             console.log('[UnifiedRideObstacleScreen] Created obstacle from trail report:', issueLabel);
-            
-            // Send FCM notification to admins about new trail obstacle
+
+            // Send FCM notification to admins about new trail obstacle (only once the report is on the server)
             try {
               const userId = firebaseAuth?.currentUser?.uid;
-              if (userId) {
+              if (userId && savedObstacle.published) {
                 await createAdminNotification(
                   userId,
                   'alert',
@@ -634,7 +534,7 @@ export default function UnifiedRideObstacleScreen({
                     reportedBy: savedObstacle.userName || 'Anonymous'
                   }
                 );
-                console.log('[UnifiedRideObstacleScreen] FCM notification sent to admins');
+                console.log('[UnifiedRideObstacleScreen] Admin notification saved');
               }
             } catch (notificationError) {
               console.warn('[UnifiedRideObstacleScreen] Failed to send FCM notification:', notificationError);
@@ -646,7 +546,12 @@ export default function UnifiedRideObstacleScreen({
             return;
           }
         } else {
-          Alert.alert('Location Required', 'Please set a location for the obstacle.');
+          Alert.alert(
+            'Location Required',
+            locState.status === 'ok'
+              ? 'Tap the map to choose where the issue is, or use your current location.'
+              : `${locationStatusMessage(locState.status)} A trail report needs a location.`
+          );
           return;
         }
       }
@@ -658,19 +563,23 @@ export default function UnifiedRideObstacleScreen({
       
       onSubmit?.(observation);
       
-      // Different messages for during-ride vs post-ride
+      // Say exactly what happened: a report is only "visible to others" once the server accepted it
+      const outcome: string[] = [];
+      if (obstaclePublished === true) {
+        outcome.push('Your trail report was sent to SBHRA and can now be seen by other riders.');
+      } else if (obstaclePublished === false) {
+        outcome.push('Your trail report is saved on this device — not yet visible to others.');
+      }
+      if (observation.sighting) {
+        outcome.push('Your wildlife sighting is saved on this device.');
+      }
+      const outcomeTitle = obstaclePublished === false ? 'Saved on this device' : '✓ Saved';
+      const outcomeMessage = outcome.join('\n\n') || 'Saved on this device.';
+
       if (isDuringRide) {
-        Alert.alert(
-          '✓ Report Saved!',
-          'Your wildlife/obstacle report has been saved and will appear on the map. Keep riding safely! 🐎',
-          [{ text: 'Continue Riding', style: 'default' }]
-        );
+        Alert.alert(outcomeTitle, `${outcomeMessage}\n\nKeep riding safely!`, [{ text: 'Continue Riding', style: 'default' }]);
       } else {
-        Alert.alert(
-          '✓ Successfully Saved',
-          'Your observations have been saved. Obstacles will appear on the map for all users.',
-          [{ text: 'Done', onPress: () => onClose ? onClose() : navigation.goBack() }]
-        );
+        Alert.alert(outcomeTitle, outcomeMessage, [{ text: 'Done', onPress: () => onClose ? onClose() : navigation.goBack() }]);
       }
 
       // Reset form
@@ -680,6 +589,7 @@ export default function UnifiedRideObstacleScreen({
       setSelectedIssue(null);
       setReportNotes('');
       setReportLocation(currentLocation);
+      setReportLocationSource(currentLocation ? 'gps' : null);
       setSelectedTrailId(null);
       setHasUnsavedChanges(false);
     } catch (error) {
@@ -709,6 +619,14 @@ export default function UnifiedRideObstacleScreen({
       }
     }
   };
+
+  const feedView = describeObstacleFeed(feedStatus, obstacles.length, lastUpdated);
+
+  const reportLocationLabel =
+    reportLocationSource === 'gps' ? 'Your current location'
+    : reportLocationSource === 'map' ? 'The spot you tapped on the map'
+    : reportLocationSource === 'last-ride' ? 'The last point recorded on your ride'
+    : null;
 
   const renderObstacleItem = ({ item }: { item: Obstacle }) => {
     const iconName = getObstacleIcon(item.type);
@@ -934,30 +852,40 @@ export default function UnifiedRideObstacleScreen({
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Trail Obstacles</Text>
                 <View style={styles.liveIndicator}>
-                  <View style={[styles.liveDot, isRealTimeEnabled && styles.liveDotActive]} />
-                  <Text style={styles.liveText}>
-                    {isRealTimeEnabled ? 'Live' : 'Manual'}
-                  </Text>
+                  <View style={[styles.liveDot, feedView.indicator.isLive && styles.liveDotActive]} />
+                  <Text style={styles.liveText}>{feedView.indicator.label}</Text>
                 </View>
               </View>
               <Text style={styles.sectionDescription}>
                 Reported obstacles that may affect your ride
               </Text>
 
-              {obstacles.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Feather name="check-circle" size={48} color="#10B981" />
-                  <Text style={styles.emptyTitle}>All Clear!</Text>
-                  <Text style={styles.emptySubtitle}>No active obstacles reported in this area</Text>
-                </View>
+              {feedView.kind === 'list' ? (
+                <>
+                  {feedView.caveat ? <Text style={styles.feedCaveat}>{feedView.caveat}</Text> : null}
+                  <FlatList
+                    data={obstacles}
+                    renderItem={renderObstacleItem}
+                    keyExtractor={(item) => item.id}
+                    scrollEnabled={false}
+                    contentContainerStyle={styles.obstacleList}
+                  />
+                </>
               ) : (
-                <FlatList
-                  data={obstacles}
-                  renderItem={renderObstacleItem}
-                  keyExtractor={(item) => item.id}
-                  scrollEnabled={false}
-                  contentContainerStyle={styles.obstacleList}
-                />
+                <View style={styles.emptyState}>
+                  <Feather
+                    name={feedView.kind === 'empty' || feedView.kind === 'loading' ? 'info' : feedView.kind === 'unavailable' ? 'wifi-off' : 'alert-circle'}
+                    size={44}
+                    color={feedView.kind === 'unavailable' || feedView.kind === 'error' ? '#F59E0B' : '#6B7280'}
+                  />
+                  <Text style={styles.emptyTitle}>{feedView.title}</Text>
+                  {feedView.body ? <Text style={styles.emptySubtitle}>{feedView.body}</Text> : null}
+                  {feedView.kind === 'error' ? (
+                    <TouchableOpacity style={styles.retryButton} onPress={retryFeed}>
+                      <Text style={styles.retryButtonText}>Try again</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
               )}
             </View>
           )}
@@ -1095,6 +1023,35 @@ export default function UnifiedRideObstacleScreen({
 
               <View style={styles.mapContainer}>
                 <Text style={styles.mapLabel}>📍 Mark Location on Map</Text>
+                <View style={[styles.locationBanner, locState.status === 'ok' ? styles.locationBannerOk : styles.locationBannerWarn]}>
+                  <Text style={styles.locationBannerText}>{locationStatusMessage(locState.status)}</Text>
+                  {locState.status === 'denied' || locState.status === 'services-off' || locState.status === 'timeout' ? (
+                    <View style={styles.locationActions}>
+                      <TouchableOpacity style={styles.locationActionButton} onPress={retryLocation}>
+                        <Text style={styles.locationActionText}>Try again</Text>
+                      </TouchableOpacity>
+                      {locState.status !== 'timeout' ? (
+                        <TouchableOpacity style={styles.locationActionButton} onPress={() => Linking.openSettings()}>
+                          <Text style={styles.locationActionText}>Open settings</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+                  ) : null}
+                  {locState.status !== 'ok' && lastRidePoint ? (
+                    <TouchableOpacity
+                      style={styles.locationActionButton}
+                      onPress={() => {
+                        setReportLocation(lastRidePoint);
+                        setReportLocationSource('last-ride');
+                      }}
+                    >
+                      <Text style={styles.locationActionText}>Use the last point of my ride</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+                <Text style={styles.reportLocationLabel}>
+                  {reportLocationLabel ? `Report location: ${reportLocationLabel}` : 'Report location: not set. Tap the map to choose where the issue is.'}
+                </Text>
                 <View style={styles.mapWrapper}>
                   <MapView
                     ref={mapRef}
@@ -1158,11 +1115,13 @@ export default function UnifiedRideObstacleScreen({
                       </Marker>
                     )}
                   </MapView>
-                  <TouchableOpacity 
-                    style={styles.currentLocationButton}
+                  <TouchableOpacity
+                    style={[styles.currentLocationButton, !currentLocation && { opacity: 0.4 }]}
+                    disabled={!currentLocation}
                     onPress={() => {
                       if (currentLocation) {
                         setReportLocation(currentLocation);
+                        setReportLocationSource('gps');
                         mapRef.current?.animateToRegion({
                           latitude: currentLocation?.latitude || 0,
                           longitude: currentLocation?.longitude || 0,
@@ -1424,6 +1383,67 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: '#6B7280',
+  },
+
+  feedCaveat: {
+    fontSize: 13,
+    color: '#92400E',
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#3B82F6',
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  locationBanner: {
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+    gap: 8,
+  },
+  locationBannerOk: {
+    backgroundColor: '#ECFDF5',
+  },
+  locationBannerWarn: {
+    backgroundColor: '#FEF3C7',
+  },
+  locationBannerText: {
+    fontSize: 13,
+    color: '#1F2937',
+    lineHeight: 18,
+  },
+  locationActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  locationActionButton: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  locationActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  reportLocationLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 8,
   },
 
   // Obstacle list

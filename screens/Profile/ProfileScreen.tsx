@@ -31,7 +31,7 @@ const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const [navDisabled, setNavDisabled] = useState<boolean>(false);
   const scheme = useColorScheme();
-  const colors = Colors[scheme ?? 'light'];
+  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const [settingsVisible, setSettingsVisible] = useState<boolean>(false);
   const [notificationsVisible, setNotificationsVisible] = useState<boolean>(false);
   
@@ -247,10 +247,13 @@ const ProfileScreen: React.FC = () => {
               <View style={styles.profileInfo}>
                 <Text style={styles.profileName}>{displayName}</Text>
                 <Text style={styles.profileEmail}>{email}</Text>
-                <View style={styles.verifiedBadge}>
-                  <Icon name="check-circle" size={14} color="#fff" />
-                  <Text style={styles.verifiedText}>Verified Rider</Text>
-                </View>
+                {/* Only an approved profile read from the server counts as verified */}
+                {FIREBASE_ENABLED && profile?.status === 'approved' && (
+                  <View style={styles.verifiedBadge}>
+                    <Icon name="check-circle" size={14} color="#fff" />
+                    <Text style={styles.verifiedText}>Verified Rider</Text>
+                  </View>
+                )}
               </View>
             </View>
           </LinearGradient>

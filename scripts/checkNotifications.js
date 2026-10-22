@@ -102,11 +102,11 @@ try {
     warnings.push('⚠ Notification handler not configured');
   }
   
-  // Check for saveFCMToken
-  if (useNotificationsContent.includes('saveFCMToken')) {
-    success.push('✓ FCM token saving implemented');
+  // Check for saveExpoPushToken
+  if (useNotificationsContent.includes('saveExpoPushToken')) {
+    success.push('✓ Expo push token saving implemented');
   } else {
-    warnings.push('⚠ FCM token not being saved to Firestore');
+    warnings.push('⚠ Expo push token not being saved to Firestore');
   }
 } catch (error) {
   issues.push('✗ Could not read hooks/useNotifications.ts');
@@ -118,10 +118,10 @@ try {
   const servicePath = path.join(__dirname, '../services/FirebaseNotificationService.ts');
   const serviceContent = fs.readFileSync(servicePath, 'utf8');
   
-  if (serviceContent.includes('saveFCMToken')) {
-    success.push('✓ saveFCMToken function exists');
+  if (serviceContent.includes('saveExpoPushToken')) {
+    success.push('✓ saveExpoPushToken function exists');
   } else {
-    issues.push('✗ saveFCMToken function missing');
+    issues.push('✗ saveExpoPushToken function missing');
   }
   
   if (serviceContent.includes('pushNotificationRequests')) {

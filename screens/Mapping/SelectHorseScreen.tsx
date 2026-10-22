@@ -12,7 +12,7 @@ const SelectHorseScreen = () => {
   const [rideCounts, setRideCounts] = useState<Record<string, number>>({});
   const [activeId, setActiveId] = useState<string | null>(null);
   const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme ?? 'light'];
+  const palette = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
   const load = async () => {
     const [list, id, rides] = await Promise.all([getHorses(), getActiveHorseId(), getRides()]);
