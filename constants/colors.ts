@@ -65,6 +65,15 @@ export const Colors = {
     gradientPrimaryStart: '#2563EB',
     gradientPrimaryEnd: '#1D4ED8',
 
+    // Semantic screen tokens (use via hooks/useAppTheme)
+    background: '#F8FAFC',
+    card: '#FFFFFF',
+    textPrimary: '#0F172A',
+    textSecondary: '#475569',
+    textMuted: '#94A3B8',
+    divider: '#E2E8F0',
+    brandSoft: '#DBEAFE',
+
     // Profile stats tokens
     profileStatRidesBox: '#FFE2E5',
     profileStatRidesCircle: '#FA5A7D',
@@ -141,6 +150,15 @@ export const Colors = {
     shadowStrong: 'rgba(0, 0, 0, 0.45)',
     gradientPrimaryStart: '#1E3A8A',
     gradientPrimaryEnd: '#1D4ED8',
+
+    // Semantic screen tokens (use via hooks/useAppTheme)
+    background: '#121212',
+    card: '#1E1E1E',
+    textPrimary: '#F1F5F9',
+    textSecondary: '#CBD5E1',
+    textMuted: '#94A3B8',
+    divider: '#334155',
+    brandSoft: '#1E3A8A',
 
     // Profile stats tokens (dark-adapted)
     profileStatRidesBox: '#3B2F31',
