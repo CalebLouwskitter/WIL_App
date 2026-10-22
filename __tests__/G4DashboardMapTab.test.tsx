@@ -178,6 +178,7 @@ import LiveTrackingScreen from '../screens/Mapping/LiveTrackingScreen';
 import OnlineUsersScreen from '../screens/Mapping/OnlineUsers';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen';
 import ErrorBoundary from '../components/ErrorBoundary';
+import SelectHorseScreen from '../screens/Mapping/SelectHorseScreen';
 import { getRides } from '../services/RideStorage';
 
 describe('G4 Dashboard & Map Tab — Task 1: Riders Online & OnlineUsers ScreenHeader', () => {
@@ -349,6 +350,33 @@ describe('G4 ErrorBoundary — Theme support', () => {
 
     const texts = renderer.root.findAllByType(Text);
     const titleText = texts.find((t) => [t.props.children].flat().join('') === 'Something went wrong');
+    expect(titleText).toBeDefined();
+    const titleStyle = StyleSheet.flatten(titleText!.props.style);
+    expect(titleStyle.color).toBe(Colors.dark.textPrimary);
+
+    renderer.unmount();
+  });
+});
+
+describe('G4 SelectHorseScreen — Theme support', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('renders themed SelectHorseScreen in dark mode', async () => {
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<SelectHorseScreen />);
+    });
+
+    const rootViews = renderer.root.findAllByType(View);
+    const containerStyle = StyleSheet.flatten(rootViews[0].props.style);
+    expect(containerStyle.backgroundColor).toBe(Colors.dark.background);
+
+    const texts = renderer.root.findAllByType(Text);
+    const titleText = texts.find((t) => [t.props.children].flat().join('') === 'Select Your Horse');
     expect(titleText).toBeDefined();
     const titleStyle = StyleSheet.flatten(titleText!.props.style);
     expect(titleStyle.color).toBe(Colors.dark.textPrimary);

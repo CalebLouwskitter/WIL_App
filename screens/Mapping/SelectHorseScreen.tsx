@@ -6,7 +6,7 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { MappingStackParamList, TabParamList } from '@/navigation/types';
 import { getHorses, setActiveHorseId, getActiveHorseId, deleteHorse, type Horse } from '../../services/HorseStorage';
-import { Colors } from '@/constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { getRides } from '../../services/RideStorage';
 
 type SelectHorseNavigationProp = StackNavigationProp<MappingStackParamList, 'SelectHorse'>;
@@ -16,8 +16,7 @@ const SelectHorseScreen = () => {
   const [horses, setHorses] = useState<Horse[]>([]);
   const [rideCounts, setRideCounts] = useState<Record<string, number>>({});
   const [activeId, setActiveId] = useState<string | null>(null);
-  const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { palette, isDark } = useAppTheme();
 
   const load = async () => {
     const [list, id, rides] = await Promise.all([getHorses(), getActiveHorseId(), getRides()]);
@@ -69,31 +68,46 @@ const SelectHorseScreen = () => {
       <TouchableOpacity 
         style={[
           styles.row, 
-          { backgroundColor: palette.cardElevated }, 
+          { backgroundColor: palette.card }, 
           isActive && styles.activeRow,
           isActive && { borderColor: palette.brandPrimary }
         ]} 
         onPress={() => onSelect(item.id)}
         activeOpacity={0.7}
       >
-        <View style={styles.horseIconContainer}>
-          <FAIcon name="horse" size={24} color={isActive ? palette.brandPrimary : palette.onSurfaceVariant} />
+        <View
+          style={[
+            styles.horseIconContainer,
+            { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)' },
+          ]}
+        >
+          <FAIcon name="horse" size={24} color={isActive ? palette.brandPrimary : palette.textSecondary} />
         </View>
         <View style={styles.horseInfo}>
-          <Text style={[styles.title, { color: palette.onSurface }]}>{item.name}</Text>
+          <Text style={[styles.title, { color: palette.textPrimary }]}>{item.name}</Text>
           <View style={styles.detailsRow}>
             {item.breed && (
-              <View style={styles.detailChip}>
-                <Text style={[styles.detailText, { color: palette.onSurfaceVariant }]}>{item.breed}</Text>
+              <View
+                style={[
+                  styles.detailChip,
+                  { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)' },
+                ]}
+              >
+                <Text style={[styles.detailText, { color: palette.textSecondary }]}>{item.breed}</Text>
               </View>
             )}
             {item.age && (
-              <View style={styles.detailChip}>
-                <Text style={[styles.detailText, { color: palette.onSurfaceVariant }]}>{item.age} yrs</Text>
+              <View
+                style={[
+                  styles.detailChip,
+                  { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)' },
+                ]}
+              >
+                <Text style={[styles.detailText, { color: palette.textSecondary }]}>{item.age} yrs</Text>
               </View>
             )}
             {rideCount > 0 && (
-              <View style={[styles.detailChip, styles.rideCountChip]}>
+              <View style={[styles.detailChip, styles.rideCountChip, { backgroundColor: palette.brandSoft }]}>
                 <Icon name="navigation" size={12} color={palette.brandPrimary} style={{ marginRight: 4 }} />
                 <Text style={[styles.detailText, { color: palette.brandPrimary }]}>{rideCount} rides</Text>
               </View>
@@ -103,10 +117,15 @@ const SelectHorseScreen = () => {
         <View style={styles.rightControls}>
           <TouchableOpacity
             onPress={() => onDelete(item.id, item.name)}
-            style={[styles.deleteBtn, { backgroundColor: 'rgba(244, 63, 94, 0.1)' }]}
+            style={[
+              styles.deleteBtn,
+              { backgroundColor: isDark ? 'rgba(244, 63, 94, 0.2)' : 'rgba(244, 63, 94, 0.1)' },
+            ]}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Delete ${item.name}`}
           >
-            <Icon name="trash-2" size={16} color={palette.onSurfaceVariant} />
+            <Icon name="trash-2" size={16} color={palette.danger} />
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -114,20 +133,24 @@ const SelectHorseScreen = () => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: palette.brandMuted }]}>
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
       <View style={styles.headerRow}>
         <TouchableOpacity 
           onPress={() => nav.goBack()} 
-          style={[styles.backBtn, { backgroundColor: palette.cardElevated }]}
+          style={[styles.backBtn, { backgroundColor: palette.card }]}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
         >
-          <Icon name="arrow-left" size={22} color={palette.onSurface} />
+          <Icon name="arrow-left" size={22} color={palette.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: palette.onSurface }]}>Select Your Horse</Text>
+        <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>Select Your Horse</Text>
         <TouchableOpacity 
           onPress={() => nav.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('ProfileStack', { screen: 'CreateHorse', params: { returnToSelectHorse: true } })} 
           style={[styles.addBtn, { backgroundColor: palette.brandPrimary }]}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Add new horse"
         >
           <Icon name="plus" size={20} color={palette.onPrimary} />
         </TouchableOpacity>
@@ -141,13 +164,15 @@ const SelectHorseScreen = () => {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <FAIcon name="horse" size={56} color={palette.onSurfaceVariant} style={{ opacity: 0.3, marginBottom: 16 }} />
-            <Text style={[styles.emptyText, { color: palette.onSurfaceVariant, fontWeight: '600' }]}>No horses added yet</Text>
-            <Text style={[styles.emptyText, { color: palette.onSurfaceVariant, fontSize: 14, marginTop: -12, marginBottom: 24 }]}>Add your first horse to start tracking rides</Text>
+            <FAIcon name="horse" size={56} color={palette.textMuted} style={{ opacity: 0.3, marginBottom: 16 }} />
+            <Text style={[styles.emptyText, { color: palette.textSecondary, fontWeight: '600' }]}>No horses added yet</Text>
+            <Text style={[styles.emptyText, { color: palette.textMuted, fontSize: 14, marginTop: -12, marginBottom: 24 }]}>Add your first horse to start tracking rides</Text>
             <TouchableOpacity 
               style={[styles.cta, { backgroundColor: palette.brandPrimary }]} 
               onPress={() => nav.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('ProfileStack', { screen: 'CreateHorse', params: { returnToSelectHorse: true } })}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Add Your First Horse"
             >
               <Text style={[styles.ctaText, { color: palette.onPrimary }]}>Add Your First Horse</Text>
             </TouchableOpacity>
@@ -222,7 +247,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(139, 115, 85, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16
@@ -241,16 +265,13 @@ const styles = StyleSheet.create({
     gap: 6
   },
   detailChip: {
-    backgroundColor: 'rgba(0,0,0,0.05)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center'
   },
-  rideCountChip: {
-    backgroundColor: 'rgba(44, 85, 48, 0.1)'
-  },
+  rideCountChip: {},
   detailText: {
     fontSize: 12,
     fontWeight: '600'
