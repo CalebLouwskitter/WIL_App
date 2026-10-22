@@ -1,75 +1,19 @@
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, useColorScheme, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather as Icon } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { FIREBASE_ENABLED, auth } from '../../services/firebase';
+import { listUserAchievements } from '../../services/Data';
+import { getRides } from '../../services/RideStorage';
+import { getHorses } from '../../services/HorseStorage';
+import {
+  computeAchievements,
+  normalizeAchievementId,
+  type AchievementStatus,
+} from '../../utils/achievements';
 
-type Achievement = {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  target: number;
-  progress: number;
-  gradientColors: readonly [string, string];
-};
-
-const ACHIEVEMENTS: Achievement[] = [
-  {
-    id: 'first-ride',
-    title: 'First Ride',
-    description: 'Completed your first ride',
-    icon: 'award',
-    target: 1,
-    progress: 1,
-    gradientColors: ['#FF6B9D', '#FF8E53'] as const,
-  },
-  {
-    id: 'distance-100',
-    title: '100km Club',
-    description: 'Rode over 100 km',
-    icon: 'map',
-    target: 100,
-    progress: 42,
-    gradientColors: ['#A8E6CF', '#7FD8BE'] as const,
-  },
-  {
-    id: 'early-bird',
-    title: 'Early Bird',
-    description: 'Morning ride before 6 am',
-    icon: 'sunrise',
-    target: 1,
-    progress: 0,
-    gradientColors: ['#FFD93D', '#F6A623'] as const,
-  },
-  {
-    id: 'trail-marathon',
-    title: 'Trail Marathon',
-    description: 'Ride for 4 hours continuously',
-    icon: 'clock',
-    target: 1,
-    progress: 0,
-    gradientColors: ['#FFA07A', '#FF6B9D'] as const,
-  },
-  {
-    id: 'stable-keeper',
-    title: 'Stable Keeper',
-    description: 'Register three horses',
-    icon: 'heart',
-    target: 3,
-    progress: 2,
-    gradientColors: ['#C9D6FF', '#A1C4FD'] as const,
-  },
-  {
-    id: 'speed-demon',
-    title: 'Speed Demon',
-    description: 'Reach 30 km/h',
-    icon: 'zap',
-    target: 1,
-    progress: 0,
-    gradientColors: ['#F093FB', '#F5576C'] as const,
-  },
-];
+type AwardsSource = 'loading' | 'ok' | 'unavailable' | 'error';
 
 const { width: screenWidth } = Dimensions.get('window');
 const CARD_WIDTH = (screenWidth - 52) / 2;
@@ -95,21 +39,80 @@ export default function AchievementsScreen() {
     ]).start();
   }, []);
 
-  const { unlocked, inProgress } = useMemo(() => {
-    const unlockedList = ACHIEVEMENTS.filter((item) => item.progress >= item.target);
-    const progressList = ACHIEVEMENTS.filter((item) => item.progress < item.target);
-    return { unlocked: unlockedList, inProgress: progressList };
-  }, []);
+  const [awardsSource, setAwardsSource] = useState<AwardsSource>('loading');
+  const [awardIds, setAwardIds] = useState<Set<string>>(new Set());
+  const [rides, setRides] = useState<{ startTime: number; totalDistance: number; duration: number }[]>([]);
+  const [horseCount, setHorseCount] = useState<number | null>(null);
+
+  // Real data only: server awards (when connected) plus rides and horses stored for this user
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        const uid = auth?.currentUser?.uid ?? null;
+
+        let source: AwardsSource = 'ok';
+        let ids = new Set<string>();
+        if (!FIREBASE_ENABLED || !uid) {
+          source = 'unavailable';
+        } else {
+          try {
+            const awards = await listUserAchievements(uid);
+            ids = new Set(awards.map((a) => normalizeAchievementId(a, uid)).filter((id): id is string => !!id));
+          } catch (error) {
+            console.warn('[Achievements] Could not load awards:', error);
+            source = 'error';
+          }
+        }
+
+        const [rideList, horseList] = await Promise.all([
+          getRides().catch(() => []),
+          getHorses().catch(() => null),
+        ]);
+
+        if (cancelled) return;
+        setAwardIds(ids);
+        setAwardsSource(source);
+        setRides(rideList);
+        setHorseCount(horseList ? horseList.length : null);
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [])
+  );
+
+  const statuses = useMemo(
+    () => computeAchievements({ awardIds, rides, horseCount }),
+    [awardIds, rides, horseCount]
+  );
+
+  const { unlocked, inProgress, untracked } = useMemo(() => {
+    return {
+      unlocked: statuses.filter((item) => item.unlocked),
+      inProgress: statuses.filter((item) => !item.unlocked && item.progress !== null),
+      untracked: statuses.filter((item) => !item.unlocked && item.progress === null),
+    };
+  }, [statuses]);
 
   const totalProgress = useMemo(() => {
-    const total = ACHIEVEMENTS.length;
+    const total = statuses.filter((item) => item.unlocked || item.progress !== null).length;
     const completed = unlocked.length;
-    return { total, completed, percentage: Math.round((completed / total) * 100) };
-  }, [unlocked]);
+    return { total, completed, percentage: total === 0 ? 0 : Math.round((completed / total) * 100) };
+  }, [statuses, unlocked]);
 
-  const renderCard = (achievement: Achievement, isUnlocked: boolean, index: number) => {
-    const ratio = achievement.target === 0 ? 0 : Math.min(1, achievement.progress / achievement.target);
+  const dataNote =
+    awardsSource === 'unavailable'
+      ? "Not connected to SBHRA servers. Progress is calculated from rides and horses stored on this device."
+      : awardsSource === 'error'
+      ? "Couldn't load your awards from SBHRA. Progress is calculated from rides and horses on this device."
+      : null;
+
+  const renderCard = (achievement: AchievementStatus, isUnlocked: boolean, index: number) => {
+    const progress = achievement.progress ?? 0;
+    const ratio = achievement.target === 0 ? 0 : Math.min(1, progress / achievement.target);
     const percent = Math.round(ratio * 100);
+    const progressLabel = `${progress}/${achievement.target}${achievement.unit ? ` ${achievement.unit}` : ''}`;
 
     return (
       <Animated.View
@@ -122,7 +125,7 @@ export default function AchievementsScreen() {
           },
         ]}
       >
-        <TouchableOpacity activeOpacity={0.8}>
+        <View>
           <LinearGradient
             colors={achievement.gradientColors}
             start={{ x: 0, y: 0 }}
@@ -151,12 +154,12 @@ export default function AchievementsScreen() {
                   <Icon name="check-circle" size={14} color="#10B981" />
                   <Text style={styles.unlockedText}>Unlocked</Text>
                 </View>
+              ) : achievement.progress === null ? (
+                <Text style={styles.progressText}>Progress isn't tracked yet</Text>
               ) : (
                 <View style={styles.progressSection}>
                   <View style={styles.progressHeader}>
-                    <Text style={styles.progressText}>
-                      {achievement.progress}/{achievement.target}
-                    </Text>
+                    <Text style={styles.progressText}>{progressLabel}</Text>
                     <Text style={styles.progressPercent}>{percent}%</Text>
                   </View>
                   <View style={styles.progressBarContainer}>
@@ -166,7 +169,7 @@ export default function AchievementsScreen() {
               )}
             </View>
           </LinearGradient>
-        </TouchableOpacity>
+        </View>
       </Animated.View>
     );
   };
@@ -218,7 +221,9 @@ export default function AchievementsScreen() {
               <View style={styles.summaryLeft}>
                 <Text style={styles.summaryTitle}>Your Progress</Text>
                 <Text style={styles.summarySubtitle}>
-                  {totalProgress.completed} of {totalProgress.total} achievements unlocked
+                  {awardsSource === 'loading'
+                    ? 'Checking your achievements…'
+                    : `${totalProgress.completed} of ${totalProgress.total} tracked achievements unlocked`}
                 </Text>
                 <View style={styles.summaryProgressBar}>
                   <View 
@@ -237,6 +242,8 @@ export default function AchievementsScreen() {
               </View>
             </LinearGradient>
           </Animated.View>
+
+          {dataNote ? <Text style={styles.dataNote}>{dataNote}</Text> : null}
 
           {/* Unlocked Section */}
           <View style={styles.section}>
@@ -261,7 +268,7 @@ export default function AchievementsScreen() {
                     <Icon name="lock" size={40} color="#94A3B8" />
                   </View>
                   <Text style={styles.emptyTitle}>No achievements unlocked yet</Text>
-                  <Text style={styles.emptySubtitle}>Keep riding to earn your first trophy!</Text>
+                  <Text style={styles.emptySubtitle}>Complete a ride to earn your first one.</Text>
                 </View>
               )}
             </View>
@@ -289,12 +296,28 @@ export default function AchievementsScreen() {
                   <View style={styles.emptyIconCircle}>
                     <Icon name="award" size={40} color="#94A3B8" />
                   </View>
-                  <Text style={styles.emptyTitle}>All achievements complete!</Text>
-                  <Text style={styles.emptySubtitle}>You've earned every badge. Amazing work!</Text>
+                  <Text style={styles.emptyTitle}>Nothing in progress</Text>
+                  <Text style={styles.emptySubtitle}>Every achievement we can track is unlocked.</Text>
                 </View>
               )}
             </View>
           </View>
+
+          {untracked.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionTitleRow}>
+                  <View style={[styles.sectionIconCircle, { backgroundColor: '#E2E8F0' }]}>
+                    <Icon name="help-circle" size={16} color="#64748B" />
+                  </View>
+                  <Text style={styles.sectionTitle}>Not tracked yet</Text>
+                </View>
+              </View>
+              <View style={styles.cardsGrid}>
+                {untracked.map((item, idx) => renderCard(item, false, idx))}
+              </View>
+            </View>
+          )}
 
           <View style={{ height: 24 }} />
         </ScrollView>
@@ -304,6 +327,14 @@ export default function AchievementsScreen() {
 }
 
 const styles = StyleSheet.create({
+  dataNote: {
+    fontSize: 13,
+    color: '#92400E',
+    backgroundColor: '#FEF3C7',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
