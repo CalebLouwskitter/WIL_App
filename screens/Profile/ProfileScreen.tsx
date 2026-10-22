@@ -9,9 +9,9 @@ import {
   Dimensions,
   Image,
   ActivityIndicator,
-  SafeAreaView,
   Animated,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather as Icon } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StackNavigationProp } from '@react-navigation/stack';
