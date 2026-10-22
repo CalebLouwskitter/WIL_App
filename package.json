@@ -11,7 +11,8 @@
     "check-notifications": "node scripts/checkNotifications.js",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:emulator": "firebase emulators:exec --only auth,firestore,storage --project demo-sbhra \"jest -c jest.emulator.config.js --runInBand\""
+    "test:emulator": "firebase emulators:exec --only auth,firestore,storage --project demo-sbhra \"jest -c jest.emulator.config.js --runInBand\"",
+    "seed:emulator": "node -r ./scripts/registerTs.js scripts/seedEmulator.ts"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
