@@ -131,3 +131,40 @@ export function achievementDataNote(source: AwardsSource): string | null {
   }
   return null;
 }
+
+/** Achievements shown in the Profile preview, in display order. */
+export const PROFILE_PREVIEW_IDS = ['first-ride', 'distance-100', 'early-bird'] as const;
+
+export type AchievementPreviewItem = {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  gradientColors: readonly [string, string];
+  earned: boolean;
+  /** Progress such as "0/1" or "52.5/100 km"; null when nothing records the achievement yet. */
+  progressLabel: string | null;
+};
+
+/** Profile preview rows built from the same statuses the Achievements screen shows. */
+export function buildAchievementPreview(statuses: readonly AchievementStatus[]): AchievementPreviewItem[] {
+  return PROFILE_PREVIEW_IDS.flatMap((id) => {
+    const status = statuses.find((s) => s.id === id);
+    if (!status) return [];
+    const progressLabel =
+      status.unlocked || status.progress === null
+        ? null
+        : `${status.progress}/${status.target}${status.unit ? ` ${status.unit}` : ''}`;
+    return [
+      {
+        id: status.id,
+        title: status.title,
+        description: status.description,
+        icon: status.icon,
+        gradientColors: status.gradientColors,
+        earned: status.unlocked,
+        progressLabel,
+      },
+    ];
+  });
+}
