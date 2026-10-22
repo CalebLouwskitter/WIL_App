@@ -19,17 +19,31 @@ const UPLOAD_TIMEOUT_MS = 30_000;
  */
 export type SyncState = 'pending' | 'synced' | 'local';
 
+/** Why a recording ended: the rider stopped it, it left the riding area, or it was saved after an interruption. */
+export type RideEndReason = 'user' | 'boundary' | 'stale';
+
 export type StoredRide = RideData & {
   id: string;
   userId: string | null;
   syncState: SyncState;
+  endReason?: RideEndReason | null;
   attempts?: number;
   lastError?: string;
 };
 
+/**
+ * A ride being saved. ownerUid, when present, is the account the ride was
+ * recorded under (null = recorded signed out) and wins over whoever is signed
+ * in now.
+ */
+export type RideToSave = RideData & {
+  ownerUid?: string | null;
+  endReason?: RideEndReason | null;
+};
+
 export type SyncResult = { synced: number; failed: number };
 
-const currentUid = (): string | null => (FIREBASE_ENABLED ? auth?.currentUser?.uid ?? null : null);
+export const currentUid = (): string | null => (FIREBASE_ENABLED ? auth?.currentUser?.uid ?? null : null);
 
 export const makeRideId = (startTime: number) =>
   `${startTime}_${Math.random().toString(36).slice(2, 10)}`;
@@ -165,18 +179,27 @@ const runSync = async (): Promise<SyncResult> => {
 /**
  * Save a finished ride. Resolves as soon as it is on the device; the upload
  * runs in the background and is retried by startRideSync when back online.
+ * Saving an id that is already stored returns the stored row unchanged.
  */
-export const saveRide = async (ride: RideData): Promise<StoredRide> => {
-  const uid = currentUid();
-  const stored: StoredRide = {
+export const saveRide = async ({ ownerUid, ...ride }: RideToSave): Promise<StoredRide> => {
+  const owner = ownerUid !== undefined ? ownerUid : currentUid();
+  const candidate: StoredRide = {
     ...ride,
     id: ride.id ?? makeRideId(ride.startTime),
-    userId: uid,
-    syncState: uid ? 'pending' : 'local',
+    userId: owner,
+    syncState: owner ? 'pending' : 'local',
     pendingSync: undefined,
   };
-  await mutateStored((rides) => [...rides, stored]);
-  if (uid) {
+  let stored = candidate;
+  await mutateStored((rides) => {
+    const existing = rides.find((r) => r.id === candidate.id);
+    if (existing) {
+      stored = existing;
+      return rides;
+    }
+    return [...rides, candidate];
+  });
+  if (stored.syncState === 'pending') {
     syncPendingRides().catch((e) => console.warn('Ride sync failed:', e));
   }
   return stored;
