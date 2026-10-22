@@ -208,7 +208,7 @@ const AdminSosManagement: React.FC = () => {
             <View style={styles.emptyState}>
               <Feather name="check" size={42} color="#9CA3AF" />
               <Text style={styles.emptyTitle}>No active SOS alerts</Text>
-              <Text style={styles.emptySubtitle}>All clear for now.</Text>
+              <Text style={styles.emptySubtitle}>No active SOS alerts.</Text>
             </View>
           }
         />

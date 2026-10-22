@@ -355,7 +355,7 @@ export default function AdminObstacleManagement() {
               <Text style={styles.emptyTitle}>No obstacles here</Text>
               <Text style={styles.emptySubtitle}>
                 {filter === 'active'
-                  ? 'All clear! There are no active obstacles at the moment.'
+                  ? 'No active obstacles reported.'
                   : 'No obstacles match this filter.'}
               </Text>
             </View>
