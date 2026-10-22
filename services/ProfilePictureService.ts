@@ -13,6 +13,15 @@ export interface ProfilePicture {
   timestamp: number;
   type: 'local' | 'remote';
   storagePath?: string;
+  ownerUid: string;
+}
+
+function getCurrentOwnerUid(): string {
+  return auth?.currentUser?.uid || 'guest';
+}
+
+function getCacheKey(ownerUid: string): string {
+  return `${PROFILE_PICTURE_KEY}:${ownerUid}`;
 }
 
 class ProfilePictureService {
@@ -172,6 +181,7 @@ class ProfilePictureService {
     try {
       console.log('Saving profile picture, source URI:', sourceUri);
       
+      const ownerUid = getCurrentOwnerUid();
       const PROFILE_PICTURES_DIR = this.getStorageDirectory();
       let destinationUri = sourceUri;
 
@@ -180,8 +190,8 @@ class ProfilePictureService {
         try {
           await this.init();
           
-          // Generate unique filename
-          const filename = `profile_${Date.now()}.jpg`;
+          // Generate unique filename namespaced by owner
+          const filename = `profile_${ownerUid}_${Date.now()}.jpg`;
           destinationUri = `${PROFILE_PICTURES_DIR}${filename}`;
           
           console.log('Destination URI:', destinationUri);
@@ -195,8 +205,8 @@ class ProfilePictureService {
 
           console.log('File copied successfully');
           
-          // Delete old profile pictures
-          await this.deleteOldProfilePictures(destinationUri);
+          // Delete old profile pictures for this owner
+          await this.deleteOldProfilePictures(destinationUri, ownerUid);
         } catch (copyError) {
           console.warn('Could not copy file, using original URI:', copyError);
           // Fall back to using the source URI directly
@@ -207,7 +217,7 @@ class ProfilePictureService {
       }
 
       // If Firebase is enabled and user is authenticated, upload to Firebase Storage
-      if (FIREBASE_ENABLED && auth?.currentUser && app) {
+      if (FIREBASE_ENABLED && auth?.currentUser?.uid && app) {
         try {
           const uid = auth.currentUser.uid;
           const storage = getStorage(app);
@@ -222,31 +232,31 @@ class ProfilePictureService {
           const downloadUrl = await getDownloadURL(storageRef);
           console.log('Uploaded. Download URL obtained.');
 
-          // Optionally update auth profile photoURL (skipped to avoid API differences)
-
-          // Save remote reference to AsyncStorage
+          // Save remote reference to namespaced AsyncStorage key
           const profilePic: ProfilePicture = {
             uri: downloadUrl,
             timestamp: Date.now(),
             type: 'remote',
             storagePath,
+            ownerUid: uid,
           };
-          await AsyncStorage.setItem(PROFILE_PICTURE_KEY, JSON.stringify(profilePic));
-          console.log('Saved remote profile picture to AsyncStorage');
+          await AsyncStorage.setItem(getCacheKey(uid), JSON.stringify(profilePic));
+          console.log('Saved remote profile picture to AsyncStorage for uid:', uid);
           return downloadUrl;
         } catch (uploadError) {
           console.warn('Failed to upload to Firebase Storage, falling back to local only:', uploadError);
         }
       }
 
-      // Fallback: Save local reference to AsyncStorage
+      // Fallback: Save local reference to namespaced AsyncStorage key
       const profilePic: ProfilePicture = {
         uri: destinationUri,
         timestamp: Date.now(),
         type: 'local',
+        ownerUid,
       };
-      await AsyncStorage.setItem(PROFILE_PICTURE_KEY, JSON.stringify(profilePic));
-      console.log('Saved local profile picture to AsyncStorage');
+      await AsyncStorage.setItem(getCacheKey(ownerUid), JSON.stringify(profilePic));
+      console.log('Saved local profile picture to AsyncStorage for owner:', ownerUid);
       return destinationUri;
     } catch (error) {
       console.error('Error saving profile picture:', error);
@@ -259,20 +269,58 @@ class ProfilePictureService {
   async getProfilePicture(): Promise<string | null> {
     try {
       console.log('getProfilePicture() -> FIREBASE_ENABLED:', !!FIREBASE_ENABLED, 'hasUser:', !!auth?.currentUser, 'hasApp:', !!app);
-      const data = await AsyncStorage.getItem(PROFILE_PICTURE_KEY);
-      if (!data) {
-        console.log('No profile picture found in storage');
-        // Try to fetch from Firebase Storage deterministic path
-        if (FIREBASE_ENABLED && auth?.currentUser && app) {
+      const ownerUid = getCurrentOwnerUid();
+      const namespacedKey = getCacheKey(ownerUid);
+
+      let data = await AsyncStorage.getItem(namespacedKey);
+
+      // If no namespaced cache exists and user is signed in, check legacy key once
+      if (!data && ownerUid !== 'guest') {
+        const legacyData = await AsyncStorage.getItem(PROFILE_PICTURE_KEY);
+        if (legacyData) {
           try {
+            const legacyPic = JSON.parse(legacyData);
+            const expectedPath = `users/${ownerUid}/profile.jpg`;
+            if (legacyPic?.storagePath === expectedPath) {
+              const adopted: ProfilePicture = {
+                uri: legacyPic.uri,
+                timestamp: legacyPic.timestamp || Date.now(),
+                type: legacyPic.type || 'remote',
+                storagePath: legacyPic.storagePath,
+                ownerUid,
+              };
+              await AsyncStorage.setItem(namespacedKey, JSON.stringify(adopted));
+              data = JSON.stringify(adopted);
+              console.log('Adopted legacy profile picture for uid:', ownerUid);
+            } else {
+              console.log('Ignoring legacy profile picture (storagePath did not match current user).');
+            }
+          } catch (e) {
+            console.warn('Failed to parse legacy profile picture:', e);
+          }
+        }
+      }
+
+      if (!data) {
+        console.log('No profile picture found in storage for owner:', ownerUid);
+        // Try to fetch from Firebase Storage deterministic path
+        if (FIREBASE_ENABLED && auth?.currentUser?.uid && app) {
+          try {
+            const uid = auth.currentUser.uid;
             const storage = getStorage(app);
-            const storagePath = `users/${auth.currentUser.uid}/profile.jpg`;
+            const storagePath = `users/${uid}/profile.jpg`;
             const storageRef = ref(storage, storagePath);
             console.log('Attempting remote fetch from Storage path:', storagePath);
             const url = await getDownloadURL(storageRef);
             // Cache for next time
-            const profilePic: ProfilePicture = { uri: url, timestamp: Date.now(), type: 'remote', storagePath };
-            await AsyncStorage.setItem(PROFILE_PICTURE_KEY, JSON.stringify(profilePic));
+            const profilePic: ProfilePicture = {
+              uri: url,
+              timestamp: Date.now(),
+              type: 'remote',
+              storagePath,
+              ownerUid: uid,
+            };
+            await AsyncStorage.setItem(namespacedKey, JSON.stringify(profilePic));
             return url;
           } catch (e: any) {
             if (e?.code === 'storage/object-not-found') {
@@ -292,6 +340,12 @@ class ProfilePictureService {
       const profilePic: ProfilePicture = JSON.parse(data);
       console.log('Profile picture from storage:', profilePic);
 
+      // Validate owner UID matches
+      if (!profilePic || profilePic.ownerUid !== ownerUid) {
+        console.warn(`Profile picture owner mismatch: expected ${ownerUid}, got ${profilePic?.ownerUid}`);
+        return null;
+      }
+
       // Check if file still exists (only if it's a copied file, not original ImagePicker URI)
       if (profilePic.uri.includes('profile_pictures')) {
         const fileInfo = await FileSystem.getInfoAsync(profilePic.uri);
@@ -301,15 +355,22 @@ class ProfilePictureService {
           console.log('Profile picture file no longer exists');
           await this.removeProfilePicture();
           // Attempt to fetch from Firebase Storage again
-          if (FIREBASE_ENABLED && auth?.currentUser && app) {
+          if (FIREBASE_ENABLED && auth?.currentUser?.uid && app) {
             try {
+              const uid = auth.currentUser.uid;
               const storage = getStorage(app);
-              const storagePath = `users/${auth.currentUser.uid}/profile.jpg`;
+              const storagePath = `users/${uid}/profile.jpg`;
               const storageRef = ref(storage, storagePath);
               console.log('Retrying remote fetch from Storage path:', storagePath);
               const url = await getDownloadURL(storageRef);
-              const newPic: ProfilePicture = { uri: url, timestamp: Date.now(), type: 'remote', storagePath };
-              await AsyncStorage.setItem(PROFILE_PICTURE_KEY, JSON.stringify(newPic));
+              const newPic: ProfilePicture = {
+                uri: url,
+                timestamp: Date.now(),
+                type: 'remote',
+                storagePath,
+                ownerUid: uid,
+              };
+              await AsyncStorage.setItem(namespacedKey, JSON.stringify(newPic));
               return url;
             } catch (e: any) {
               if (e?.code === 'storage/object-not-found') {
@@ -354,50 +415,58 @@ class ProfilePictureService {
     }
   }
 
-// ... (rest of the code remains the same)
   async removeProfilePicture(): Promise<void> {
     try {
-      const data = await AsyncStorage.getItem(PROFILE_PICTURE_KEY);
-      if (data) {
-        const profilePic: ProfilePicture = JSON.parse(data);
-        
-        // Only try to delete if it's a copied file in our directory
-        if (profilePic.uri.includes('profile_pictures')) {
-          try {
-            const fileInfo = await FileSystem.getInfoAsync(profilePic.uri);
-            if (fileInfo.exists) {
-              await FileSystem.deleteAsync(profilePic.uri);
-              console.log('Profile picture file deleted');
-            }
-          } catch (deleteError) {
-            console.warn('Could not delete file:', deleteError);
-          }
-        }
+      const ownerUid = getCurrentOwnerUid();
+      const namespacedKey = getCacheKey(ownerUid);
+      const data = await AsyncStorage.getItem(namespacedKey);
 
-        // If uploaded to Firebase Storage, delete it as well
-        if (FIREBASE_ENABLED && auth?.currentUser && profilePic.storagePath && app) {
-          try {
-            const storage = getStorage(app);
-            const storageRef = ref(storage, profilePic.storagePath);
-            await deleteObject(storageRef);
-            console.log('Remote profile picture deleted from Firebase Storage');
-          } catch (e) {
-            console.warn('Could not delete remote profile picture:', e);
+      if (data) {
+        try {
+          const profilePic: ProfilePicture = JSON.parse(data);
+          
+          // Only try to delete local file if it belongs to this owner and is in our directory
+          if (profilePic.ownerUid === ownerUid && profilePic.uri?.includes('profile_pictures')) {
+            try {
+              const fileInfo = await FileSystem.getInfoAsync(profilePic.uri);
+              if (fileInfo.exists) {
+                await FileSystem.deleteAsync(profilePic.uri);
+                console.log('Profile picture file deleted');
+              }
+            } catch (deleteError) {
+              console.warn('Could not delete file:', deleteError);
+            }
           }
-          // Auth photoURL not modified here
+        } catch (parseError) {
+          console.warn('Could not parse profile picture on remove:', parseError);
         }
       }
 
-      // Remove from AsyncStorage
-      await AsyncStorage.removeItem(PROFILE_PICTURE_KEY);
-      console.log('Profile picture removed from storage');
+      // If uploaded to Firebase Storage, delete only users/<current uid>/profile.jpg,
+      // built strictly from the current uid (never from a cached path).
+      if (FIREBASE_ENABLED && auth?.currentUser?.uid && app) {
+        try {
+          const uid = auth.currentUser.uid;
+          const storage = getStorage(app);
+          const storagePath = `users/${uid}/profile.jpg`;
+          const storageRef = ref(storage, storagePath);
+          await deleteObject(storageRef);
+          console.log('Remote profile picture deleted from Firebase Storage:', storagePath);
+        } catch (e) {
+          console.warn('Could not delete remote profile picture:', e);
+        }
+      }
+
+      // Remove only the namespaced key from AsyncStorage. Never delete the legacy key!
+      await AsyncStorage.removeItem(namespacedKey);
+      console.log('Profile picture removed from storage for owner:', ownerUid);
     } catch (error) {
       console.error('Error removing profile picture:', error);
     }
   }
 
-  // Delete old profile pictures (cleanup)
-  private async deleteOldProfilePictures(currentUri: string): Promise<void> {
+  // Delete old profile pictures (cleanup for this owner only)
+  private async deleteOldProfilePictures(currentUri: string, ownerUid: string): Promise<void> {
     try {
       const PROFILE_PICTURES_DIR = this.getStorageDirectory();
       if (!PROFILE_PICTURES_DIR) return;
@@ -405,10 +474,11 @@ class ProfilePictureService {
       const files = await FileSystem.readDirectoryAsync(PROFILE_PICTURES_DIR);
       console.log('Files in directory:', files);
       
+      const ownerPrefix = `profile_${ownerUid}_`;
       for (const file of files) {
         const fileUri = `${PROFILE_PICTURES_DIR}${file}`;
-        if (fileUri !== currentUri) {
-          console.log('Deleting old file:', fileUri);
+        if (fileUri !== currentUri && file.startsWith(ownerPrefix)) {
+          console.log('Deleting old file for owner:', fileUri);
           await FileSystem.deleteAsync(fileUri, { idempotent: true });
         }
       }
