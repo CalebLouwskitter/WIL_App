@@ -8,6 +8,8 @@ import type { RideData } from '../../hooks/useRideTracker';
 import { ReportDownload } from '../../services/AnalyticsService';
 import { trailData } from '../../constants/trails';
 import { resolvePalette } from '../../constants/colors';
+import { AnalyticsUnavailableNotice } from '../../components/AnalyticsUnavailableNotice';
+import { analyticsError, type AnalyticsResult } from '../../services/analyticsResult';
 
 import {
   BarChart,
@@ -41,6 +43,8 @@ function PersonalStatsScreen() {
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('month');
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [problem, setProblem] = useState<AnalyticsResult<unknown> | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
@@ -215,9 +219,11 @@ function PersonalStatsScreen() {
       try {
         setLoading(true);
         const stored = await getUserRidesByTimePeriod(timeSlot);
-        setRides(stored.data); 
+        setRides(stored.data);
+        setProblem(stored.status === 'ok' ? null : stored);
       } catch (error) {
         console.error('Error loading rides from Firebase:', error);
+        setProblem(analyticsError(error, []));
       } finally {
         setLoading(false);
       }
@@ -242,7 +248,7 @@ function PersonalStatsScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [timeSlot]);
+  }, [timeSlot, reloadKey]);
 
   const handleGenerateReport = async () => {
     setIsGeneratingReport(true);
@@ -305,6 +311,42 @@ function PersonalStatsScreen() {
               Loading stats from Firebase...
             </Text>
           </View>
+        </LinearGradient>
+      </View>
+    );
+  }
+
+  if (problem) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#EFF6FF', '#F8FAFC', '#F1F5F9'] as const}
+          style={styles.gradient}
+        >
+          <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.header}>
+              <View style={styles.headerContent}>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (route?.params?.fromDashboard) {
+                      navigation.getParent()?.navigate('Dashboard');
+                    } else {
+                      navigation.goBack();
+                    }
+                  }}
+                  style={styles.backButton}
+                >
+                  <LinearGradient colors={['#fff', '#F8FAFC'] as const} style={styles.backButtonGradient}>
+                    <Feather name="arrow-left" size={22} color="#0F172A" />
+                  </LinearGradient>
+                </TouchableOpacity>
+                <View style={styles.headerTextContainer}>
+                  <Text style={styles.headerTitle}>Personal Stats</Text>
+                </View>
+              </View>
+            </View>
+            <AnalyticsUnavailableNotice result={problem} onRetry={() => setReloadKey((k) => k + 1)} />
+          </ScrollView>
         </LinearGradient>
       </View>
     );
