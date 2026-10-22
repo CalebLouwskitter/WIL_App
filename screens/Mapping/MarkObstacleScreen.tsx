@@ -135,9 +135,15 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
         // Non-fatal error - obstacle was still saved
       }
 
-      Alert.alert('Success', 'Obstacle reported successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      Alert.alert(
+        savedObstacle.published ? 'Success' : 'Saved on this device',
+        savedObstacle.published
+          ? 'Obstacle reported successfully!'
+          : 'Your report is saved on this device — not yet visible to others.',
+        [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]
+      );
     } catch (error) {
       Alert.alert('Error', 'Failed to report obstacle. Please try again.');
       console.error(error);
