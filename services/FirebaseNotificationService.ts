@@ -2,7 +2,8 @@ import {
   collection, 
   addDoc, 
   getDocs, 
-  doc, 
+  doc,
+  setDoc, 
   updateDoc, 
   deleteDoc,
   getDoc,
@@ -284,17 +285,52 @@ export const markNotificationAsRead = async (notificationId: string, userId: str
   }
 
   const userNotifRef = doc(firestore, 'users', userId, 'readNotifications', notificationId);
-  await updateDoc(userNotifRef, {
+  await setDoc(userNotifRef, {
     read: true,
-    readAt: serverTimestamp()
-  }).catch(async () => {
-    // If doesn't exist, create it
-    const { setDoc } = await import('firebase/firestore');
-    await setDoc(userNotifRef, {
-      read: true,
-      readAt: serverTimestamp()
+    readAt: serverTimestamp(),
+  }, { merge: true });
+};
+
+/**
+ * Dismiss notification for a specific user (hides it and marks as read)
+ */
+export const dismissNotificationForUser = async (notificationId: string, userId: string) => {
+  if (!firestore) {
+    throw new Error("Firestore is not initialized");
+  }
+
+  const userNotifRef = doc(firestore, 'users', userId, 'readNotifications', notificationId);
+  await setDoc(userNotifRef, {
+    read: true,
+    readAt: serverTimestamp(),
+    dismissed: true,
+    dismissedAt: serverTimestamp(),
+  }, { merge: true });
+};
+
+/**
+ * Get notification read and dismissed states for a user
+ */
+export const getNotificationReadState = async (
+  userId: string
+): Promise<Map<string, { read: boolean; dismissed: boolean }>> => {
+  if (!firestore) {
+    throw new Error("Firestore is not initialized");
+  }
+
+  const readNotifsCol = collection(firestore, 'users', userId, 'readNotifications');
+  const snapshot = await getDocs(readNotifsCol);
+  const result = new Map<string, { read: boolean; dismissed: boolean }>();
+
+  snapshot.docs.forEach((d) => {
+    const data = d.data();
+    result.set(d.id, {
+      read: Boolean(data?.read),
+      dismissed: Boolean(data?.dismissed),
     });
   });
+
+  return result;
 };
 
 /**

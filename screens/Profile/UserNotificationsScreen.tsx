@@ -12,7 +12,13 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Feather as Icon } from '@expo/vector-icons';
-import { getNotificationsForRole, deleteNotification, createTestNotification, markNotificationAsRead } from '../../services/FirebaseNotificationService';
+import {
+  getNotificationsForRole,
+  dismissNotificationForUser,
+  createTestNotification,
+  markNotificationAsRead,
+  getNotificationReadState,
+} from '../../services/FirebaseNotificationService';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 import { FIREBASE_ENABLED } from '../../services/firebase';
 import { Notification } from '../../types/Notification';
@@ -22,6 +28,8 @@ export default function UserNotificationsScreen() {
   const navigation = useNavigation();
   const { profile, loading: profileLoading } = useCurrentUser();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [readState, setReadState] = useState<Map<string, { read: boolean; dismissed: boolean }>>(new Map());
+  const [readStateError, setReadStateError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -30,6 +38,8 @@ export default function UserNotificationsScreen() {
   const loadNotifications = async (showSpinner = true) => {
     if (!profile) {
       setNotifications([]);
+      setReadState(new Map());
+      setReadStateError(false);
       setLoadError(null);
       setLoading(false);
       return;
@@ -41,6 +51,17 @@ export default function UserNotificationsScreen() {
       // Get notifications for regular users
       const userNotifications = await getNotificationsForRole('member');
       setNotifications(userNotifications);
+
+      // Hydrate per-user read and dismissed state
+      try {
+        const stateMap = await getNotificationReadState(profile.uid);
+        setReadState(stateMap);
+        setReadStateError(false);
+      } catch (rsError) {
+        console.error('Error loading notification read state:', rsError);
+        setReadState(new Map());
+        setReadStateError(true);
+      }
     } catch (error) {
       console.error('Error loading notifications:', error);
       setLoadError('Could not load notifications.');
@@ -63,24 +84,65 @@ export default function UserNotificationsScreen() {
     }
   };
 
-  const handleDeleteNotification = async (notification: Notification) => {
+  const visibleNotifications = notifications.filter(
+    (n) => !readState.get(n.id)?.dismissed
+  );
+
+  const visibleUnreadNotifications = visibleNotifications.filter(
+    (n) => !readState.get(n.id)?.read
+  );
+
+  const handleDismissNotification = async (notification: Notification) => {
+    if (!profile) return;
     try {
-      await deleteNotification(notification.id);
-      Alert.alert('Success', 'Notification deleted successfully');
-      await loadNotifications(false);
+      await dismissNotificationForUser(notification.id, profile.uid);
+      setReadState((prev) => {
+        const next = new Map(prev);
+        const existing = next.get(notification.id);
+        next.set(notification.id, {
+          read: true,
+          dismissed: true,
+        });
+        return next;
+      });
+      Alert.alert('Success', 'Notification dismissed');
     } catch (error) {
-      console.error('Error deleting notification:', error);
-      const denied = (error as any)?.code === 'permission-denied';
-      Alert.alert(
-        denied ? 'Not allowed' : 'Error',
-        denied ? "You don't have permission to delete this notification." : 'Failed to delete notification'
-      );
+      console.error('Error dismissing notification:', error);
+      Alert.alert('Error', 'Failed to dismiss notification');
     }
   };
 
-  const handleNotificationPress = (notification: Notification) => {
-    // Handle notification press - could navigate to relevant screen
-    console.log('Notification pressed:', notification);
+  const handleNotificationPress = async (notification: Notification) => {
+    if (!profile) return;
+    const currentState = readState.get(notification.id);
+    if (currentState?.read) return;
+
+    // Optimistically update local state to read
+    setReadState((prev) => {
+      const next = new Map(prev);
+      next.set(notification.id, {
+        read: true,
+        dismissed: Boolean(currentState?.dismissed),
+      });
+      return next;
+    });
+
+    try {
+      await markNotificationAsRead(notification.id, profile.uid);
+    } catch (error) {
+      console.error('Error marking notification as read on press:', error);
+      // Revert optimistic update
+      setReadState((prev) => {
+        const next = new Map(prev);
+        if (currentState) {
+          next.set(notification.id, currentState);
+        } else {
+          next.delete(notification.id);
+        }
+        return next;
+      });
+      Alert.alert('Error', 'Failed to mark notification as read');
+    }
   };
 
   const handleCreateTestNotification = async () => {
@@ -97,11 +159,19 @@ export default function UserNotificationsScreen() {
   };
 
   const handleMarkAsRead = async (notification: Notification) => {
+    if (!profile) return;
     try {
-      // Mark notification as read in user's subcollection
-      await markNotificationAsRead(notification.id, profile?.uid || '');
+      await markNotificationAsRead(notification.id, profile.uid);
+      setReadState((prev) => {
+        const next = new Map(prev);
+        const current = next.get(notification.id);
+        next.set(notification.id, {
+          read: true,
+          dismissed: Boolean(current?.dismissed),
+        });
+        return next;
+      });
       Alert.alert('Success', 'Notification marked as read');
-      await loadNotifications(false);
     } catch (error) {
       console.error('Error marking notification as read:', error);
       Alert.alert('Error', 'Failed to mark notification as read');
@@ -109,16 +179,25 @@ export default function UserNotificationsScreen() {
   };
 
   const handleMarkAllAsRead = async () => {
-    if (!profile) return;
+    if (!profile || visibleUnreadNotifications.length === 0) return;
     
     try {
-      // Mark all notifications as read
-      const markPromises = notifications.map(notification => 
+      const markPromises = visibleUnreadNotifications.map((notification) => 
         markNotificationAsRead(notification.id, profile.uid)
       );
       await Promise.all(markPromises);
+      setReadState((prev) => {
+        const next = new Map(prev);
+        visibleUnreadNotifications.forEach((n) => {
+          const current = next.get(n.id);
+          next.set(n.id, {
+            read: true,
+            dismissed: Boolean(current?.dismissed),
+          });
+        });
+        return next;
+      });
       Alert.alert('Success', 'All notifications marked as read');
-      await loadNotifications(false);
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
       Alert.alert('Error', 'Failed to mark all notifications as read');
@@ -140,10 +219,22 @@ export default function UserNotificationsScreen() {
         </TouchableOpacity>
         <Text style={styles.title}>Notifications</Text>
         <View style={styles.headerActions}>
+          {__DEV__ && profile?.role === 'admin' && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleCreateTestNotification}
+              accessibilityLabel="Create test notification"
+              accessibilityRole="button"
+              accessibilityHint="Create a test notification"
+              activeOpacity={0.7}
+            >
+              <Icon name="plus" size={18} color="#3B82F6" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.actionButton}
             onPress={handleMarkAllAsRead}
-            disabled={notifications.length === 0}
+            disabled={visibleUnreadNotifications.length === 0}
             accessibilityLabel="Mark all as read"
             accessibilityRole="button"
             accessibilityHint="Mark all notifications as read"
@@ -153,10 +244,15 @@ export default function UserNotificationsScreen() {
           </TouchableOpacity>
         </View>
       </View>
-      {notifications.length > 0 && (
+      {readStateError && (
+        <View style={styles.readStateWarning}>
+          <Text style={styles.readStateWarningText}>Couldn't load read status.</Text>
+        </View>
+      )}
+      {visibleNotifications.length > 0 && (
         <View style={styles.batchActions}>
           <Text style={styles.batchActionsText}>
-            {notifications.length} notification{notifications.length !== 1 ? 's' : ''}
+            {visibleNotifications.length} notification{visibleNotifications.length !== 1 ? 's' : ''}
           </Text>
         </View>
       )}
@@ -231,13 +327,14 @@ export default function UserNotificationsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <FlatList
-        data={notifications}
+        data={visibleNotifications}
         ListHeaderComponent={renderListHeader}
         renderItem={({ item }) => (
           <View style={styles.notificationItem}>
             <View style={styles.notificationContent}>
               <NotificationItem
                 notification={item}
+                isRead={Boolean(readState.get(item.id)?.read)}
                 onPress={() => handleNotificationPress(item)}
               />
             </View>
@@ -257,21 +354,25 @@ export default function UserNotificationsScreen() {
                 style={styles.actionButtonFull}
                 onPress={() => {
                   Alert.alert(
-                    'Delete Notification',
-                    'Are you sure you want to delete this notification?',
+                    'Dismiss Notification',
+                    'Hide this notification? It will be removed from your list only.',
                     [
                       { text: 'Cancel', style: 'cancel' },
-                      { text: 'Delete', style: 'destructive', onPress: () => handleDeleteNotification(item) }
+                      {
+                        text: 'Dismiss',
+                        style: 'destructive',
+                        onPress: () => handleDismissNotification(item),
+                      },
                     ]
                   );
                 }}
-                accessibilityLabel="Delete notification"
+                accessibilityLabel="Dismiss notification"
                 accessibilityRole="button"
-                accessibilityHint="Delete this notification"
+                accessibilityHint="Dismiss this notification"
                 activeOpacity={0.7}
               >
-                <Icon name="trash-2" size={16} color="#EF4444" />
-                <Text style={styles.actionButtonText}>Delete</Text>
+                <Icon name="x" size={16} color="#EF4444" />
+                <Text style={styles.actionButtonText}>Dismiss</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -361,6 +462,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+  },
+  readStateWarning: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  readStateWarningText: {
+    fontSize: 13,
+    color: '#92400E',
+    fontWeight: '500',
   },
   batchActions: {
     paddingHorizontal: 20,

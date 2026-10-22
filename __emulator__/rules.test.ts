@@ -518,3 +518,76 @@ describe('storage users/{uid}/profile.jpg', () => {
     await assertFails(storageRef(testEnv.unauthenticatedContext(), mine).getDownloadURL());
   });
 });
+
+describe('readNotifications per-user state', () => {
+  it('allows owner to mark read, dismiss, and re-mark, while denying others and invalid fields', async () => {
+    const notifRef = doc(as(MEMBER), 'users', MEMBER, 'readNotifications', 'notif1');
+
+    // owner marks read: succeeds
+    await assertSucceeds(
+      setDoc(notifRef, { read: true, readAt: serverTimestamp() }, { merge: true })
+    );
+
+    // owner can read own read-state: succeeds
+    await assertSucceeds(getDoc(notifRef));
+
+    // owner dismisses: succeeds
+    await assertSucceeds(
+      setDoc(
+        notifRef,
+        { read: true, readAt: serverTimestamp(), dismissed: true, dismissedAt: serverTimestamp() },
+        { merge: true }
+      )
+    );
+
+    // owner re-marks: succeeds
+    await assertSucceeds(
+      setDoc(
+        notifRef,
+        { read: true, readAt: serverTimestamp() },
+        { merge: true }
+      )
+    );
+
+    // another user reading or writing: fails
+    await assertFails(getDoc(doc(as(OTHER), 'users', MEMBER, 'readNotifications', 'notif1')));
+    await assertFails(
+      setDoc(
+        doc(as(OTHER), 'users', MEMBER, 'readNotifications', 'notif1'),
+        { read: true, readAt: serverTimestamp() },
+        { merge: true }
+      )
+    );
+
+    // an extra field like { read: true, hacked: 1 }: fails
+    await assertFails(
+      setDoc(
+        doc(as(MEMBER), 'users', MEMBER, 'readNotifications', 'notif_invalid_field'),
+        { read: true, readAt: serverTimestamp(), hacked: 1 },
+        { merge: true }
+      )
+    );
+
+    // read: 'yes': fails
+    await assertFails(
+      setDoc(
+        doc(as(MEMBER), 'users', MEMBER, 'readNotifications', 'notif_invalid_type'),
+        { read: 'yes', readAt: serverTimestamp() },
+        { merge: true }
+      )
+    );
+
+    // a member deleting the shared notification still fails (existing behaviour)
+    await seed((s) =>
+      setDoc(doc(s, 'notifications', 'shared_notif_1'), {
+        type: 'update',
+        title: 'Shared Notification',
+        body: 'Hello everyone',
+        audience: 'users',
+        createdAt: serverTimestamp(),
+        createdBy: ADMIN,
+      })
+    );
+    await assertFails(deleteDoc(doc(as(MEMBER), 'notifications', 'shared_notif_1')));
+  });
+});

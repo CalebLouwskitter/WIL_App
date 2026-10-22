@@ -59,13 +59,15 @@ export default function NotificationItem({ notification, onPress, isRead = false
       style={[styles.container, !isRead && styles.unread]} 
       onPress={onPress}
       activeOpacity={0.7}
+      accessibilityState={{ selected: false }}
+      accessibilityLabel={`${notification.title}, ${notification.body}${!isRead ? ', unread' : ''}`}
     >
       <View style={[styles.iconContainer, { backgroundColor: getIconColor() + '20' }]}>
         <Ionicons name={getIconName() as any} size={24} color={getIconColor()} />
       </View>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title} numberOfLines={1}>
+          <Text style={[styles.title, isRead ? styles.readTitle : styles.unreadTitle]} numberOfLines={1}>
             {notification.title}
           </Text>
           {!isRead && <View style={styles.unreadDot} />}
@@ -114,9 +116,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
-    fontWeight: '600',
     color: '#111827',
     flex: 1,
+  },
+  unreadTitle: {
+    fontWeight: '700',
+  },
+  readTitle: {
+    fontWeight: '400',
   },
   unreadDot: {
     width: 8,

@@ -130,7 +130,13 @@ service cloud.firestore {
 
       // FirebaseNotificationService markNotificationAsRead
       match /readNotifications/{notificationId} {
-        allow read, write: if isSelf(uid);
+        allow read, delete: if isSelf(uid);
+        allow create, update: if isSelf(uid)
+          && request.resource.data.keys().hasOnly(['read','readAt','dismissed','dismissedAt'])
+          && request.resource.data.read is bool
+          && (!('dismissed' in request.resource.data) || request.resource.data.dismissed is bool)
+          && (!('readAt' in request.resource.data) || request.resource.data.readAt == request.time)
+          && (!('dismissedAt' in request.resource.data) || request.resource.data.dismissedAt == request.time || (resource != null && 'dismissedAt' in resource.data && request.resource.data.dismissedAt == resource.data.dismissedAt));
       }
     }
 
