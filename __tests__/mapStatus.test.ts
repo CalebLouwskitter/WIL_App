@@ -82,7 +82,7 @@ describe('mapFailureHint', () => {
   });
 
   it('does not blame this build\'s key in Expo Go', () => {
-    expect(mapFailureHint('tiles-timeout', expoGo)).toMatch(/Expo Go uses its own Maps key/);
+    expect(mapFailureHint('tiles-timeout', expoGo)).toMatch(/Expo Go does not use this app's Maps key/);
   });
 
   it('suggests a development build when Expo Go never starts the map', () => {

@@ -95,7 +95,7 @@ export function mapFailureHint(failure: MapFailure, env: MapEnvironment): string
         : 'The map view never started. The native maps module may be missing or failing in this build.';
     case 'tiles-timeout':
       if (env.isExpoGo) {
-        return 'The map started but no map tiles arrived. Check the internet connection first. Expo Go uses its own Maps key, so this build\'s key is not used here.';
+        return 'The map started but no map tiles arrived. Check the internet connection first. Expo Go does not use this app\'s Maps key.';
       }
       return env.platform === 'android'
         ? 'The map started but no map tiles arrived. Likely causes: no internet connection, or the Google Maps API key is missing or not authorised for this build.'
