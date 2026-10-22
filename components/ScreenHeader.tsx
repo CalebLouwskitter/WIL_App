@@ -3,17 +3,22 @@
  * are deliberate exceptions and do not use ScreenHeader.
  */
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { resolvePalette } from '../constants/colors';
 import { Spacing, Typography } from '../constants/styleguide';
+import { useAppTheme } from '../hooks/useAppTheme';
 
 export interface ScreenHeaderProps {
   title: string;
   onBack?: () => void;
   backLabel?: string;
   right?: React.ReactNode;
+  /**
+   * The header paints its own themed background so its text is always
+   * readable. Pass 'transparent' only when the screen behind it is themed too.
+   */
+  backgroundColor?: string;
 }
 
 export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
@@ -21,6 +26,7 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
   onBack,
   backLabel,
   right,
+  backgroundColor,
 }) => {
   let insets = { top: 0, bottom: 0, left: 0, right: 0 };
   try {
@@ -29,27 +35,31 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
   } catch {
     insets = { top: 0, bottom: 0, left: 0, right: 0 };
   }
-  const scheme = useColorScheme();
-  const palette = resolvePalette(scheme);
+  const { palette } = useAppTheme();
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + Spacing.sm }]}>
+    <View
+      style={[
+        styles.container,
+        { paddingTop: insets.top + Spacing.sm, backgroundColor: backgroundColor ?? palette.background },
+      ]}
+    >
       <View style={styles.headerRow}>
         {onBack ? (
           <TouchableOpacity
             onPress={onBack}
-            style={[styles.backBtn, { backgroundColor: palette.surface }]}
+            style={[styles.backBtn, { backgroundColor: palette.card }]}
             accessibilityRole="button"
             accessibilityLabel={backLabel ?? 'Go back'}
             activeOpacity={0.7}
           >
-            <Feather name="chevron-left" size={24} color={palette.onSurface} />
+            <Feather name="chevron-left" size={24} color={palette.textPrimary} />
           </TouchableOpacity>
         ) : (
           <View style={styles.slot} />
         )}
         <Text
-          style={[styles.title, { color: palette.onSurface }]}
+          style={[styles.title, { color: palette.textPrimary }]}
           numberOfLines={1}
         >
           {title}

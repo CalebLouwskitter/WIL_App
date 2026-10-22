@@ -91,4 +91,33 @@ describe('ScreenHeader', () => {
     const hasRightAction = texts.some((t) => [t.props.children].flat().join('') === 'Save');
     expect(hasRightAction).toBe(true);
   });
+
+  describe('theme', () => {
+    const ReactNative = require('react-native');
+    const { Colors } = require('../constants/colors');
+
+    afterEach(() => jest.restoreAllMocks());
+
+    const renderIn = (scheme: 'light' | 'dark', props: Partial<React.ComponentProps<typeof ScreenHeader>> = {}) => {
+      jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue(scheme);
+      let renderer!: TestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = TestRenderer.create(<ScreenHeader title="Themed" {...props} />);
+      });
+      const container = StyleSheet.flatten(renderer.root.findAllByType(View)[0].props.style);
+      const title = renderer.root.findAllByType(Text).find((t) => [t.props.children].flat().join('') === 'Themed')!;
+      return { container, titleColor: StyleSheet.flatten(title.props.style).color };
+    };
+
+    it.each(['light', 'dark'] as const)('paints its own %s background so the title stays readable', (scheme) => {
+      const { container, titleColor } = renderIn(scheme);
+      expect(container.backgroundColor).toBe(Colors[scheme].background);
+      expect(titleColor).toBe(Colors[scheme].textPrimary);
+    });
+
+    it('lets a themed screen make the header transparent', () => {
+      const { container } = renderIn('dark', { backgroundColor: 'transparent' });
+      expect(container.backgroundColor).toBe('transparent');
+    });
+  });
 });
