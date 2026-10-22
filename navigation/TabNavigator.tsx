@@ -1,13 +1,12 @@
 import ProfileStack from './ProfileStack'; 
 import React, { ReactNode } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { StyleSheet, View, TouchableOpacity, Text, useColorScheme } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
 import { CommonActions } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 //Icons import
 import { Feather } from '@expo/vector-icons';
-
 
 // Screens
 import DashboardScreen from '../screens/Dashboard/DashboardScreen';
@@ -15,39 +14,39 @@ import MappingStack from './MappingStack';
 import SosAlertScreen from '../screens/Sos/SosAlertScreen';
 import AnalyticsStack from './AnalyticsStack';
 
-import { Colors, resolvePalette } from '../constants/colors';
+import { useAppTheme } from '../hooks/useAppTheme';
 import type { TabParamList } from './types';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
-const CustomTabBarButton = ({ children, onPress }: { children: ReactNode; onPress?: (e: any) => void }) => (
+const CustomTabBarButton = ({ children, onPress, backgroundColor }: { children: ReactNode; onPress?: (e: any) => void; backgroundColor: string }) => (
   <TouchableOpacity style={styles.sosButtonWrapper} onPress={onPress} activeOpacity={0.9}>
-    <View style={styles.sosButton}>{children}</View>
+    <View style={[styles.sosButton, { backgroundColor }]}>{children}</View>
   </TouchableOpacity>
 );
 
 const TabNavigator = () => {
   const insets = useSafeAreaInsets();
-  const scheme = useColorScheme();
-  const palette = resolvePalette(scheme);
+  const { palette } = useAppTheme();
   
   return (
     <Tab.Navigator
       screenOptions={{
-        lazy:true,
+        lazy: true,
         headerShown: false,
         tabBarShowLabel: true,
         tabBarStyle: {
           ...styles.tabBar,
-          backgroundColor: palette.surface,
+          backgroundColor: palette.card,
+          borderTopColor: palette.divider,
           height: 60 + insets.bottom,
           paddingBottom: insets.bottom,
         },
-        tabBarActiveTintColor: palette.primary,
-        tabBarInactiveTintColor: palette.tabIconDefault,
+        tabBarActiveTintColor: palette.brandPrimary,
+        tabBarInactiveTintColor: palette.textMuted,
         tabBarHideOnKeyboard: true,
         tabBarLabelStyle: styles.label,
-        tabBarBackground: () => <View style={{ flex: 1, backgroundColor: palette.surface }} />,
+        tabBarBackground: () => <View style={{ flex: 1, backgroundColor: palette.card }} />,
       }}
     >
       <Tab.Screen
@@ -92,10 +91,10 @@ const TabNavigator = () => {
         options={{
           tabBarIcon: () => (
             <View>
-              <Text style={styles.sosText}>SOS</Text>
+              <Text style={[styles.sosText, { color: palette.onPrimary }]}>SOS</Text>
             </View>
           ),
-          tabBarButton: (props) => <CustomTabBarButton {...props} />,
+          tabBarButton: (props) => <CustomTabBarButton {...props} backgroundColor={palette.danger} />,
           tabBarLabel: '',
         }}
       />
@@ -142,11 +141,9 @@ const TabNavigator = () => {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
@@ -155,7 +152,6 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: '#9CA3AF',
     textAlign: 'center',
     lineHeight: 14,
     // @ts-ignore Android only
@@ -171,7 +167,6 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 35,
-    backgroundColor: '#FF3535',
     alignItems: 'center',
     justifyContent: 'center',
     
@@ -181,11 +176,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   sosText: {
-    color: '#FFFFFF',
-    marginTop:10,
+    marginTop: 10,
     fontSize: 12,
-    fontFamily:'Poppins',
-    alignItems:'center',
+    fontFamily: 'Poppins',
+    alignItems: 'center',
     fontWeight: 'bold',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
