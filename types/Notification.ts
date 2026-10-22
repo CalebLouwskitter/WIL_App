@@ -9,7 +9,8 @@ export interface Notification {
   audience: NotificationAudience;
   createdAt: Date;
   createdBy: string; // userId of creator
-  sentAt?: Date;
+  queuedAt?: Date; // a push request was queued; says nothing about delivery
+  sentAt?: Date; // set by the delivery worker once the push service accepted it
   updatedAt?: Date;
   metadata?: {
     userId?: string; // for user_signup notifications
@@ -21,7 +22,7 @@ export interface Notification {
 
 export interface NotificationPreferences {
   userId: string;
-  fcmToken?: string;
+  expoPushToken?: string;
   enableNotifications: boolean;
   enableUserSignupAlerts: boolean; // admin only
   enableEventAlerts: boolean;

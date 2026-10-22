@@ -3,7 +3,7 @@ import type * as ExpoNotifications from 'expo-notifications';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
-import { saveFCMToken } from '../services/FirebaseNotificationService';
+import { saveExpoPushToken } from '../services/FirebaseNotificationService';
 import { NOTIFICATIONS_ENABLED } from '../constants/config';
 
 // Expo Go does not contain the native Android push-notification modules.
@@ -39,8 +39,8 @@ export function useNotifications(userId?: string) {
         setExpoPushToken(token);
         // Save token to Firestore if user is logged in
         if (userId) {
-          saveFCMToken(userId, token).catch(error => {
-            console.error('Error saving FCM token:', error);
+          saveExpoPushToken(userId, token).catch(error => {
+            console.error('Error saving Expo push token:', error);
           });
         }
       }

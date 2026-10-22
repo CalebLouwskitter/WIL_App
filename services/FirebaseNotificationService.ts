@@ -34,7 +34,6 @@ export const createTestNotification = async (userId: string) => {
     audience: 'users',
     createdAt: new Date(),
     createdBy: userId,
-    sentAt: new Date(),
     metadata: {
       test: true
     }
@@ -44,16 +43,67 @@ export const createTestNotification = async (userId: string) => {
   const docRef = await addDoc(notificationsCol, {
     ...notification,
     createdAt: serverTimestamp(),
-    sentAt: serverTimestamp(),
   });
 
   return docRef.id;
 };
 
 /**
+ * Result of saving a notification and asking for a push to be delivered.
+ * `pushQueued` only means the request reached the queue; nothing is delivered
+ * until an external worker processes it (see docs/firebase/PUSH_CONTRACT.md).
+ */
+export interface NotificationSaveResult {
+  id: string;
+  pushQueued: boolean;
+}
+
+/**
+ * Queue a push request for an external worker. The notification document is the
+ * source of truth, so a failed queue write is logged and reported as
+ * `pushQueued: false` rather than thrown.
+ */
+const queuePushRequest = async (
+  notificationId: string,
+  audience: NotificationAudience,
+  title: string,
+  body: string,
+  createdBy: string
+): Promise<boolean> => {
+  if (!firestore) return false;
+
+  try {
+    await addDoc(collection(firestore, 'pushNotificationRequests'), {
+      title,
+      body,
+      audience,
+      transport: 'expo',
+      notificationId,
+      createdBy,
+      createdAt: serverTimestamp(),
+      processed: false,
+    });
+  } catch (error) {
+    console.warn(`Notification ${notificationId} saved but its push request could not be queued:`, error);
+    return false;
+  }
+
+  // Record that a request exists. Best effort: the queue entry is authoritative.
+  try {
+    await updateDoc(doc(firestore, 'notifications', notificationId), { queuedAt: serverTimestamp() });
+  } catch (error) {
+    console.warn(`Could not mark notification ${notificationId} as queued:`, error);
+  }
+  return true;
+};
+
+/**
  * Send a notification to admins when a user signs in
  */
-export const sendUserSigninNotification = async (userId: string, userEmail: string) => {
+export const sendUserSigninNotification = async (
+  userId: string,
+  userEmail: string
+): Promise<NotificationSaveResult> => {
   if (!firestore) {
     throw new Error("Firestore is not initialized");
   }
@@ -77,16 +127,19 @@ export const sendUserSigninNotification = async (userId: string, userEmail: stri
     createdAt: serverTimestamp(),
   });
 
-  // Send FCM push notification to all admins
-  await sendPushToAdmins(notification.title, notification.body);
+  // The caller's uid is the push request's createdBy; the notification itself is 'system'.
+  const pushQueued = await queuePushRequest(docRef.id, 'admins', notification.title, notification.body, userId);
 
-  return docRef.id;
+  return { id: docRef.id, pushQueued };
 };
 
 /**
  * Send a notification to admins when a user signs up
  */
-export const sendUserSignupNotification = async (userId: string, userEmail: string) => {
+export const sendUserSignupNotification = async (
+  userId: string,
+  userEmail: string
+): Promise<NotificationSaveResult> => {
   if (!firestore) {
     throw new Error("Firestore is not initialized");
   }
@@ -110,10 +163,10 @@ export const sendUserSignupNotification = async (userId: string, userEmail: stri
     createdAt: serverTimestamp(),
   });
 
-  // Send FCM push notification to all admins
-  await sendPushToAdmins(notification.title, notification.body);
+  // The caller's uid is the push request's createdBy; the notification itself is 'system'.
+  const pushQueued = await queuePushRequest(docRef.id, 'admins', notification.title, notification.body, userId);
 
-  return docRef.id;
+  return { id: docRef.id, pushQueued };
 };
 
 /**
@@ -126,7 +179,7 @@ export const createAdminNotification = async (
   body: string,
   audience: NotificationAudience = 'users',
   metadata?: Record<string, any>
-): Promise<string> => {
+): Promise<NotificationSaveResult> => {
   if (!firestore) {
     throw new Error("Firestore is not initialized");
   }
@@ -138,7 +191,6 @@ export const createAdminNotification = async (
     audience,
     createdAt: new Date(),
     createdBy,
-    sentAt: new Date(),
     metadata: metadata || {}
   };
 
@@ -146,19 +198,11 @@ export const createAdminNotification = async (
   const docRef = await addDoc(notificationsCol, {
     ...notification,
     createdAt: serverTimestamp(),
-    sentAt: serverTimestamp(),
   });
 
-  // Send FCM push notification based on audience
-  if (audience === 'users') {
-    await sendPushToUsers(title, body);
-  } else if (audience === 'admins') {
-    await sendPushToAdmins(title, body);
-  } else if (audience === 'all') {
-    await sendPushToAllUsers(title, body);
-  }
+  const pushQueued = await queuePushRequest(docRef.id, audience, title, body, createdBy);
 
-  return docRef.id;
+  return { id: docRef.id, pushQueued };
 };
 
 /**
@@ -191,6 +235,7 @@ export const getNotificationsForRole = async (
     ...doc.data(),
     createdAt: doc.data().createdAt?.toDate() || new Date(),
     sentAt: doc.data().sentAt?.toDate(),
+    queuedAt: doc.data().queuedAt?.toDate(),
   } as Notification));
 };
 
@@ -222,6 +267,7 @@ export const subscribeToNotifications = (
       ...doc.data(),
       createdAt: doc.data().createdAt?.toDate() || new Date(),
       sentAt: doc.data().sentAt?.toDate(),
+      queuedAt: doc.data().queuedAt?.toDate(),
     } as Notification));
     callback(notifications);
   });
@@ -252,89 +298,39 @@ export const markNotificationAsRead = async (notificationId: string, userId: str
 };
 
 /**
- * Save FCM token for a user
+ * Save the user's Expo push token (one per user: a second device overwrites the first)
  */
-export const saveFCMToken = async (userId: string, token: string) => {
+export const saveExpoPushToken = async (userId: string, token: string) => {
   if (!firestore) {
     throw new Error("Firestore is not initialized");
   }
 
   const userRef = doc(firestore, 'users', userId);
   await updateDoc(userRef, {
-    fcmToken: token,
-    fcmTokenUpdatedAt: serverTimestamp()
+    expoPushToken: token,
+    expoPushTokenUpdatedAt: serverTimestamp()
   });
 };
 
 /**
- * Get all users with FCM tokens
+ * Get all users with Expo push tokens
  */
-const getUsersWithTokens = async (role?: 'admin' | 'member'): Promise<Array<{ uid: string; fcmToken: string }>> => {
+const getUsersWithTokens = async (role?: 'admin' | 'member'): Promise<Array<{ uid: string; expoPushToken: string }>> => {
   if (!firestore) {
     throw new Error("Firestore is not initialized");
   }
 
   const usersCol = collection(firestore, 'users');
-  let q = query(usersCol, where('fcmToken', '!=', null));
+  let q = query(usersCol, where('expoPushToken', '!=', null));
   
   if (role) {
-    q = query(usersCol, where('fcmToken', '!=', null), where('role', '==', role));
+    q = query(usersCol, where('expoPushToken', '!=', null), where('role', '==', role));
   }
 
   const snapshot = await getDocs(q);
   return snapshot.docs
-    .map(doc => ({ uid: doc.id, fcmToken: doc.data().fcmToken }))
-    .filter(user => user.fcmToken);
-};
-
-/**
- * Send push notification to all admins
- */
-const sendPushToAdmins = async (title: string, body: string) => {
-  // This requires a backend Cloud Function to actually send FCM messages
-  // We'll store the request in Firestore and let a Cloud Function process it
-  if (!firestore) return;
-
-  const pushRequestsCol = collection(firestore, 'pushNotificationRequests');
-  await addDoc(pushRequestsCol, {
-    title,
-    body,
-    audience: 'admins',
-    createdAt: serverTimestamp(),
-    processed: false
-  });
-};
-
-/**
- * Send push notification to all regular users
- */
-const sendPushToUsers = async (title: string, body: string) => {
-  if (!firestore) return;
-
-  const pushRequestsCol = collection(firestore, 'pushNotificationRequests');
-  await addDoc(pushRequestsCol, {
-    title,
-    body,
-    audience: 'users',
-    createdAt: serverTimestamp(),
-    processed: false
-  });
-};
-
-/**
- * Send push notification to all users (admins + members)
- */
-const sendPushToAllUsers = async (title: string, body: string) => {
-  if (!firestore) return;
-
-  const pushRequestsCol = collection(firestore, 'pushNotificationRequests');
-  await addDoc(pushRequestsCol, {
-    title,
-    body,
-    audience: 'all',
-    createdAt: serverTimestamp(),
-    processed: false
-  });
+    .map(doc => ({ uid: doc.id, expoPushToken: doc.data().expoPushToken }))
+    .filter(user => user.expoPushToken);
 };
 
 /**
@@ -417,6 +413,7 @@ export const getNotificationById = async (notificationId: string): Promise<Notif
     ...snapshot.data(),
     createdAt: snapshot.data().createdAt?.toDate() || new Date(),
     sentAt: snapshot.data().sentAt?.toDate(),
+    queuedAt: snapshot.data().queuedAt?.toDate(),
     updatedAt: snapshot.data().updatedAt?.toDate(),
   } as Notification;
 };
@@ -442,6 +439,7 @@ export const getAllNotifications = async (limitCount: number = 100): Promise<Not
     ...doc.data(),
     createdAt: doc.data().createdAt?.toDate() || new Date(),
     sentAt: doc.data().sentAt?.toDate(),
+    queuedAt: doc.data().queuedAt?.toDate(),
     updatedAt: doc.data().updatedAt?.toDate(),
   } as Notification));
 };
