@@ -1,7 +1,7 @@
 import React, { Component, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View, type StyleProp, type ViewStyle } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
-import { mapEnvironment, type MapStatusHandle } from '../hooks/useMapStatus';
+import { mapEnvironment, useMapStatus, type MapStatusHandle } from '../hooks/useMapStatus';
 import { describeMapStatus, mapFailureHint } from '../utils/mapStatus';
 
 class MapErrorBoundary extends Component<{ onError: (error: unknown) => void; children: ReactNode }, { failed: boolean }> {
@@ -79,6 +79,25 @@ export default function MapStatusFrame({ status, children, style, compact = fals
         </View>
       )}
     </View>
+  );
+}
+
+type MapWithStatusProps = Omit<Props, 'status' | 'children'> & {
+  /** Short name used in dev logs, e.g. 'report'. */
+  label: string;
+  children: (mapProps: MapStatusHandle['mapProps']) => ReactNode;
+};
+
+/**
+ * Same as MapStatusFrame, but owns the status hook so its timers start when the
+ * map mounts. Use it for maps that are rendered conditionally (tabs, sections).
+ */
+export function MapWithStatus({ label, children, ...frameProps }: MapWithStatusProps) {
+  const status = useMapStatus(label);
+  return (
+    <MapStatusFrame status={status} {...frameProps}>
+      {children(status.mapProps)}
+    </MapStatusFrame>
   );
 }
 
