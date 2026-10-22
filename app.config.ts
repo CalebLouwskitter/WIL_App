@@ -91,6 +91,9 @@ const config: ExpoConfig = {
     FIREBASE_STORAGE_BUCKET: process.env.FIREBASE_STORAGE_BUCKET ?? '',
     FIREBASE_MESSAGING_SENDER_ID: process.env.FIREBASE_MESSAGING_SENDER_ID ?? '',
     FIREBASE_APP_ID: process.env.FIREBASE_APP_ID ?? '',
+    // Dev-only local emulators (docs/firebase/EMULATOR.md)
+    FIREBASE_USE_EMULATOR: process.env.FIREBASE_USE_EMULATOR ?? 'false',
+    FIREBASE_EMULATOR_HOST: process.env.FIREBASE_EMULATOR_HOST ?? '',
   },
   plugins: [
     [
