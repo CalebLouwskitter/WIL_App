@@ -1,5 +1,5 @@
 // ObservationsScreen.tsx - View all ride observations with photos
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,18 +9,13 @@ import {
   Image,
   RefreshControl,
   Alert,
-  Dimensions,
-  Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Feather from 'react-native-vector-icons/Feather';
-import { useColorScheme } from 'react-native';
-import { resolvePalette } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import ScreenHeader from '../../components/ScreenHeader';
 import { getObservations, deleteObservation, type RideObservation } from '@/services/ObservationStorage';
-
-const { width: screenWidth } = Dimensions.get('window');
 
 interface Props {
   navigation: any;
@@ -30,8 +25,7 @@ export default function ObservationsScreen({ navigation }: Props) {
   const [observations, setObservations] = useState<RideObservation[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'sightings' | 'reports'>('all');
-  const scheme = useColorScheme();
-  const palette = resolvePalette(scheme);
+  const { palette, isDark } = useAppTheme();
 
   const loadObservations = async () => {
     try {
@@ -96,63 +90,94 @@ export default function ObservationsScreen({ navigation }: Props) {
     });
   };
 
+  const getSeverityStyle = (severity: string) => {
+    switch (severity) {
+      case 'critical':
+        return { backgroundColor: palette.obstacleCritical };
+      case 'high':
+        return { backgroundColor: palette.obstacleHigh };
+      case 'medium':
+        return { backgroundColor: palette.obstacleMedium };
+      default:
+        return { backgroundColor: palette.obstacleLow };
+    }
+  };
+
   const renderObservationCard = (observation: RideObservation) => {
     const hasSighting = !!observation.sighting;
     const hasReport = !!observation.report;
 
     return (
-      <View key={observation.id} style={styles.card}>
+      <View key={observation.id} style={[styles.card, { backgroundColor: palette.card, shadowColor: palette.shadow }]}>
         <LinearGradient
-          colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0.9)']}
+          colors={[palette.card, palette.card]}
           style={styles.cardGradient}
         >
           {/* Header */}
           <View style={styles.cardHeader}>
             <View style={styles.cardHeaderLeft}>
               {hasSighting && (
-                <View style={[styles.badge, styles.sightingBadge]}>
-                  <Text style={styles.badgeText}>🦌 Wildlife</Text>
+                <View
+                  style={[
+                    styles.badge,
+                    { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#E8F5E9' },
+                  ]}
+                >
+                  <Text style={[styles.badgeText, { color: palette.success }]}>🦌 Wildlife</Text>
                 </View>
               )}
               {hasReport && (
-                <View style={[styles.badge, styles.reportBadge]}>
-                  <Text style={styles.badgeText}>⚠️ Report</Text>
+                <View
+                  style={[
+                    styles.badge,
+                    { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FFEBE6' },
+                  ]}
+                >
+                  <Text style={[styles.badgeText, { color: palette.danger }]}>⚠️ Report</Text>
                 </View>
               )}
             </View>
             <TouchableOpacity
               onPress={() => handleDelete(observation.id)}
               style={styles.deleteButton}
+              accessibilityRole="button"
+              accessibilityLabel="Delete observation"
             >
-              <Feather name="trash-2" size={18} color="#C73E1D" />
+              <Feather name="trash-2" size={18} color={palette.danger} />
             </TouchableOpacity>
           </View>
 
           {/* Timestamp */}
-          <Text style={styles.timestamp}>{formatDate(observation.timestamp)}</Text>
+          <Text style={[styles.timestamp, { color: palette.textMuted }]}>
+            {formatDate(observation.timestamp)}
+          </Text>
 
           {/* Wildlife Sighting Details */}
           {hasSighting && observation.sighting && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Wildlife Sighting</Text>
-              <Text style={styles.wildlifeType}>{observation.sighting.wildlifeType}</Text>
+              <Text style={[styles.sectionTitle, { color: palette.brandPrimary }]}>Wildlife Sighting</Text>
+              <Text style={[styles.wildlifeType, { color: palette.textPrimary }]}>
+                {observation.sighting.wildlifeType}
+              </Text>
               {observation.sighting.notes && (
-                <Text style={styles.notes}>{observation.sighting.notes}</Text>
+                <Text style={[styles.notes, { color: palette.textSecondary }]}>
+                  {observation.sighting.notes}
+                </Text>
               )}
               {observation.sighting.photoUri && (
                 <View style={styles.photoContainer}>
                   <Image
                     source={{ uri: observation.sighting.photoUri }}
-                    style={styles.photo}
+                    style={[styles.photo, { backgroundColor: palette.divider }]}
                     resizeMode="cover"
                   />
                 </View>
               )}
               {observation.sighting.location && (
                 <View style={styles.locationRow}>
-                  <Feather name="map-pin" size={14} color="#8A8A8A" />
-                  <Text style={styles.locationText}>
-                    {observation.sighting.location.latitude.toFixed(5)}, 
+                  <Feather name="map-pin" size={14} color={palette.textMuted} />
+                  <Text style={[styles.locationText, { color: palette.textMuted }]}>
+                    {observation.sighting.location.latitude.toFixed(5)},{' '}
                     {observation.sighting.location.longitude.toFixed(5)}
                   </Text>
                 </View>
@@ -163,28 +188,36 @@ export default function ObservationsScreen({ navigation }: Props) {
           {/* Trail Report Details */}
           {hasReport && observation.report && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Trail Report</Text>
+              <Text style={[styles.sectionTitle, { color: palette.brandPrimary }]}>Trail Report</Text>
               <View style={styles.issueRow}>
-                <Text style={styles.issueType}>{observation.report.issueType}</Text>
+                <Text style={[styles.issueType, { color: palette.textPrimary }]}>
+                  {observation.report.issueType}
+                </Text>
                 <View style={[styles.severityBadge, getSeverityStyle(observation.report.severity)]}>
-                  <Text style={styles.severityText}>{observation.report.severity.toUpperCase()}</Text>
+                  <Text style={[styles.severityText, { color: palette.onPrimary }]}>
+                    {observation.report.severity.toUpperCase()}
+                  </Text>
                 </View>
               </View>
               {observation.report.notes && (
-                <Text style={styles.notes}>{observation.report.notes}</Text>
+                <Text style={[styles.notes, { color: palette.textSecondary }]}>
+                  {observation.report.notes}
+                </Text>
               )}
               {observation.report.trailName && (
                 <View style={styles.trailRow}>
-                  <Feather name="map" size={14} color="#2C5530" />
-                  <Text style={styles.trailLabel}>Trail:</Text>
-                  <Text style={styles.trailValue}>{observation.report.trailName}</Text>
+                  <Feather name="map" size={14} color={palette.brandPrimary} />
+                  <Text style={[styles.trailLabel, { color: palette.brandPrimary }]}>Trail:</Text>
+                  <Text style={[styles.trailValue, { color: palette.textPrimary }]}>
+                    {observation.report.trailName}
+                  </Text>
                 </View>
               )}
               {observation.report.location && (
                 <View style={styles.locationRow}>
-                  <Feather name="map-pin" size={14} color="#8A8A8A" />
-                  <Text style={styles.locationText}>
-                    {observation.report.location.latitude.toFixed(5)}, 
+                  <Feather name="map-pin" size={14} color={palette.textMuted} />
+                  <Text style={[styles.locationText, { color: palette.textMuted }]}>
+                    {observation.report.location.latitude.toFixed(5)},{' '}
                     {observation.report.location.longitude.toFixed(5)}
                   </Text>
                 </View>
@@ -196,47 +229,69 @@ export default function ObservationsScreen({ navigation }: Props) {
     );
   };
 
-  const getSeverityStyle = (severity: string) => {
-    switch (severity) {
-      case 'critical':
-        return { backgroundColor: '#C73E1D' };
-      case 'high':
-        return { backgroundColor: '#F59E0B' };
-      case 'medium':
-        return { backgroundColor: '#3B82F6' };
-      default:
-        return { backgroundColor: '#10B981' };
-    }
-  };
-
   return (
-    <View style={[styles.container, { backgroundColor: palette.backgroundLight }]}>
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
       <ScreenHeader title="Ride Observations" onBack={() => navigation.goBack()} />
 
       {/* Filter Tabs */}
-      <View style={styles.filterContainer}>
+      <View
+        style={[
+          styles.filterContainer,
+          { backgroundColor: palette.card, borderBottomColor: palette.divider },
+        ]}
+      >
         <TouchableOpacity
-          style={[styles.filterTab, filter === 'all' && styles.filterTabActive]}
+          style={[
+            styles.filterTab,
+            { backgroundColor: filter === 'all' ? palette.brandSoft : palette.card },
+          ]}
           onPress={() => setFilter('all')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: filter === 'all' }}
         >
-          <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>
+          <Text
+            style={[
+              styles.filterText,
+              { color: filter === 'all' ? palette.brandPrimary : palette.textSecondary },
+            ]}
+          >
             All ({observations.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterTab, filter === 'sightings' && styles.filterTabActive]}
+          style={[
+            styles.filterTab,
+            { backgroundColor: filter === 'sightings' ? palette.brandSoft : palette.card },
+          ]}
           onPress={() => setFilter('sightings')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: filter === 'sightings' }}
         >
-          <Text style={[styles.filterText, filter === 'sightings' && styles.filterTextActive]}>
-            Wildlife ({observations.filter(o => o.sighting).length})
+          <Text
+            style={[
+              styles.filterText,
+              { color: filter === 'sightings' ? palette.brandPrimary : palette.textSecondary },
+            ]}
+          >
+            Wildlife ({observations.filter((o) => o.sighting).length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterTab, filter === 'reports' && styles.filterTabActive]}
+          style={[
+            styles.filterTab,
+            { backgroundColor: filter === 'reports' ? palette.brandSoft : palette.card },
+          ]}
           onPress={() => setFilter('reports')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: filter === 'reports' }}
         >
-          <Text style={[styles.filterText, filter === 'reports' && styles.filterTextActive]}>
-            Reports ({observations.filter(o => o.report).length})
+          <Text
+            style={[
+              styles.filterText,
+              { color: filter === 'reports' ? palette.brandPrimary : palette.textSecondary },
+            ]}
+          >
+            Reports ({observations.filter((o) => o.report).length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -251,9 +306,9 @@ export default function ObservationsScreen({ navigation }: Props) {
       >
         {filteredObservations.length === 0 ? (
           <View style={styles.emptyState}>
-            <Feather name="eye-off" size={64} color="#E5E5E5" />
-            <Text style={styles.emptyTitle}>No Observations Yet</Text>
-            <Text style={styles.emptyText}>
+            <Feather name="eye-off" size={64} color={palette.textMuted} />
+            <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>No Observations Yet</Text>
+            <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
               Your wildlife sightings and trail reports will appear here
             </Text>
           </View>
@@ -268,16 +323,12 @@ export default function ObservationsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF9F7',
   },
-
   filterContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
   },
   filterTab: {
     flex: 1,
@@ -286,16 +337,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginHorizontal: 4,
   },
-  filterTabActive: {
-    backgroundColor: '#2C5530',
-  },
   filterText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#8A8A8A',
-  },
-  filterTextActive: {
-    color: 'white',
   },
   scrollView: {
     flex: 1,
@@ -307,7 +351,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -331,12 +374,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 12,
   },
-  sightingBadge: {
-    backgroundColor: '#E8F5E9',
-  },
-  reportBadge: {
-    backgroundColor: '#FFEBE6',
-  },
   badgeText: {
     fontSize: 12,
     fontWeight: '600',
@@ -346,7 +383,6 @@ const styles = StyleSheet.create({
   },
   timestamp: {
     fontSize: 12,
-    color: '#8A8A8A',
     marginBottom: 12,
   },
   section: {
@@ -355,13 +391,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2C5530',
     marginBottom: 8,
   },
   wildlifeType: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A1A1A',
     marginBottom: 8,
   },
   issueRow: {
@@ -373,7 +407,6 @@ const styles = StyleSheet.create({
   issueType: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1A1A1A',
   },
   severityBadge: {
     paddingHorizontal: 8,
@@ -383,11 +416,9 @@ const styles = StyleSheet.create({
   severityText: {
     fontSize: 10,
     fontWeight: '700',
-    color: 'white',
   },
   notes: {
     fontSize: 14,
-    color: '#5A5A5A',
     lineHeight: 20,
     marginBottom: 8,
   },
@@ -400,7 +431,6 @@ const styles = StyleSheet.create({
   photo: {
     width: '100%',
     height: 200,
-    backgroundColor: '#F5F5F5',
   },
   locationRow: {
     flexDirection: 'row',
@@ -417,15 +447,12 @@ const styles = StyleSheet.create({
   trailLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#2C5530',
   },
   trailValue: {
     fontSize: 13,
-    color: '#1A1A1A',
   },
   locationText: {
     fontSize: 12,
-    color: '#8A8A8A',
   },
   emptyState: {
     alignItems: 'center',
@@ -435,12 +462,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1A1A1A',
     marginTop: 16,
   },
   emptyText: {
     fontSize: 14,
-    color: '#8A8A8A',
     textAlign: 'center',
     marginTop: 8,
     paddingHorizontal: 40,
