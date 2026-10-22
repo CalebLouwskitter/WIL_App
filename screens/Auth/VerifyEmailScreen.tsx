@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, useColorScheme, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather as Icon } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { resendVerificationEmail } from '../../services/auth';
 import { auth } from '../../services/firebase';
 import AuthButton from '../../components/Auth/AuthButton';
 
 const VerifyEmailScreen = ({ navigation }: { navigation: any }) => {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { palette } = useAppTheme();
   const [resending, setResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
@@ -54,48 +54,48 @@ const VerifyEmailScreen = ({ navigation }: { navigation: any }) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.white }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>
       <LinearGradient
-        colors={[colors.gradientPrimaryStart, colors.gradientPrimaryEnd]}
+        colors={[palette.gradientPrimaryStart, palette.gradientPrimaryEnd]}
         style={styles.header}
       >
         <View style={styles.iconContainer}>
           <View style={[styles.iconCircle, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
-            <Icon name="mail" size={48} color={colors.white} />
+            <Icon name="mail" size={48} color={palette.onPrimary} />
           </View>
         </View>
       </LinearGradient>
 
       <View style={styles.content}>
-        <Text style={[styles.title, { color: colors.darkGrey }]}>Verify Your Email</Text>
-        <Text style={[styles.body, { color: colors.darkGrey }]}>
+        <Text style={[styles.title, { color: palette.textPrimary }]}>Verify Your Email</Text>
+        <Text style={[styles.body, { color: palette.textSecondary }]}>
           We sent a verification link to your email. Please check your inbox (and spam folder) and click the link to verify your account.
         </Text>
 
         <View style={styles.instructionBox}>
           <View style={styles.instructionItem}>
-            <View style={[styles.stepCircle, { backgroundColor: colors.brandPrimary }]}>
-              <Text style={styles.stepNumber}>1</Text>
+            <View style={[styles.stepCircle, { backgroundColor: palette.brandPrimary }]}>
+              <Text style={[styles.stepNumber, { color: palette.onPrimary }]}>1</Text>
             </View>
-            <Text style={[styles.instructionText, { color: colors.darkGrey }]}>
+            <Text style={[styles.instructionText, { color: palette.textPrimary }]}>
               Check your email inbox
             </Text>
           </View>
           
           <View style={styles.instructionItem}>
-            <View style={[styles.stepCircle, { backgroundColor: colors.brandPrimary }]}>
-              <Text style={styles.stepNumber}>2</Text>
+            <View style={[styles.stepCircle, { backgroundColor: palette.brandPrimary }]}>
+              <Text style={[styles.stepNumber, { color: palette.onPrimary }]}>2</Text>
             </View>
-            <Text style={[styles.instructionText, { color: colors.darkGrey }]}>
+            <Text style={[styles.instructionText, { color: palette.textPrimary }]}>
               Click the verification link
             </Text>
           </View>
           
           <View style={styles.instructionItem}>
-            <View style={[styles.stepCircle, { backgroundColor: colors.brandPrimary }]}>
-              <Text style={styles.stepNumber}>3</Text>
+            <View style={[styles.stepCircle, { backgroundColor: palette.brandPrimary }]}>
+              <Text style={[styles.stepNumber, { color: palette.onPrimary }]}>3</Text>
             </View>
-            <Text style={[styles.instructionText, { color: colors.darkGrey }]}>
+            <Text style={[styles.instructionText, { color: palette.textPrimary }]}>
               Return here and log in
             </Text>
           </View>
@@ -116,8 +116,8 @@ const VerifyEmailScreen = ({ navigation }: { navigation: any }) => {
         </View>
 
         <View style={styles.helpContainer}>
-          <Icon name="info" size={16} color={colors.link} />
-          <Text style={[styles.helpText, { color: colors.darkGrey }]}>
+          <Icon name="info" size={16} color={palette.brandPrimary} />
+          <Text style={[styles.helpText, { color: palette.textSecondary }]}>
             Didn't receive an email? Check your spam folder or resend.
           </Text>
         </View>
@@ -131,8 +131,8 @@ const styles = StyleSheet.create({
     flex: 1 
   },
   header: {
-    paddingTop: 60,
-    paddingBottom: 60,
+    paddingTop: 40,
+    paddingBottom: 40,
     alignItems: 'center',
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
@@ -150,23 +150,23 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 24,
-    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 30,
   },
-  title: { 
-    fontSize: 28, 
-    fontWeight: 'bold', 
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
     marginBottom: 12,
-    textAlign: 'center',
   },
-  body: { 
-    fontSize: 16, 
+  body: {
+    fontSize: 16,
     textAlign: 'center',
-    marginBottom: 32,
     lineHeight: 24,
+    marginBottom: 30,
   },
   instructionBox: {
-    marginBottom: 32,
+    marginBottom: 30,
   },
   instructionItem: {
     flexDirection: 'row',
@@ -182,28 +182,25 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   stepNumber: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
   },
   instructionText: {
-    fontSize: 15,
-    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
   },
   buttonContainer: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   helpContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
   },
   helpText: {
     fontSize: 14,
-    marginLeft: 8,
+    marginLeft: 6,
     textAlign: 'center',
-    flex: 1,
   },
 });
 

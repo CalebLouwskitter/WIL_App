@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, useColorScheme, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather as Icon } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import AuthInput from '../../components/Auth/AuthInput';
 import AuthButton from '../../components/Auth/AuthButton';
 import { sendPasswordReset } from '../../services/auth';
@@ -13,8 +14,7 @@ const ForgotPasswordScreen = ({ navigation }: { navigation: any }) => {
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { palette } = useAppTheme();
 
   const handleResetPassword = async () => {
     if (loading) return;
@@ -61,21 +61,21 @@ const ForgotPasswordScreen = ({ navigation }: { navigation: any }) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.white }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>
       <LinearGradient
-        colors={[colors.gradientPrimaryStart, colors.gradientPrimaryEnd]}
+        colors={[palette.gradientPrimaryStart, palette.gradientPrimaryEnd]}
         style={styles.header}
       >
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Icon name="arrow-left" size={24} color={colors.white} />
+          <Icon name="arrow-left" size={24} color={palette.onPrimary} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Icon name="lock" size={48} color={colors.white} />
-          <Text style={[styles.headerTitle, { color: colors.white }]}>Forgot Password</Text>
-          <Text style={[styles.headerSubtitle, { color: colors.white }]}>
+          <Icon name="lock" size={48} color={palette.onPrimary} />
+          <Text style={[styles.headerTitle, { color: palette.onPrimary }]}>Forgot Password</Text>
+          <Text style={[styles.headerSubtitle, { color: palette.onPrimary }]}>
             No worries, we'll send you reset instructions
           </Text>
         </View>
@@ -97,8 +97,8 @@ const ForgotPasswordScreen = ({ navigation }: { navigation: any }) => {
 
           {error ? (
             <View style={styles.errorContainer}>
-              <Icon name="alert-circle" size={16} color={colors.error} />
-              <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+              <Icon name="alert-circle" size={16} color={palette.danger} />
+              <Text style={[styles.errorText, { color: palette.danger }]}>{error}</Text>
             </View>
           ) : null}
 
@@ -114,8 +114,8 @@ const ForgotPasswordScreen = ({ navigation }: { navigation: any }) => {
             style={styles.backToLoginContainer}
             onPress={() => navigation.goBack()}
           >
-            <Icon name="arrow-left" size={16} color={colors.link} />
-            <Text style={[styles.backToLoginText, { color: colors.link }]}>
+            <Icon name="arrow-left" size={16} color={palette.brandPrimary} />
+            <Text style={[styles.backToLoginText, { color: palette.brandPrimary }]}>
               Back to Login
             </Text>
           </TouchableOpacity>
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingTop: 60,
+    paddingTop: 40,
     paddingBottom: 40,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 30,
@@ -149,22 +149,23 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   headerSubtitle: {
-    fontSize: 15,
-    opacity: 0.9,
+    fontSize: 16,
     textAlign: 'center',
+    opacity: 0.9,
   },
   scrollContainer: {
     flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 30,
   },
   formContainer: {
-    padding: 24,
-    marginTop: 20,
+    width: '100%',
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 4,
+    marginBottom: 15,
+    paddingHorizontal: 5,
   },
   errorText: {
     fontSize: 14,
@@ -174,12 +175,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
+    marginTop: 15,
   },
   backToLoginText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
-    marginLeft: 6,
+    marginLeft: 8,
   },
 });
 

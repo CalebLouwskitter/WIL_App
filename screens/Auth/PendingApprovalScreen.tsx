@@ -1,8 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { logoutUser } from '../../services/auth';
 
 export default function PendingApprovalScreen({ status }: { status: 'pending' | 'disapproved' | 'unknown' }) {
+  const { palette } = useAppTheme();
   const title = status === 'disapproved' ? 'Access Denied' : 'Access Pending';
   const message =
     status === 'disapproved'
@@ -14,20 +16,20 @@ export default function PendingApprovalScreen({ status }: { status: 'pending' | 
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
-      <TouchableOpacity style={styles.button} onPress={handleLogout}>
-        <Text style={styles.buttonText}>Sign out</Text>
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
+      <Text style={[styles.title, { color: palette.textPrimary }]}>{title}</Text>
+      <Text style={[styles.message, { color: palette.textSecondary }]}>{message}</Text>
+      <TouchableOpacity style={[styles.button, { backgroundColor: palette.brandPrimary }]} onPress={handleLogout}>
+        <Text style={[styles.buttonText, { color: palette.onPrimary }]}>Sign out</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F4F7FE' },
+  container: { flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '700', marginBottom: 12 },
-  message: { fontSize: 16, color: '#374151', textAlign: 'center', marginBottom: 24 },
-  button: { backgroundColor: '#111827', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
-  buttonText: { color: '#fff', fontWeight: '600' },
+  message: { fontSize: 16, textAlign: 'center', marginBottom: 24 },
+  button: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
+  buttonText: { fontWeight: '600' },
 });
