@@ -84,135 +84,168 @@ export const fetchGlobalAnalyticsForExport = async (): Promise<GlobalAnalyticsEx
 /**
  * Export global analytics data as Excel file
  */
+export const buildEngagementRows = (data: GlobalAnalyticsExport): (string | number)[][] => {
+  const totalUsers = data.summary.totalUsers;
+  const formatPct = (count: number): string =>
+    totalUsers > 0 ? `${((count / totalUsers) * 100).toFixed(1)}%` : '0.0%';
+
+  const highlyActiveCount = data.userStats.filter((u) => u.rideCount >= 10).length;
+  const moderateCount = data.userStats.filter((u) => u.rideCount >= 5 && u.rideCount < 10).length;
+  const casualCount = data.userStats.filter((u) => u.rideCount < 5).length;
+
+  return [
+    ['Category', 'Count', 'Percentage'],
+    ['Highly Active Users (10+ rides)', highlyActiveCount, formatPct(highlyActiveCount)],
+    ['Moderate Users (5-9 rides)', moderateCount, formatPct(moderateCount)],
+    ['Casual Users (1-4 rides)', casualCount, formatPct(casualCount)],
+  ];
+};
+
+export const buildCommunityInsightsRows = (data: GlobalAnalyticsExport): (string | number)[][] => {
+  const avgRidesPerUser = data.summary.totalUsers > 0 
+    ? (data.summary.totalRides / data.summary.totalUsers).toFixed(1) 
+    : '0.0';
+  const avgDistancePerUser = data.summary.totalUsers > 0
+    ? (data.summary.totalDistanceKm / data.summary.totalUsers).toFixed(2)
+    : '0.00';
+  const avgTrailsPerUser = data.summary.totalUsers > 0
+    ? (data.trailUsage.length / data.summary.totalUsers).toFixed(2)
+    : '0.00';
+
+  const mostRidersOnSingleTrail = data.trailUsage.length > 0
+    ? Math.max(...data.trailUsage.map((t) => t.uniqueUsers), 0)
+    : 0;
+
+  return [
+    ['Community Insights & Analytics'],
+    [''],
+    ['PARTICIPATION METRICS'],
+    ['Metric', 'Value', 'Notes'],
+    ['Average Rides per User', avgRidesPerUser, 'Total rides divided by users'],
+    ['Average Distance per User (km)', avgDistancePerUser, 'Total distance divided by users'],
+    ['Trail Diversity Index', avgTrailsPerUser, 'Average trails per user'],
+    [''],
+    ['ENGAGEMENT LEVELS'],
+    ...buildEngagementRows(data),
+    [''],
+    ['TRAIL METRICS'],
+    ['Most Popular Trail', data.trailUsage[0]?.trailName || 'N/A', `${data.trailUsage[0]?.rideCount || 0} rides`],
+    ['Most distance ridden on one trail', data.trailUsage[0] ? `${(data.trailUsage[0].totalDistance / 1000).toFixed(2)} km` : 'N/A', data.trailUsage[0]?.trailName || 'N/A'],
+    ['Most Riders on Single Trail', mostRidersOnSingleTrail, 'Maximum unique riders'],
+  ];
+};
+
+/**
+ * Build the full Excel workbook for global analytics
+ */
+export const buildGlobalAnalyticsWorkbook = (data: GlobalAnalyticsExport): XLSX.WorkBook => {
+  const workbook = XLSX.utils.book_new();
+  
+  // Summary Sheet
+  const summaryData = [
+    ['Global Trail Analytics Report'],
+    ['Generated on:', new Date(data.exportDate).toLocaleString()],
+    [''],
+    ['GLOBAL SUMMARY'],
+    ['Metric', 'Value'],
+    ['Total Users', data.summary.totalUsers],
+    ['Total Rides', data.summary.totalRides],
+    ['Total Distance (km)', data.summary.totalDistanceKm.toFixed(2)],
+    ['Total Duration (hours)', data.summary.totalDurationHours.toFixed(2)],
+    ['Total Elevation (m)', data.summary.totalElevationM.toFixed(0)],
+    ['Total Trails', data.summary.totalTrails],
+    ['Average Ride Distance (km)', data.summary.averageRideDistanceKm.toFixed(2)],
+    ['Average Ride Duration (min)', data.summary.averageRideDurationMinutes.toFixed(1)],
+  ];
+  const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+
+  // User Statistics Sheet (Leaderboard)
+  const userStatsData = [
+    ['Rank', 'User ID', 'User Name', 'Ride Count', 'Total Distance (km)', 'Total Duration (hours)', 'Average Distance (km)'],
+    ...data.userStats.map((user, index) => [
+      index + 1,
+      user.userId,
+      user.userName || `Rider ${user.userId.slice(0, 8)}`,
+      user.rideCount,
+      (user.totalDistance / 1000).toFixed(2),
+      (user.totalDuration / (1000 * 60 * 60)).toFixed(2),
+      (user.averageDistance / 1000).toFixed(2),
+    ])
+  ];
+  const userStatsSheet = XLSX.utils.aoa_to_sheet(userStatsData);
+  XLSX.utils.book_append_sheet(workbook, userStatsSheet, 'User Leaderboard');
+
+  // Trail Usage Sheet
+  const trailUsageData = [
+    ['Rank', 'Trail ID', 'Trail Name', 'Total Distance (km)', 'Ride Count', 'Unique Users', 'Average Distance (km)'],
+    ...data.trailUsage.map((trail, index) => [
+      index + 1,
+      trail.trailId,
+      trail.trailName,
+      (trail.totalDistance / 1000).toFixed(2),
+      trail.rideCount,
+      trail.uniqueUsers,
+      (trail.averageDistance / 1000).toFixed(2),
+    ])
+  ];
+  const trailUsageSheet = XLSX.utils.aoa_to_sheet(trailUsageData);
+  XLSX.utils.book_append_sheet(workbook, trailUsageSheet, 'Trail Usage');
+
+  // Top 10 Users Detail Sheet
+  const top10Data = [
+    ['Top 10 Riders - Detailed Analysis'],
+    [''],
+    ['Rank', 'User Name', 'Rides', 'Distance (km)', 'Duration (hrs)', 'Avg Distance (km)'],
+    ...data.userStats.slice(0, 10).map((user, index) => [
+      index + 1,
+      user.userName || `Rider ${user.userId.slice(0, 8)}`,
+      user.rideCount,
+      (user.totalDistance / 1000).toFixed(2),
+      (user.totalDuration / (1000 * 60 * 60)).toFixed(2),
+      (user.averageDistance / 1000).toFixed(2),
+    ])
+  ];
+  const top10Sheet = XLSX.utils.aoa_to_sheet(top10Data);
+  XLSX.utils.book_append_sheet(workbook, top10Sheet, 'Top 10 Details');
+
+  // Top 10 Trails Detail Sheet
+  const topTrailsData = [
+    ['Top 10 Trails - Detailed Analysis'],
+    [''],
+    ['Rank', 'Trail Name', 'Total Rides', 'Total Distance (km)', 'Unique Riders', 'Avg Distance (km)', 'Popularity %'],
+    ...data.trailUsage.slice(0, 10).map((trail, index) => {
+      const totalRides = data.trailUsage.reduce((sum, t) => sum + t.rideCount, 0);
+      const popularity = totalRides > 0 ? ((trail.rideCount / totalRides) * 100).toFixed(1) : '0.0';
+      return [
+        index + 1,
+        trail.trailName,
+        trail.rideCount,
+        (trail.totalDistance / 1000).toFixed(2),
+        trail.uniqueUsers,
+        (trail.averageDistance / 1000).toFixed(2),
+        popularity,
+      ];
+    })
+  ];
+  const topTrailsSheet = XLSX.utils.aoa_to_sheet(topTrailsData);
+  XLSX.utils.book_append_sheet(workbook, topTrailsSheet, 'Top 10 Trails');
+
+  // Community Insights Sheet
+  const insightsData = buildCommunityInsightsRows(data);
+  const insightsSheet = XLSX.utils.aoa_to_sheet(insightsData);
+  XLSX.utils.book_append_sheet(workbook, insightsSheet, 'Insights');
+
+  return workbook;
+};
+
+/**
+ * Export global analytics data as Excel file
+ */
 export const exportGlobalAnalyticsExcel = async (): Promise<string> => {
   try {
     const data = await fetchGlobalAnalyticsForExport();
-    const workbook = XLSX.utils.book_new();
-    
-    // Summary Sheet
-    const summaryData = [
-      ['Global Trail Analytics Report'],
-      ['Generated on:', new Date(data.exportDate).toLocaleString()],
-      [''],
-      ['GLOBAL SUMMARY'],
-      ['Metric', 'Value'],
-      ['Total Users', data.summary.totalUsers],
-      ['Total Rides', data.summary.totalRides],
-      ['Total Distance (km)', data.summary.totalDistanceKm.toFixed(2)],
-      ['Total Duration (hours)', data.summary.totalDurationHours.toFixed(2)],
-      ['Total Elevation (m)', data.summary.totalElevationM.toFixed(0)],
-      ['Total Trails', data.summary.totalTrails],
-      ['Average Ride Distance (km)', data.summary.averageRideDistanceKm.toFixed(2)],
-      ['Average Ride Duration (min)', data.summary.averageRideDurationMinutes.toFixed(1)],
-    ];
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
-
-    // User Statistics Sheet (Leaderboard)
-    const userStatsData = [
-      ['Rank', 'User ID', 'User Name', 'Ride Count', 'Total Distance (km)', 'Total Duration (hours)', 'Average Distance (km)'],
-      ...data.userStats.map((user, index) => [
-        index + 1,
-        user.userId,
-        user.userName || `Rider ${user.userId.slice(0, 8)}`,
-        user.rideCount,
-        (user.totalDistance / 1000).toFixed(2),
-        (user.totalDuration / (1000 * 60 * 60)).toFixed(2),
-        (user.averageDistance / 1000).toFixed(2),
-      ])
-    ];
-    const userStatsSheet = XLSX.utils.aoa_to_sheet(userStatsData);
-    XLSX.utils.book_append_sheet(workbook, userStatsSheet, 'User Leaderboard');
-
-    // Trail Usage Sheet
-    const trailUsageData = [
-      ['Rank', 'Trail ID', 'Trail Name', 'Total Distance (km)', 'Ride Count', 'Unique Users', 'Average Distance (km)'],
-      ...data.trailUsage.map((trail, index) => [
-        index + 1,
-        trail.trailId,
-        trail.trailName,
-        (trail.totalDistance / 1000).toFixed(2),
-        trail.rideCount,
-        trail.uniqueUsers,
-        (trail.averageDistance / 1000).toFixed(2),
-      ])
-    ];
-    const trailUsageSheet = XLSX.utils.aoa_to_sheet(trailUsageData);
-    XLSX.utils.book_append_sheet(workbook, trailUsageSheet, 'Trail Usage');
-
-    // Top 10 Users Detail Sheet
-    const top10Data = [
-      ['Top 10 Riders - Detailed Analysis'],
-      [''],
-      ['Rank', 'User Name', 'Rides', 'Distance (km)', 'Duration (hrs)', 'Avg Distance (km)', 'Rides/Day'],
-      ...data.userStats.slice(0, 10).map((user, index) => [
-        index + 1,
-        user.userName || `Rider ${user.userId.slice(0, 8)}`,
-        user.rideCount,
-        (user.totalDistance / 1000).toFixed(2),
-        (user.totalDuration / (1000 * 60 * 60)).toFixed(2),
-        (user.averageDistance / 1000).toFixed(2),
-        (user.rideCount / 30).toFixed(2), // Assuming ~30 days average
-      ])
-    ];
-    const top10Sheet = XLSX.utils.aoa_to_sheet(top10Data);
-    XLSX.utils.book_append_sheet(workbook, top10Sheet, 'Top 10 Details');
-
-    // Top 10 Trails Detail Sheet
-    const topTrailsData = [
-      ['Top 10 Trails - Detailed Analysis'],
-      [''],
-      ['Rank', 'Trail Name', 'Total Rides', 'Total Distance (km)', 'Unique Riders', 'Avg Distance (km)', 'Popularity %'],
-      ...data.trailUsage.slice(0, 10).map((trail, index) => {
-        const totalRides = data.trailUsage.reduce((sum, t) => sum + t.rideCount, 0);
-        const popularity = totalRides > 0 ? ((trail.rideCount / totalRides) * 100).toFixed(1) : '0.0';
-        return [
-          index + 1,
-          trail.trailName,
-          trail.rideCount,
-          (trail.totalDistance / 1000).toFixed(2),
-          trail.uniqueUsers,
-          (trail.averageDistance / 1000).toFixed(2),
-          popularity,
-        ];
-      })
-    ];
-    const topTrailsSheet = XLSX.utils.aoa_to_sheet(topTrailsData);
-    XLSX.utils.book_append_sheet(workbook, topTrailsSheet, 'Top 10 Trails');
-
-    // Community Insights Sheet
-    const avgRidesPerUser = data.summary.totalUsers > 0 
-      ? (data.summary.totalRides / data.summary.totalUsers).toFixed(1) 
-      : '0.0';
-    const avgDistancePerUser = data.summary.totalUsers > 0
-      ? (data.summary.totalDistanceKm / data.summary.totalUsers).toFixed(2)
-      : '0.00';
-    const avgTrailsPerUser = data.summary.totalUsers > 0
-      ? (data.trailUsage.length / data.summary.totalUsers).toFixed(2)
-      : '0.00';
-
-    const insightsData = [
-      ['Community Insights & Analytics'],
-      [''],
-      ['PARTICIPATION METRICS'],
-      ['Metric', 'Value', 'Notes'],
-      ['Average Rides per User', avgRidesPerUser, 'Total rides divided by users'],
-      ['Average Distance per User (km)', avgDistancePerUser, 'Total distance divided by users'],
-      ['Trail Diversity Index', avgTrailsPerUser, 'Average trails per user'],
-      [''],
-      ['ENGAGEMENT LEVELS'],
-      ['Category', 'Count', 'Percentage'],
-      ['Highly Active Users (10+ rides)', data.userStats.filter(u => u.rideCount >= 10).length, `${((data.userStats.filter(u => u.rideCount >= 10).length / data.summary.totalUsers) * 100).toFixed(1)}%`],
-      ['Moderate Users (5-9 rides)', data.userStats.filter(u => u.rideCount >= 5 && u.rideCount < 10).length, `${((data.userStats.filter(u => u.rideCount >= 5 && u.rideCount < 10).length / data.summary.totalUsers) * 100).toFixed(1)}%`],
-      ['Casual Users (1-4 rides)', data.userStats.filter(u => u.rideCount < 5).length, `${((data.userStats.filter(u => u.rideCount < 5).length / data.summary.totalUsers) * 100).toFixed(1)}%`],
-      [''],
-      ['TRAIL METRICS'],
-      ['Most Popular Trail', data.trailUsage[0]?.trailName || 'N/A', `${data.trailUsage[0]?.rideCount || 0} rides`],
-      ['Longest Trail Distance', data.trailUsage[0] ? `${(data.trailUsage[0].totalDistance / 1000).toFixed(2)} km` : 'N/A', data.trailUsage[0]?.trailName || 'N/A'],
-      ['Most Riders on Single Trail', Math.max(...data.trailUsage.map(t => t.uniqueUsers), 0), 'Maximum unique riders'],
-    ];
-    const insightsSheet = XLSX.utils.aoa_to_sheet(insightsData);
-    XLSX.utils.book_append_sheet(workbook, insightsSheet, 'Insights');
+    const workbook = buildGlobalAnalyticsWorkbook(data);
 
     // Generate filename with timestamp
     const timestamp = new Date().toISOString().split('T')[0];

@@ -17,6 +17,9 @@ jest.mock('expo-sharing', () => ({
 
 import {
   buildGlobalAnalyticsCsv,
+  buildEngagementRows,
+  buildCommunityInsightsRows,
+  buildGlobalAnalyticsWorkbook,
   type GlobalAnalyticsExport,
 } from '../services/AnalyticsDownloadService';
 
@@ -89,68 +92,93 @@ function parseCsv(csvText: string): string[][] {
   return lines;
 }
 
-describe('buildGlobalAnalyticsCsv', () => {
-  const fixture: GlobalAnalyticsExport = {
-    exportDate: '2026-10-22T12:00:00.000Z',
-    exportTimestamp: 1729598400000,
-    globalStats: {
-      totalRides: 15,
-      totalDistance: 75000,
-      totalDuration: 18000000,
-      totalElevation: 450,
+const sampleFixture: GlobalAnalyticsExport = {
+  exportDate: '2026-10-22T12:00:00.000Z',
+  exportTimestamp: 1729598400000,
+  globalStats: {
+    totalRides: 15,
+    totalDistance: 75000,
+    totalDuration: 18000000,
+    totalElevation: 450,
+    uniqueUsers: 2,
+    rides: [],
+  },
+  userStats: [
+    {
+      userId: 'user-1',
+      userName: 'Smith, "Ace"',
+      rideCount: 10,
+      totalDistance: 50000,
+      totalDuration: 12000000,
+      averageDistance: 5000,
+    },
+    {
+      userId: 'user-2',
+      userName: 'Normal Rider',
+      rideCount: 5,
+      totalDistance: 25000,
+      totalDuration: 6000000,
+      averageDistance: 5000,
+    },
+  ],
+  trailUsage: [
+    {
+      trailId: 'trail-1',
+      trailName: 'Forest Loop\nUpper Path',
+      totalDistance: 40000,
+      rideCount: 8,
       uniqueUsers: 2,
-      rides: [],
+      averageDistance: 5000,
     },
-    userStats: [
-      {
-        userId: 'user-1',
-        userName: 'Smith, "Ace"',
-        rideCount: 10,
-        totalDistance: 50000,
-        totalDuration: 12000000,
-        averageDistance: 5000,
-      },
-      {
-        userId: 'user-2',
-        userName: 'Normal Rider',
-        rideCount: 5,
-        totalDistance: 25000,
-        totalDuration: 6000000,
-        averageDistance: 5000,
-      },
-    ],
-    trailUsage: [
-      {
-        trailId: 'trail-1',
-        trailName: 'Forest Loop\nUpper Path',
-        totalDistance: 40000,
-        rideCount: 8,
-        uniqueUsers: 2,
-        averageDistance: 5000,
-      },
-      {
-        trailId: 'trail-2',
-        trailName: 'Beach Trail, South',
-        totalDistance: 35000,
-        rideCount: 7,
-        uniqueUsers: 1,
-        averageDistance: 5000,
-      },
-    ],
-    summary: {
-      totalUsers: 2,
-      totalRides: 15,
-      totalDistanceKm: 75,
-      totalDurationHours: 5,
-      totalElevationM: 450,
-      totalTrails: 2,
-      averageRideDistanceKm: 5,
-      averageRideDurationMinutes: 20,
+    {
+      trailId: 'trail-2',
+      trailName: 'Beach Trail, South',
+      totalDistance: 35000,
+      rideCount: 7,
+      uniqueUsers: 1,
+      averageDistance: 5000,
     },
-  };
+  ],
+  summary: {
+    totalUsers: 2,
+    totalRides: 15,
+    totalDistanceKm: 75,
+    totalDurationHours: 5,
+    totalElevationM: 450,
+    totalTrails: 2,
+    averageRideDistanceKm: 5,
+    averageRideDurationMinutes: 20,
+  },
+};
 
+const zeroUserFixture: GlobalAnalyticsExport = {
+  exportDate: '2026-10-22T12:00:00.000Z',
+  exportTimestamp: 1729598400000,
+  globalStats: {
+    totalRides: 0,
+    totalDistance: 0,
+    totalDuration: 0,
+    totalElevation: 0,
+    uniqueUsers: 0,
+    rides: [],
+  },
+  userStats: [],
+  trailUsage: [],
+  summary: {
+    totalUsers: 0,
+    totalRides: 0,
+    totalDistanceKm: 0,
+    totalDurationHours: 0,
+    totalElevationM: 0,
+    totalTrails: 0,
+    averageRideDistanceKm: 0,
+    averageRideDurationMinutes: 0,
+  },
+};
+
+describe('buildGlobalAnalyticsCsv', () => {
   it('generates well-formed CSV that round-trips awkward user and trail names', () => {
-    const csv = buildGlobalAnalyticsCsv(fixture);
+    const csv = buildGlobalAnalyticsCsv(sampleFixture);
     expect(csv.endsWith('\n')).toBe(true);
 
     const rows = parseCsv(csv);
@@ -200,7 +228,7 @@ describe('buildGlobalAnalyticsCsv', () => {
 
   it('escapes user/trail IDs and fallback rider names correctly', () => {
     const customFixture: GlobalAnalyticsExport = {
-      ...fixture,
+      ...sampleFixture,
       userStats: [
         {
           userId: 'user-3-commas,quotes"',
@@ -223,5 +251,77 @@ describe('buildGlobalAnalyticsCsv', () => {
     expect(row).toHaveLength(7);
     expect(row[1]).toBe('user-3-commas,quotes"');
     expect(row[2]).toBe('Rider user-3-c');
+  });
+});
+
+describe('Excel export and engagement rows', () => {
+  it('guards engagement percentages with 0 users and uses 0.0%', () => {
+    const rows = buildEngagementRows(zeroUserFixture);
+    expect(rows).toEqual([
+      ['Category', 'Count', 'Percentage'],
+      ['Highly Active Users (10+ rides)', 0, '0.0%'],
+      ['Moderate Users (5-9 rides)', 0, '0.0%'],
+      ['Casual Users (1-4 rides)', 0, '0.0%'],
+    ]);
+  });
+
+  it('calculates correct engagement percentages with non-zero users', () => {
+    const rows = buildEngagementRows(sampleFixture);
+    expect(rows).toEqual([
+      ['Category', 'Count', 'Percentage'],
+      ['Highly Active Users (10+ rides)', 1, '50.0%'],
+      ['Moderate Users (5-9 rides)', 1, '50.0%'],
+      ['Casual Users (1-4 rides)', 0, '0.0%'],
+    ]);
+  });
+
+  it('relabels "Longest Trail Distance" to "Most distance ridden on one trail"', () => {
+    const rowsWithData = buildCommunityInsightsRows(sampleFixture);
+    const longestTrailRow = rowsWithData.find((r) => r[0] === 'Most distance ridden on one trail');
+    expect(longestTrailRow).toBeDefined();
+    expect(longestTrailRow?.[1]).toBe('40.00 km');
+    expect(longestTrailRow?.[2]).toBe('Forest Loop\nUpper Path');
+
+    // Make sure old misleading label is gone
+    expect(rowsWithData.some((r) => r[0] === 'Longest Trail Distance')).toBe(false);
+
+    // With zero users / empty trails
+    const rowsEmpty = buildCommunityInsightsRows(zeroUserFixture);
+    const emptyRow = rowsEmpty.find((r) => r[0] === 'Most distance ridden on one trail');
+    expect(emptyRow).toBeDefined();
+    expect(emptyRow?.[1]).toBe('N/A');
+    expect(emptyRow?.[2]).toBe('N/A');
+  });
+
+  it('removes invented Rides/Day column from Top 10 Details sheet', () => {
+    const wb = buildGlobalAnalyticsWorkbook(sampleFixture);
+    const sheet = wb.Sheets['Top 10 Details'];
+    expect(sheet).toBeDefined();
+
+    // Row 3 (A3:F3) has headers
+    const headers = [sheet['A3']?.v, sheet['B3']?.v, sheet['C3']?.v, sheet['D3']?.v, sheet['E3']?.v, sheet['F3']?.v, sheet['G3']?.v];
+    expect(headers).toEqual(['Rank', 'User Name', 'Rides', 'Distance (km)', 'Duration (hrs)', 'Avg Distance (km)', undefined]);
+  });
+
+  it('contains no NaN, Infinity, or undefined cells in zero-user workbook', () => {
+    const wb = buildGlobalAnalyticsWorkbook(zeroUserFixture);
+
+    for (const sheetName of wb.SheetNames) {
+      const sheet = wb.Sheets[sheetName];
+      for (const [cellRef, cellObj] of Object.entries(sheet)) {
+        if (cellRef.startsWith('!')) continue; // Skip sheet metadata
+        const val = (cellObj as { v?: unknown }).v;
+
+        // Check for NaN
+        expect(Number.isNaN(val)).toBe(false);
+        // Check for Infinity
+        expect(val === Infinity || val === -Infinity).toBe(false);
+        // Check for stringified NaN or Infinity
+        if (typeof val === 'string') {
+          expect(val.includes('NaN')).toBe(false);
+          expect(val.includes('Infinity')).toBe(false);
+        }
+      }
+    }
   });
 });
