@@ -8,8 +8,8 @@ import type { ProfileStackParamList, TabParamList } from '../../navigation/types
 import { Feather as Icon } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { saveHorse } from '../../services/HorseStorage';
-import { useColorScheme } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { useAppTheme, type AppPalette } from '../../hooks/useAppTheme';
 import { BorderRadius, ComponentStyles, Spacing, Typography } from '../../constants/styleguide';
 
 type CreateHorseRouteProp = RouteProp<ProfileStackParamList, 'CreateHorse'>;
@@ -23,10 +23,18 @@ const CreateHorseScreen = () => {
   const [age, setAge] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const placeholderColor = colors.placeholder;
+  const { palette } = useAppTheme();
+  const styles = useMemo(() => createStyles(palette), [palette]);
+
+  const handleReturnNavigation = () => {
+    if (route?.params?.fromDashboard) {
+      nav.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('Dashboard');
+    } else if (route?.params?.returnToSelectHorse) {
+      nav.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('Mapping', { screen: 'SelectHorse' });
+    } else {
+      nav.goBack();
+    }
+  };
 
   const onSave = async () => {
     if (!name.trim()) {
@@ -41,13 +49,7 @@ const CreateHorseScreen = () => {
     try {
       setSaving(true);
       await saveHorse({ name: name.trim(), breed: breed.trim() || undefined, age: ageNum, notes: notes.trim() || undefined });
-      if (route?.params?.fromDashboard) {
-        nav.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('Dashboard');
-      } else if (route?.params?.returnToSelectHorse) {
-        nav.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('Mapping', { screen: 'SelectHorse' });
-      } else {
-        nav.goBack();
-      }
+      handleReturnNavigation();
     } catch (e) {
       Alert.alert('Save failed', 'Could not save horse. Please try again.');
     } finally {
@@ -57,38 +59,21 @@ const CreateHorseScreen = () => {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
+      <ScreenHeader
+        title="Add Horse"
+        onBack={handleReturnNavigation}
+        backLabel="Go back"
+      />
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => {
-              if (route?.params?.fromDashboard) {
-                nav.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('Dashboard');
-              } else if (route?.params?.returnToSelectHorse) {
-                nav.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('Mapping', { screen: 'SelectHorse' });
-              } else {
-                nav.goBack();
-              }
-            }}
-            style={styles.backBtn}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Icon name="chevron-left" size={24} color={colors.onSurface} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Add Horse</Text>
-          <View style={styles.headerSpacer} />
-        </View>
-
         <LinearGradient
-          colors={[colors.gradientPrimaryStart, colors.gradientPrimaryEnd] as const}
+          colors={[palette.gradientPrimaryStart, palette.gradientPrimaryEnd] as const}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroCard}
         >
           <View style={styles.heroContent}>
             <View style={styles.heroIconWrapper}>
-              <Icon name="compass" size={20} color={colors.onPrimary} />
+              <Icon name="compass" size={20} color={palette.onPrimary} />
             </View>
             <View style={styles.heroTextBlock}>
               <Text style={styles.heroTitle}>Register a new horse</Text>
@@ -104,9 +89,9 @@ const CreateHorseScreen = () => {
             accessibilityLabel="Horse name"
             onChangeText={setName}
             placeholder="e.g. Thunder"
-            placeholderTextColor={placeholderColor}
+            placeholderTextColor={palette.textMuted}
             style={styles.input}
-            selectionColor={colors.brandPrimary}
+            selectionColor={palette.brandPrimary}
           />
 
           <Text style={styles.label}>Breed (optional)</Text>
@@ -115,9 +100,9 @@ const CreateHorseScreen = () => {
             accessibilityLabel="Breed (optional)"
             onChangeText={setBreed}
             placeholder="e.g. Arabian"
-            placeholderTextColor={placeholderColor}
+            placeholderTextColor={palette.textMuted}
             style={styles.input}
-            selectionColor={colors.brandPrimary}
+            selectionColor={palette.brandPrimary}
           />
 
           <Text style={styles.label}>Age (optional)</Text>
@@ -126,10 +111,10 @@ const CreateHorseScreen = () => {
             accessibilityLabel="Age in years (optional)"
             onChangeText={setAge}
             placeholder="e.g. 7"
-            placeholderTextColor={placeholderColor}
+            placeholderTextColor={palette.textMuted}
             keyboardType="numeric"
             style={styles.input}
-            selectionColor={colors.brandPrimary}
+            selectionColor={palette.brandPrimary}
           />
 
           <Text style={styles.label}>Notes (optional)</Text>
@@ -138,11 +123,11 @@ const CreateHorseScreen = () => {
             accessibilityLabel="Notes (optional)"
             onChangeText={setNotes}
             placeholder="Temperament, training notes, etc."
-            placeholderTextColor={placeholderColor}
+            placeholderTextColor={palette.textMuted}
             style={[styles.input, styles.notes]}
             multiline
             numberOfLines={4}
-            selectionColor={colors.brandPrimary}
+            selectionColor={palette.brandPrimary}
           />
         </View>
 
@@ -156,7 +141,7 @@ const CreateHorseScreen = () => {
           accessibilityState={{ disabled: saving, busy: saving }}
         >
           <LinearGradient
-            colors={[colors.brandPrimary, colors.brandPrimaryAlt] as const}
+            colors={[palette.brandPrimary, palette.brandPrimaryAlt] as const}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.saveBtn}
@@ -169,32 +154,14 @@ const CreateHorseScreen = () => {
   );
 };
 
-type ThemeColors = typeof Colors.light;
-
-const createStyles = (colors: ThemeColors) =>
+const createStyles = (palette: AppPalette) =>
   StyleSheet.create({
-    flex: { flex: 1, backgroundColor: colors.backgroundLight },
-    container: { flexGrow: 1, padding: Spacing.md, paddingTop: Spacing.xxl, paddingBottom: Spacing.xl },
-    headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.lg },
-    backBtn: {
-      width: 48,
-      height: 48,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 24,
-      backgroundColor: colors.surface,
-      shadowColor: colors.shadowStrong,
-      shadowOpacity: 0.12,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 4,
-    },
-    headerTitle: { ...Typography.subtitle, flex: 1, textAlign: 'center', color: colors.onSurface },
-    headerSpacer: { width: 48 },
+    flex: { flex: 1, backgroundColor: palette.background },
+    container: { flexGrow: 1, padding: Spacing.md, paddingBottom: Spacing.xl },
     heroCard: {
       borderRadius: BorderRadius.xl,
       padding: Spacing.md,
-      shadowColor: colors.shadowStrong,
+      shadowColor: palette.shadowStrong,
       shadowOpacity: 0.18,
       shadowRadius: 16,
       shadowOffset: { width: 0, height: 10 },
@@ -211,35 +178,35 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: 'center',
     },
     heroTextBlock: { flex: 1 },
-    heroTitle: { fontSize: 18, fontWeight: '700', color: colors.onPrimary, marginBottom: 4 },
-    heroSubtitle: { fontSize: 14, color: colors.onPrimary, opacity: 0.85 },
+    heroTitle: { fontSize: 18, fontWeight: '700', color: palette.onPrimary, marginBottom: 4 },
+    heroSubtitle: { fontSize: 14, color: palette.onPrimary, opacity: 0.85 },
     card: {
-      backgroundColor: colors.surface,
+      backgroundColor: palette.card,
       borderRadius: BorderRadius.xl,
       padding: Spacing.md,
-      shadowColor: colors.shadowStrong,
+      shadowColor: palette.shadowStrong,
       shadowOpacity: 0.12,
       shadowRadius: 12,
       shadowOffset: { width: 0, height: 6 },
       elevation: 5,
     },
-    label: { ...Typography.caption, marginTop: Spacing.md, color: colors.onSurface },
+    label: { ...Typography.caption, marginTop: Spacing.md, color: palette.textPrimary },
     input: {
       ...ComponentStyles.input,
       marginTop: Spacing.sm,
-      borderColor: colors.borderMuted,
+      borderColor: palette.divider,
       borderRadius: BorderRadius.lg,
       paddingHorizontal: Spacing.md,
       paddingVertical: Spacing.sm,
-      backgroundColor: colors.surfaceVariant,
-      color: colors.onSurface,
+      backgroundColor: palette.surfaceVariant,
+      color: palette.textPrimary,
     },
     notes: { minHeight: 120, textAlignVertical: 'top' },
     saveBtnContainer: {
       marginTop: Spacing.lg,
       borderRadius: BorderRadius.lg,
       overflow: 'hidden',
-      shadowColor: colors.shadowStrong,
+      shadowColor: palette.shadowStrong,
       shadowOpacity: 0.25,
       shadowRadius: 12,
       shadowOffset: { width: 0, height: 8 },
@@ -247,8 +214,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     saveBtnDisabled: { opacity: 0.7 },
     saveBtn: { ...ComponentStyles.button.primary, paddingVertical: Spacing.md },
-    saveTxt: { ...Typography.button, color: colors.onPrimary },
+    saveTxt: { ...Typography.button, color: palette.onPrimary },
   });
 
 export default CreateHorseScreen;
-

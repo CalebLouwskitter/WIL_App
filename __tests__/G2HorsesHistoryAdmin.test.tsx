@@ -1,13 +1,17 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, useColorScheme } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import HorsesListScreen from '../screens/Profile/HorsesListScreen';
+import CreateHorseScreen from '../screens/Profile/CreateHorseScreen';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Colors } from '../constants/colors';
+import { saveHorse } from '../services/HorseStorage';
 
 const mockGoBack = jest.fn();
 const mockNavigate = jest.fn();
-const mockGetParent = jest.fn();
+const mockParentNavigate = jest.fn();
+const mockGetParent = jest.fn(() => ({ navigate: mockParentNavigate }));
+let mockRouteParams: any = {};
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
@@ -18,13 +22,20 @@ jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (cb: () => void) => {
     require('react').useEffect(cb, [cb]);
   },
-  useRoute: () => ({ params: {} }),
+  useRoute: () => ({ params: mockRouteParams }),
 }));
 
 jest.mock('@expo/vector-icons', () => ({
   Feather: () => null,
   Ionicons: () => null,
   MaterialCommunityIcons: () => null,
+}));
+
+jest.mock('expo-linear-gradient', () => ({
+  LinearGradient: ({ children, style }: any) => {
+    const { View } = require('react-native');
+    return <View style={style}>{children}</View>;
+  },
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -50,6 +61,7 @@ const flushAsync = async () => {
 describe('G2 — HorsesListScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRouteParams = {};
   });
 
   afterEach(async () => {
@@ -107,6 +119,167 @@ describe('G2 — HorsesListScreen', () => {
     const titleText = texts.find((t) => [t.props.children].flat().join('') === 'Thunder');
     expect(titleText).toBeDefined();
     const flatStyle = StyleSheet.flatten(titleText!.props.style);
+    expect(flatStyle.color).toBe(Colors.dark.textPrimary);
+  });
+});
+
+describe('G2 — CreateHorseScreen', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockRouteParams = {};
+  });
+
+  afterEach(async () => {
+    await flushAsync();
+    jest.restoreAllMocks();
+  });
+
+  it('renders ScreenHeader with title "Add Horse"', async () => {
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<CreateHorseScreen />);
+    });
+    await flushAsync();
+
+    const header = renderer.root.findByType(ScreenHeader);
+    expect(header).toBeDefined();
+    expect(header.props.title).toBe('Add Horse');
+  });
+
+  it('back button navigates to SelectHorse when returnToSelectHorse is set', async () => {
+    mockRouteParams = { returnToSelectHorse: true };
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<CreateHorseScreen />);
+    });
+    await flushAsync();
+
+    const header = renderer.root.findByType(ScreenHeader);
+    act(() => {
+      header.props.onBack();
+    });
+    expect(mockGetParent).toHaveBeenCalled();
+    expect(mockParentNavigate).toHaveBeenCalledWith('Mapping', { screen: 'SelectHorse' });
+    expect(mockGoBack).not.toHaveBeenCalled();
+  });
+
+  it('back button navigates to Dashboard when fromDashboard is set', async () => {
+    mockRouteParams = { fromDashboard: true };
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<CreateHorseScreen />);
+    });
+    await flushAsync();
+
+    const header = renderer.root.findByType(ScreenHeader);
+    act(() => {
+      header.props.onBack();
+    });
+    expect(mockGetParent).toHaveBeenCalled();
+    expect(mockParentNavigate).toHaveBeenCalledWith('Dashboard');
+    expect(mockGoBack).not.toHaveBeenCalled();
+  });
+
+  it('back button calls goBack() when no return param is present', async () => {
+    mockRouteParams = {};
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<CreateHorseScreen />);
+    });
+    await flushAsync();
+
+    const header = renderer.root.findByType(ScreenHeader);
+    act(() => {
+      header.props.onBack();
+    });
+    expect(mockGoBack).toHaveBeenCalledTimes(1);
+    expect(mockParentNavigate).not.toHaveBeenCalled();
+  });
+
+  it('onSave navigates to SelectHorse when returnToSelectHorse is set', async () => {
+    mockRouteParams = { returnToSelectHorse: true };
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<CreateHorseScreen />);
+    });
+    await flushAsync();
+
+    // Fill in name
+    const nameInput = renderer.root.findByProps({ accessibilityLabel: 'Horse name' });
+    act(() => {
+      nameInput.props.onChangeText('Shadowfax');
+    });
+
+    const saveBtn = renderer.root.findByProps({ accessibilityLabel: 'Save horse' });
+    await act(async () => {
+      await saveBtn.props.onPress();
+    });
+    await flushAsync();
+
+    expect(saveHorse).toHaveBeenCalledWith(expect.objectContaining({ name: 'Shadowfax' }));
+    expect(mockParentNavigate).toHaveBeenCalledWith('Mapping', { screen: 'SelectHorse' });
+  });
+
+  it('onSave navigates to Dashboard when fromDashboard is set', async () => {
+    mockRouteParams = { fromDashboard: true };
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<CreateHorseScreen />);
+    });
+    await flushAsync();
+
+    const nameInput = renderer.root.findByProps({ accessibilityLabel: 'Horse name' });
+    act(() => {
+      nameInput.props.onChangeText('Shadowfax');
+    });
+
+    const saveBtn = renderer.root.findByProps({ accessibilityLabel: 'Save horse' });
+    await act(async () => {
+      await saveBtn.props.onPress();
+    });
+    await flushAsync();
+
+    expect(saveHorse).toHaveBeenCalledWith(expect.objectContaining({ name: 'Shadowfax' }));
+    expect(mockParentNavigate).toHaveBeenCalledWith('Dashboard');
+  });
+
+  it('onSave calls goBack() when no return param is present', async () => {
+    mockRouteParams = {};
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<CreateHorseScreen />);
+    });
+    await flushAsync();
+
+    const nameInput = renderer.root.findByProps({ accessibilityLabel: 'Horse name' });
+    act(() => {
+      nameInput.props.onChangeText('Shadowfax');
+    });
+
+    const saveBtn = renderer.root.findByProps({ accessibilityLabel: 'Save horse' });
+    await act(async () => {
+      await saveBtn.props.onPress();
+    });
+    await flushAsync();
+
+    expect(saveHorse).toHaveBeenCalledWith(expect.objectContaining({ name: 'Shadowfax' }));
+    expect(mockGoBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders field labels in dark mode using palette.textPrimary', async () => {
+    const ReactNative = require('react-native');
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<CreateHorseScreen />);
+    });
+    await flushAsync();
+
+    const texts = renderer.root.findAllByType(Text);
+    const labelText = texts.find((t) => [t.props.children].flat().join('') === 'Name');
+    expect(labelText).toBeDefined();
+    const flatStyle = StyleSheet.flatten(labelText!.props.style);
     expect(flatStyle.color).toBe(Colors.dark.textPrimary);
   });
 });
