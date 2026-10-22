@@ -9,6 +9,8 @@ import type { RideData } from '../../hooks/useRideTracker';
 import { resolvePalette } from '../../constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { primaryPreviewRoutes } from '../../constants/trails';
+import { usePreferences } from '../../contexts/PreferencesContext';
+import { formatDistance, formatSpeedKmh } from '../../utils/units';
 
 interface RouteParams { startTime: number }
 
@@ -24,6 +26,7 @@ const RideViewMoreScreen = () => {
   const mapRef = useRef<MapView | null>(null);
   const colorScheme = useColorScheme();
   const theme = resolvePalette(colorScheme);
+  const { preferences } = usePreferences();
 
   useEffect(() => {
     (async () => {
@@ -84,17 +87,20 @@ const RideViewMoreScreen = () => {
     );
   }
 
-  const distanceKm = (ride.totalDistance / 1000).toFixed(2);
+  const formattedDistance = formatDistance(ride.totalDistance, preferences.units, 2);
   const durationMin = Math.round(ride.duration / 1000 / 60);
   const durationHrs = Math.floor(durationMin / 60);
   const durationMins = durationMin % 60;
   const durationText = durationHrs > 0 
     ? `${durationHrs}h ${durationMins}m`
     : `${durationMins}m`;
-  const avgSpeed = ride.duration > 0 
-    ? ((ride.totalDistance / 1000) / (ride.duration / 1000 / 3600)).toFixed(1)
-    : '0';
-  const maxSpeed = ((ride as any).maxSpeed || (ride as any).maxSpeed === 0) ? (ride as any).maxSpeed.toFixed(1) : 'N/A';
+  const avgSpeedKmh = ride.duration > 0 
+    ? (ride.totalDistance / 1000) / (ride.duration / 1000 / 3600)
+    : 0;
+  const formattedAvgSpeed = formatSpeedKmh(avgSpeedKmh, preferences.units, 1);
+  const formattedMaxSpeed = ((ride as any).maxSpeed || (ride as any).maxSpeed === 0)
+    ? formatSpeedKmh((ride as any).maxSpeed, preferences.units, 1)
+    : null;
   const calories = Math.round((ride.totalDistance / 1000) * 65);
   
   const formatDate = (timestamp: number) => {
@@ -129,9 +135,9 @@ const RideViewMoreScreen = () => {
     .map((r) => {
       const meters = ride.routeDistances?.[r.id] || 0;
       if (meters < 1) return null;
-      return { name: r.name, distance: (meters / 1000).toFixed(2) };
+      return { name: r.name, distanceFormatted: formatDistance(meters, preferences.units, 2) };
     })
-    .filter((line): line is { name: string; distance: string } => line !== null);
+    .filter((line): line is NonNullable<typeof line> => line !== null);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
@@ -258,8 +264,8 @@ const RideViewMoreScreen = () => {
               <View style={[styles.statIconCircle, { backgroundColor: theme.brandPrimary + '20' }]}>
                 <Feather name="navigation" size={22} color={theme.brandPrimary} />
               </View>
-              <Text style={[styles.statValue, { color: theme.onSurface }]}>{distanceKm}</Text>
-              <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>Distance (km)</Text>
+              <Text style={[styles.statValue, { color: theme.onSurface }]}>{formattedDistance.value}</Text>
+              <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>Distance ({formattedDistance.unit})</Text>
             </View>
 
             <View style={[styles.statCard, { backgroundColor: theme.surfaceVariant }]}>
@@ -282,8 +288,8 @@ const RideViewMoreScreen = () => {
               <View style={[styles.statIconCircle, { backgroundColor: theme.caution + '20' }]}>
                 <Feather name="zap" size={22} color={theme.caution} />
               </View>
-              <Text style={[styles.statValue, { color: theme.onSurface }]}>{avgSpeed}</Text>
-              <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>Avg Speed (km/h)</Text>
+              <Text style={[styles.statValue, { color: theme.onSurface }]}>{formattedAvgSpeed.value}</Text>
+              <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>Avg Speed ({formattedAvgSpeed.unit})</Text>
             </View>
           </View>
         </View>
@@ -300,7 +306,7 @@ const RideViewMoreScreen = () => {
                 <Feather name="trending-up" size={18} color={theme.onSurfaceVariant} />
                 <Text style={[styles.detailLabel, { color: theme.onSurfaceVariant }]}>Max Speed</Text>
               </View>
-              <Text style={[styles.detailValue, { color: theme.onSurface }]}>{maxSpeed} km/h</Text>
+              <Text style={[styles.detailValue, { color: theme.onSurface }]}>{formattedMaxSpeed ? `${formattedMaxSpeed.value} ${formattedMaxSpeed.unit}` : 'N/A'}</Text>
             </View>
             <View style={[styles.detailDivider, { backgroundColor: theme.borderMuted }]} />
             
@@ -339,7 +345,7 @@ const RideViewMoreScreen = () => {
                   <View style={styles.routeInfo}>
                     <Text style={[styles.routeName, { color: theme.onSurface }]}>{line.name}</Text>
                     <Text style={[styles.routeDistance, { color: theme.onSurfaceVariant }]}>
-                      {line.distance} km covered
+                      {line.distanceFormatted.value} {line.distanceFormatted.unit} covered
                     </Text>
                   </View>
                 </View>

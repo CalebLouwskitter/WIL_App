@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -9,12 +9,16 @@ import {
   ScrollView,
   TouchableWithoutFeedback,
   useColorScheme,
+  Linking,
 } from 'react-native';
-import { Linking } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets, type EdgeInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
-import { useUnits } from '../../hooks/useUnits';
+import {
+  usePreferences,
+  getLocationPermissionStatus,
+  type LocationPermissionStatus,
+} from '../../contexts/PreferencesContext';
 import { BackgroundLocationService } from '../backgroundServices';
 
 type Props = {
@@ -27,9 +31,11 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
   const palette = Colors[scheme === 'dark' ? 'dark' : 'light'];
-  const { isMetric, toggle } = useUnits();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [locationTracking, setLocationTracking] = useState(true);
+  const { preferences, setUnits, setNotificationsWanted, saveError } = usePreferences();
+  const isMetric = preferences.units === 'metric';
+
+  const [locationPermission, setLocationPermission] =
+    useState<LocationPermissionStatus>('Not allowed');
   const [backgroundEnabled, setBackgroundEnabled] = useState<boolean>(false);
 
   const styles = useMemo(() => createStyles(palette, insets), [palette, insets]);
@@ -39,18 +45,24 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
     onRequestFullSettings?.();
   };
 
+  const refreshPermissions = useCallback(async () => {
+    try {
+      const locStatus = await getLocationPermissionStatus();
+      const bg = await BackgroundLocationService.hasPermissions();
+      setLocationPermission(locStatus);
+      setBackgroundEnabled(bg);
+    } catch {}
+  }, []);
+
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const has = await BackgroundLocationService.hasPermissions();
-        if (mounted) setBackgroundEnabled(has);
-      } catch {}
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [visible]);
+    if (visible) {
+      refreshPermissions();
+    }
+  }, [visible, refreshPermissions]);
+
+  const handleToggleUnits = async () => {
+    await setUnits(isMetric ? 'imperial' : 'metric');
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
@@ -69,6 +81,12 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
                   <Feather name="x" size={22} color={palette.text} />
                 </TouchableOpacity>
               </View>
+
+              {saveError ? (
+                <View style={styles.errorBanner}>
+                  <Text style={styles.errorBannerText}>{saveError}</Text>
+                </View>
+              ) : null}
 
               <ScrollView
                 style={styles.scrollView}
@@ -89,7 +107,7 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
                     </View>
                     <Switch
                       value={isMetric}
-                      onValueChange={toggle}
+                      onValueChange={handleToggleUnits}
                       trackColor={{
                         false: palette.border || '#CBD5F5',
                         true: palette.brandPrimary || '#2563EB',
@@ -108,20 +126,22 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
                       <Text style={[styles.switchLabel, { color: palette.text }]}>Notifications</Text>
                     </View>
                     <Switch
-                      value={notificationsEnabled}
-                      onValueChange={setNotificationsEnabled}
+                      value={preferences.notificationsWanted}
+                      onValueChange={(val) => setNotificationsWanted(val)}
                       trackColor={{
                         false: palette.border || '#CBD5F5',
                         true: palette.brandPrimary || '#2563EB',
                       }}
                       thumbColor={
-                        notificationsEnabled
+                        preferences.notificationsWanted
                           ? palette.brandPrimary || '#2563EB'
                           : palette.surfaceVariant || palette.surface || '#FFFFFF'
                       }
                     />
                   </View>
-
+                  <Text style={[styles.helperCaption, { color: palette.placeholder || '#64748B' }]}>
+                    Ride alerts aren't being delivered yet — this saves your choice for when they are.
+                  </Text>
                 </View>
 
                 <View
@@ -130,33 +150,52 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
                     { backgroundColor: palette.cardElevated || palette.surface || '#FFFFFF' },
                   ]}
                 >
-                  <Text style={[styles.cardTitle, { color: palette.secondary || palette.text }]}>Location tracking</Text>
-                  
-                  <View style={styles.switchRow}>
+                  <Text style={[styles.cardTitle, { color: palette.secondary || palette.text }]}>Location permissions</Text>
+
+                  <View style={styles.permissionSection}>
                     <View style={styles.switchLabelRow}>
                       <Feather name="map-pin" size={18} color={palette.icon || palette.text} />
-                      <Text style={[styles.switchLabel, { color: palette.text }]}>Enable tracking</Text>
+                      <Text style={[styles.switchLabel, { color: palette.text }]}>Location permission</Text>
                     </View>
-                    <Switch
-                      value={locationTracking}
-                      onValueChange={setLocationTracking}
-                      trackColor={{
-                        false: palette.border || '#CBD5F5',
-                        true: palette.brandPrimary || '#2563EB',
-                      }}
-                      thumbColor={
-                        locationTracking
-                          ? palette.brandPrimary || '#2563EB'
-                          : palette.surfaceVariant || palette.surface || '#FFFFFF'
-                      }
-                    />
+                    <View style={styles.permissionRow}>
+                      <View style={styles.permissionStatus}>
+                        <View
+                          style={[
+                            styles.statusDot,
+                            {
+                              backgroundColor:
+                                locationPermission === 'Not allowed' ? '#ef4444' : '#10b981',
+                            },
+                          ]}
+                        />
+                        <Text style={[styles.permissionText, { color: palette.text }]}>
+                          {locationPermission}
+                        </Text>
+                      </View>
+                      <View style={styles.permissionActions}>
+                        <TouchableOpacity
+                          style={[
+                            styles.smallBtn,
+                            {
+                              backgroundColor: palette.surface || '#FFFFFF',
+                              borderWidth: 1,
+                              borderColor: palette.border || 'rgba(148,163,184,0.25)',
+                            },
+                          ]}
+                          onPress={() => Linking.openSettings()}
+                          activeOpacity={0.9}
+                        >
+                          <Text style={[styles.smallBtnText, { color: palette.text }]}>Open Settings</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
                   </View>
 
                   <View style={styles.divider} />
 
                   <View style={styles.permissionSection}>
                     <Text style={[styles.permissionLabel, { color: palette.secondary || palette.text }]}>
-                      Background permission
+                      Background tracking
                     </Text>
                     <View style={styles.permissionRow}>
                       <View style={styles.permissionStatus}>
@@ -169,8 +208,8 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
                         <TouchableOpacity
                           style={[styles.smallBtn, { backgroundColor: palette.brandPrimary || '#2563EB' }]}
                           onPress={async () => {
-                            const ok = await BackgroundLocationService.requestPermissions();
-                            setBackgroundEnabled(ok);
+                            await BackgroundLocationService.requestPermissions();
+                            await refreshPermissions();
                           }}
                           activeOpacity={0.9}
                         >
@@ -186,29 +225,6 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
                       </View>
                     </View>
                   </View>
-                </View>
-
-                <View
-                  style={[
-                    styles.card,
-                    { backgroundColor: palette.cardElevated || palette.surface || '#FFFFFF' },
-                  ]}
-                >
-                  <Text style={[styles.cardTitle, { color: palette.secondary || palette.text }]}>Account</Text>
-                  <TouchableOpacity style={styles.actionRow}>
-                    <View style={styles.switchLabelRow}>
-                      <Feather name="user" size={18} color={palette.icon || palette.text} />
-                      <Text style={[styles.actionLabel, { color: palette.text }]}>Profile</Text>
-                    </View>
-                    <Feather name="chevron-right" size={18} color={palette.placeholder || '#9CA3AF'} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.actionRow}>
-                    <View style={styles.switchLabelRow}>
-                      <Feather name="shield" size={18} color={palette.icon || palette.text} />
-                      <Text style={[styles.actionLabel, { color: palette.text }]}>Privacy</Text>
-                    </View>
-                    <Feather name="chevron-right" size={18} color={palette.placeholder || '#9CA3AF'} />
-                  </TouchableOpacity>
                 </View>
               </ScrollView>
 
@@ -311,14 +327,25 @@ const createStyles = (palette: any, insets: EdgeInsets) =>
       fontSize: 16,
       fontWeight: '600',
     },
-    actionRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+    helperCaption: {
+      fontSize: 12,
+      lineHeight: 16,
+      marginTop: -8,
+      marginBottom: 4,
     },
-    actionLabel: {
-      fontSize: 15,
+    errorBanner: {
+      backgroundColor: '#FEE2E2',
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      marginHorizontal: 24,
+      marginBottom: 12,
+    },
+    errorBannerText: {
+      color: '#DC2626',
+      fontSize: 13,
       fontWeight: '600',
+      textAlign: 'center',
     },
     fullButton: {
       marginHorizontal: 24,
@@ -332,7 +359,7 @@ const createStyles = (palette: any, insets: EdgeInsets) =>
       fontSize: 15,
       fontWeight: '700',
     },
-    // Background tracking section
+    // Location and Background permission section
     permissionRow: {
       flexDirection: 'column',
       alignItems: 'flex-start',

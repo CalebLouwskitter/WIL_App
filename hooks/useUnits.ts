@@ -1,31 +1,42 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
-
-const STORAGE_KEY = 'UNITS_METRIC';
+import { useContext } from 'react';
+import { PreferencesContext } from '../contexts/PreferencesContext';
 
 export const useUnits = () => {
-  const [isMetric, setIsMetric] = useState(true);
+  const context = useContext(PreferencesContext);
 
-  useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((val) => {
-      setIsMetric(val !== 'false');
-    });
-  }, []);
+  if (!context) {
+    if (__DEV__) {
+      console.warn('useUnits must be used within a PreferencesProvider');
+    }
+    const isMetric = true;
+    return {
+      isMetric,
+      toggle: async () => {},
+      convertDistance: (meters: number) => ({
+        value: meters / 1000,
+        unit: 'km' as const,
+      }),
+      convertSpeed: (kmh: number) => ({
+        value: kmh,
+        unit: 'km/h' as const,
+      }),
+    };
+  }
+
+  const isMetric = context.preferences.units === 'metric';
 
   const toggle = async () => {
-    const newValue = !isMetric;
-    setIsMetric(newValue);
-    await AsyncStorage.setItem(STORAGE_KEY, String(newValue));
+    await context.setUnits(isMetric ? 'imperial' : 'metric');
   };
 
   const convertDistance = (meters: number) => {
-    if (isMetric) return { value: meters / 1000, unit: 'km' };
-    return { value: meters / 1609.34, unit: 'mi' };
+    if (isMetric) return { value: meters / 1000, unit: 'km' as const };
+    return { value: meters / 1609.344, unit: 'mi' as const };
   };
 
   const convertSpeed = (kmh: number) => {
-    if (isMetric) return { value: kmh, unit: 'km/h' };
-    return { value: kmh * 0.621371, unit: 'mph' };
+    if (isMetric) return { value: kmh, unit: 'km/h' as const };
+    return { value: kmh / 1.609344, unit: 'mph' as const };
   };
 
   return { isMetric, toggle, convertDistance, convertSpeed };

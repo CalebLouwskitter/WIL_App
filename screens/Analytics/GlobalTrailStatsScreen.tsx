@@ -37,6 +37,28 @@ const GlobalTrailStatsScreen = () => {
   const colorScheme = useColorScheme();
   const theme = resolvePalette(colorScheme);
 
+  const handleRequestFullSettings = () => {
+    setTimeout(() => {
+      (navigation as any).dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'ProfileStack',
+              state: {
+                index: 1,
+                routes: [
+                  { name: 'ProfileMain' },
+                  { name: 'Settings' },
+                ],
+              },
+            },
+          ],
+        })
+      );
+    }, 0);
+  };
+
   const loadData = async (isRefresh = false) => {
     try {
       if (!isRefresh) setLoading(true);
@@ -154,7 +176,7 @@ const GlobalTrailStatsScreen = () => {
           <ActivityIndicator size="large" color={theme.brandPrimary} />
           <Text style={[styles.loadingText, { color: theme.onSurfaceVariant }]}>Loading global data...</Text>
         </View>
-        <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} onRequestFullSettings={() => {}} />
+        <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} onRequestFullSettings={handleRequestFullSettings} />
         <NotificationsModal visible={notificationsVisible} onClose={() => setNotificationsVisible(false)} />
       </SafeAreaView>
     );
@@ -184,7 +206,7 @@ const GlobalTrailStatsScreen = () => {
             </View>
           </View>
         </ScrollView>
-        <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} onRequestFullSettings={() => {}} />
+        <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} onRequestFullSettings={handleRequestFullSettings} />
         <NotificationsModal visible={notificationsVisible} onClose={() => setNotificationsVisible(false)} />
       </SafeAreaView>
     );
@@ -505,7 +527,7 @@ const GlobalTrailStatsScreen = () => {
           <View style={styles.bottomSpacing} />
         </View>
       </ScrollView>
-      <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} onRequestFullSettings={() => {}} />
+      <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} onRequestFullSettings={handleRequestFullSettings} />
       <NotificationsModal visible={notificationsVisible} onClose={() => setNotificationsVisible(false)} />
     </SafeAreaView>
   );

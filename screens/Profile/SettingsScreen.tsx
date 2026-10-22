@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,18 @@ import {
   Switch,
   Alert,
   useColorScheme,
+  Linking,
 } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Colors } from '../../constants/colors';
 import { Typography, Spacing, BorderRadius, ComponentStyles } from '../../constants/styleguide';
 import { FIREBASE_ENABLED, auth } from '../../services/firebase';
-import { useUnits } from '../../hooks/useUnits';
+import {
+  usePreferences,
+  getLocationPermissionStatus,
+  type LocationPermissionStatus,
+} from '../../contexts/PreferencesContext';
 import ErrorBoundary from '../../components/ErrorBoundary';
 
 // Version from package.json - will be updated dynamically
@@ -28,7 +33,23 @@ const SettingsScreen: React.FC = () => {
   const navigation = useNavigation();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
-  const { isMetric, toggle: toggleUnits } = useUnits();
+  const { preferences, setUnits, setMapType, setNotificationsWanted, saveError } = usePreferences();
+  const isMetric = preferences.units === 'metric';
+  const toggleUnits = () => setUnits(isMetric ? 'imperial' : 'metric');
+  const [locationPermission, setLocationPermission] = useState<LocationPermissionStatus>('Not allowed');
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const status = await getLocationPermissionStatus();
+        if (mounted) setLocationPermission(status);
+      } catch {}
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // User Profile State
   const [originalDisplayName, setOriginalDisplayName] = useState(
@@ -51,46 +72,7 @@ const SettingsScreen: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  // Settings State
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [locationTracking, setLocationTracking] = useState(true);
-  const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
 
-  const handleNotificationToggle = async (value: boolean) => {
-    setNotificationsEnabled(value);
-    // TODO: Save to user preferences in Firebase
-    // TODO: Request/deny notification permissions
-    if (value) {
-      // Request notification permissions
-      try {
-        // This would need to be implemented with expo-notifications or similar
-        console.log('Requesting notification permissions...');
-      } catch (error) {
-        console.error('Failed to request notification permissions:', error);
-      }
-    }
-  };
-
-  const handleLocationToggle = async (value: boolean) => {
-    setLocationTracking(value);
-    // TODO: Save to user preferences in Firebase
-    // TODO: Request/deny location permissions
-    if (value) {
-      try {
-        // This would need to be implemented with expo-location or similar
-        console.log('Requesting location permissions...');
-      } catch (error) {
-        console.error('Failed to request location permissions:', error);
-      }
-    }
-  };
-
-  const handleMapTypeChange = (type: 'standard' | 'satellite' | 'hybrid') => {
-    setMapType(type);
-    // TODO: Save to user preferences in Firebase
-    // TODO: Update map components to use this preference
-    console.log('Map type changed to:', type);
-  };
 
   const handleSaveProfile = async () => {
     if (!FIREBASE_ENABLED || !auth?.currentUser) {
@@ -208,6 +190,11 @@ const SettingsScreen: React.FC = () => {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {saveError ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>{saveError}</Text>
+          </View>
+        ) : null}
         {/* Profile Section */}
         {renderSectionHeader('Profile', 'user')}
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
@@ -395,8 +382,32 @@ const SettingsScreen: React.FC = () => {
         {/* App Settings */}
         {renderSectionHeader('App Settings', 'settings')}
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
-          {renderSettingRow('Notifications', notificationsEnabled, handleNotificationToggle, 'bell')}
-          {renderSettingRow('Location Tracking', locationTracking, handleLocationToggle, 'map-pin')}
+          {renderSettingRow(
+            'Notifications',
+            preferences.notificationsWanted,
+            (val) => setNotificationsWanted(val),
+            'bell'
+          )}
+          <Text style={[styles.helperCaption, { color: colors.onSurfaceVariant }]}>
+            Ride alerts aren't being delivered yet — this saves your choice for when they are.
+          </Text>
+          <View style={[styles.settingRow, { backgroundColor: colors.surface, marginTop: 4 }]}>
+            <View style={styles.settingLeft}>
+              <Icon name="map-pin" size={20} color={colors.icon} />
+              <View style={{ marginLeft: 12 }}>
+                <Text style={[styles.settingLabel, { color: colors.text }]}>Location permission</Text>
+                <Text style={[styles.permissionStatusText, { color: locationPermission === 'Not allowed' ? colors.danger : colors.onSurfaceVariant }]}>
+                  {locationPermission}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.smallSettingsButton, { borderColor: colors.border, backgroundColor: colors.backgroundLight }]}
+              onPress={() => Linking.openSettings()}
+            >
+              <Text style={[styles.smallSettingsButtonText, { color: colors.text }]}>Open phone settings</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Map Settings */}
@@ -410,15 +421,15 @@ const SettingsScreen: React.FC = () => {
                   key={type}
                   style={[
                     styles.mapTypeButton,
-                    mapType === type && styles.mapTypeButtonActive,
-                    { backgroundColor: mapType === type ? colors.brandPrimary : colors.backgroundLight }
+                    preferences.mapType === type && styles.mapTypeButtonActive,
+                    { backgroundColor: preferences.mapType === type ? colors.brandPrimary : colors.backgroundLight }
                   ]}
-                  onPress={() => handleMapTypeChange(type)}
+                  onPress={() => setMapType(type)}
                 >
                   <Text style={[
                     styles.mapTypeButtonText,
-                    mapType === type && styles.mapTypeButtonTextActive,
-                    { color: mapType === type ? colors.onPrimary : colors.text }
+                    preferences.mapType === type && styles.mapTypeButtonTextActive,
+                    { color: preferences.mapType === type ? colors.onPrimary : colors.text }
                   ]}>
                     {type.charAt(0).toUpperCase() + type.slice(1)}
                   </Text>
@@ -648,6 +659,40 @@ const styles = StyleSheet.create({
   signOutText: {
     fontSize: Typography.button.fontSize,
     fontWeight: Typography.button.fontWeight,
+  },
+  helperCaption: {
+    fontSize: 12,
+    lineHeight: 16,
+    paddingHorizontal: Spacing.md,
+    marginTop: -Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  permissionStatusText: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  smallSettingsButton: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  smallSettingsButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  errorBanner: {
+    backgroundColor: '#FEE2E2',
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  errorBannerText: {
+    color: '#DC2626',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
 
