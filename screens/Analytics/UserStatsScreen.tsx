@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, SafeAreaView, ActivityIndicator, Modal } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { AnalyticsStackParamList, TabParamList } from '../../navigation/types';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAnalytics } from '../../hooks/useAnalytics';
@@ -10,8 +14,12 @@ import { Dimensions } from 'react-native';
 const { width: screenWidth } = Dimensions.get('window');
 const STAT_CARD_WIDTH = (screenWidth - 56) / 2;
 
+type NavigationProp = StackNavigationProp<AnalyticsStackParamList, 'DetailedStats'>;
+type ScreenRouteProp = RouteProp<AnalyticsStackParamList, 'DetailedStats'>;
+
 const UserStatsScreen = () => {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<ScreenRouteProp>();
   const { stats, loading, error, refresh } = useAnalytics();
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
@@ -252,7 +260,7 @@ const UserStatsScreen = () => {
           <TouchableOpacity
             style={[styles.actionCard, { backgroundColor: theme.surface }]}
             activeOpacity={0.8}
-            onPress={() => navigation.navigate('DetailedStats')}
+            onPress={() => navigation.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('ProfileStack', { screen: 'PersonalStats' })}
           >
             <LinearGradient
               colors={['#F59E0B11', '#F59E0B05']}

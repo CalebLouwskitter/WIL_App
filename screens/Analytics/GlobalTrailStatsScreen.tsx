@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme, ActivityIndicator, RefreshControl, Dimensions } from 'react-native';
 import { useNavigation, CommonActions } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { AnalyticsStackParamList } from '../../navigation/types';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
@@ -24,6 +26,8 @@ import { analyticsError, firstProblem, type AnalyticsResult } from '../../servic
 const { width: screenWidth } = Dimensions.get('window');
 const CHART_WIDTH = screenWidth - 64;
 
+type NavigationProp = StackNavigationProp<AnalyticsStackParamList, 'Stats'>;
+
 const GlobalTrailStatsScreen = () => {
   const [globalStats, setGlobalStats] = useState<GlobalRideStats | null>(null);
   const [userStats, setUserStats] = useState<UserRideStats[]>([]);
@@ -33,7 +37,7 @@ const GlobalTrailStatsScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
   const theme = resolvePalette(colorScheme);
 
@@ -143,12 +147,24 @@ const GlobalTrailStatsScreen = () => {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
         <View style={styles.topIcons}>
-          <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)}>
-            <Feather name="settings" size={27} color={theme.icon} />
+          <TouchableOpacity
+            style={styles.myStatsAction}
+            activeOpacity={0.7}
+            accessibilityLabel="My stats"
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('DetailedStats')}
+          >
+            <Feather name="user" size={18} color={theme.brandPrimary} />
+            <Text style={[styles.myStatsActionText, { color: theme.brandPrimary }]}>My stats</Text>
           </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)}>
-            <Feather name="bell" size={27} color={theme.icon} />
-          </TouchableOpacity>
+          <View style={styles.topRightIcons}>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)} accessibilityLabel="Settings" accessibilityRole="button">
+              <Feather name="settings" size={27} color={theme.icon} />
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)} accessibilityLabel="Notifications" accessibilityRole="button">
+              <Feather name="bell" size={27} color={theme.icon} />
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.brandPrimary} />
@@ -170,12 +186,24 @@ const GlobalTrailStatsScreen = () => {
           }
         >
           <View style={styles.topIcons}>
-            <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)}>
-              <Feather name="settings" size={27} color={theme.icon} />
+            <TouchableOpacity
+              style={styles.myStatsAction}
+              activeOpacity={0.7}
+              accessibilityLabel="My stats"
+              accessibilityRole="button"
+              onPress={() => navigation.navigate('DetailedStats')}
+            >
+              <Feather name="user" size={18} color={theme.brandPrimary} />
+              <Text style={[styles.myStatsActionText, { color: theme.brandPrimary }]}>My stats</Text>
             </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)}>
-              <Feather name="bell" size={27} color={theme.icon} />
-            </TouchableOpacity>
+            <View style={styles.topRightIcons}>
+              <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)} accessibilityLabel="Settings" accessibilityRole="button">
+                <Feather name="settings" size={27} color={theme.icon} />
+              </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)} accessibilityLabel="Notifications" accessibilityRole="button">
+                <Feather name="bell" size={27} color={theme.icon} />
+              </TouchableOpacity>
+            </View>
           </View>
           <View style={styles.contentInner}>
             <AnalyticsUnavailableNotice result={problem} onRetry={() => loadData()} />
@@ -202,12 +230,24 @@ const GlobalTrailStatsScreen = () => {
         }
       >
         <View style={styles.topIcons}>
-          <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)}>
-            <Feather name="settings" size={27} color={theme.icon} />
+          <TouchableOpacity
+            style={styles.myStatsAction}
+            activeOpacity={0.7}
+            accessibilityLabel="My stats"
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('DetailedStats')}
+          >
+            <Feather name="user" size={18} color={theme.brandPrimary} />
+            <Text style={[styles.myStatsActionText, { color: theme.brandPrimary }]}>My stats</Text>
           </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)}>
-            <Feather name="bell" size={27} color={theme.icon} />
-          </TouchableOpacity>
+          <View style={styles.topRightIcons}>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)} accessibilityLabel="Settings" accessibilityRole="button">
+              <Feather name="settings" size={27} color={theme.icon} />
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)} accessibilityLabel="Notifications" accessibilityRole="button">
+              <Feather name="bell" size={27} color={theme.icon} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.contentInner}>
@@ -521,6 +561,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 16,
     paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  myStatsAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    borderRadius: 22,
+    backgroundColor: '#3B82F614',
+  },
+  myStatsActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  topRightIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    minHeight: 44,
   },
   loadingContainer: {
     flex: 1,
