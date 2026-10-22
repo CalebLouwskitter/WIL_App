@@ -126,6 +126,8 @@ jest.mock('../contexts/PreferencesContext', () => ({
 import UnifiedRideObstacleScreen from '../screens/Mapping/UnifiedRideObstacleScreen';
 import ObstacleView from '../screens/Mapping/ObstacleView';
 import MarkObstacleScreen from '../screens/Mapping/MarkObstacleScreen';
+import MapStatusFrame from '../components/MapStatusFrame';
+import type { MapStatusHandle } from '../hooks/useMapStatus';
 
 describe('G5 Report Screens - Task 1: MapType from Preferences', () => {
   beforeEach(() => {
@@ -280,5 +282,89 @@ describe('G5 Report Screens - Task 3: ObstacleView & MarkObstacleScreen theme', 
     expect(sectionTitle).toBeDefined();
     const titleStyle = ReactNative.StyleSheet.flatten(sectionTitle!.props.style);
     expect(titleStyle.color).toBe(Colors.dark.textPrimary);
+  });
+});
+
+describe('G5 Report Screens - Task 4: MapStatusFrame theme', () => {
+  const ReactNative = require('react-native');
+  const { Colors } = require('../constants/colors');
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it('renders "Map couldn\'t load" text with readable tokens in dark mode', () => {
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    const failedStatus: MapStatusHandle = {
+      state: { phase: 'failed', failure: 'tiles-timeout', size: { width: 300, height: 300 }, attempt: 1, errorMessage: null },
+      mapKey: 'k1',
+      mapProps: { onMapReady: jest.fn(), onMapLoaded: jest.fn(), onLayout: jest.fn() },
+      retry: jest.fn(),
+      reportError: jest.fn(),
+    };
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = TestRenderer.create(
+        <MapStatusFrame status={failedStatus}>
+          <ReactNative.View />
+        </MapStatusFrame>
+      );
+    });
+
+    const texts = renderer.root.findAllByType(ReactNative.Text);
+    const title = texts.find((t) => [t.props.children].flat().join('').includes("Map couldn't load"));
+    expect(title).toBeDefined();
+
+    const titleStyle = ReactNative.StyleSheet.flatten(title!.props.style);
+    expect(titleStyle.color).toBe(Colors.dark.textPrimary);
+    expect(titleStyle.color).not.toBe(Colors.dark.card);
+    expect(titleStyle.color).not.toBe(Colors.dark.background);
+
+    const hint = texts.find((t) => [t.props.children].flat().join('').includes('map tiles'));
+    expect(hint).toBeDefined();
+    const hintStyle = ReactNative.StyleSheet.flatten(hint!.props.style);
+    expect(hintStyle.color).toBe(Colors.dark.textSecondary);
+    expect(hintStyle.color).not.toBe(Colors.dark.card);
+    expect(hintStyle.color).not.toBe(Colors.dark.background);
+
+    const retryBtn = renderer.root.findAllByType(ReactNative.TouchableOpacity).find(
+      (b) => b.props.accessibilityLabel === 'Retry loading the map'
+    );
+    expect(retryBtn).toBeDefined();
+    const retryBtnStyle = ReactNative.StyleSheet.flatten(retryBtn!.props.style);
+    expect(retryBtnStyle.backgroundColor).toBe(Colors.dark.brandPrimary);
+  });
+
+  it('renders loading pill with card background and textPrimary in dark mode', () => {
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    const startingStatus: MapStatusHandle = {
+      state: { phase: 'starting', failure: null, size: null, attempt: 1, errorMessage: null },
+      mapKey: 'k1',
+      mapProps: { onMapReady: jest.fn(), onMapLoaded: jest.fn(), onLayout: jest.fn() },
+      retry: jest.fn(),
+      reportError: jest.fn(),
+    };
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = TestRenderer.create(
+        <MapStatusFrame status={startingStatus}>
+          <ReactNative.View />
+        </MapStatusFrame>
+      );
+    });
+
+    const texts = renderer.root.findAllByType(ReactNative.Text);
+    const pillText = texts.find((t) => [t.props.children].flat().join('').includes('Starting map'));
+    expect(pillText).toBeDefined();
+    const pillTextStyle = ReactNative.StyleSheet.flatten(pillText!.props.style);
+    expect(pillTextStyle.color).toBe(Colors.dark.textPrimary);
+
+    const pillView = renderer.root.findAllByType(ReactNative.View).find((v) => {
+      const s = ReactNative.StyleSheet.flatten(v.props.style);
+      return s?.backgroundColor === Colors.dark.card;
+    });
+    expect(pillView).toBeDefined();
   });
 });

@@ -1,8 +1,9 @@
-import React, { Component, type ReactNode } from 'react';
+import React, { Component, useMemo, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View, type StyleProp, type ViewStyle } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import { mapEnvironment, useMapStatus, type MapStatusHandle } from '../hooks/useMapStatus';
 import { describeMapStatus, mapFailureHint } from '../utils/mapStatus';
+import { useAppTheme, type AppPalette } from '../hooks/useAppTheme';
 
 class MapErrorBoundary extends Component<{ onError: (error: unknown) => void; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -37,6 +38,8 @@ type Props = {
  */
 export default function MapStatusFrame({ status, children, style, compact = false, pillTop = 8 }: Props) {
   const { state, mapKey, retry, reportError } = status;
+  const { palette } = useAppTheme();
+  const styles = useMemo(() => createStyles(palette), [palette]);
 
   return (
     <View style={[styles.frame, style]}>
@@ -46,7 +49,7 @@ export default function MapStatusFrame({ status, children, style, compact = fals
 
       {(state.phase === 'starting' || state.phase === 'ready') && (
         <View style={[styles.pill, { top: pillTop }]} pointerEvents="none">
-          <ActivityIndicator size="small" color="#FFFFFF" />
+          <ActivityIndicator size="small" color={palette.brandPrimary} />
           <Text style={styles.pillText}>{state.phase === 'starting' ? 'Starting map…' : 'Loading map tiles…'}</Text>
         </View>
       )}
@@ -55,7 +58,7 @@ export default function MapStatusFrame({ status, children, style, compact = fals
         <View style={styles.failedCover} accessibilityRole="alert">
           <View style={[styles.card, compact && styles.cardCompact]}>
             <View style={styles.titleRow}>
-              <Feather name="map" size={compact ? 16 : 20} color="#B45309" />
+              <Feather name="map" size={compact ? 16 : 20} color={palette.caution} />
               <Text style={[styles.title, compact && styles.titleCompact]}>Map couldn't load</Text>
             </View>
             <Text style={[styles.hint, compact && styles.hintCompact]} numberOfLines={compact ? 3 : undefined}>
@@ -72,7 +75,7 @@ export default function MapStatusFrame({ status, children, style, compact = fals
               accessibilityLabel="Retry loading the map"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Feather name="refresh-cw" size={14} color="#FFFFFF" />
+              <Feather name="refresh-cw" size={14} color={palette.onPrimary} />
               <Text style={styles.retryText}>Retry</Text>
             </TouchableOpacity>
           </View>
@@ -101,86 +104,94 @@ export function MapWithStatus({ label, children, ...frameProps }: MapWithStatusP
   );
 }
 
-const styles = StyleSheet.create({
-  frame: {
-    flex: 1,
-  },
-  pill: {
-    position: 'absolute',
-    left: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(17, 24, 39, 0.75)',
-  },
-  pillText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  failedCover: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    backgroundColor: 'rgba(243, 244, 246, 0.94)',
-  },
-  card: {
-    width: '100%',
-    maxWidth: 360,
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#FCD34D',
-    gap: 8,
-  },
-  cardCompact: {
-    padding: 10,
-    gap: 4,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  titleCompact: {
-    fontSize: 14,
-  },
-  hint: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: '#374151',
-  },
-  hintCompact: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  details: {
-    fontSize: 11,
-    color: '#6B7280',
-  },
-  retryButton: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    backgroundColor: '#2563EB',
-  },
-  retryText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-});
+const createStyles = (palette: AppPalette) =>
+  StyleSheet.create({
+    frame: {
+      flex: 1,
+    },
+    pill: {
+      position: 'absolute',
+      left: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 4,
+      paddingHorizontal: 10,
+      borderRadius: 12,
+      backgroundColor: palette.card,
+      borderWidth: 1,
+      borderColor: palette.divider,
+      shadowColor: palette.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 2,
+    },
+    pillText: {
+      color: palette.textPrimary,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    failedCover: {
+      ...StyleSheet.absoluteFill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 12,
+      backgroundColor: palette.background,
+    },
+    card: {
+      width: '100%',
+      maxWidth: 360,
+      padding: 16,
+      borderRadius: 12,
+      backgroundColor: palette.card,
+      borderWidth: 1,
+      borderColor: palette.caution,
+      gap: 8,
+    },
+    cardCompact: {
+      padding: 10,
+      gap: 4,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    title: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: palette.textPrimary,
+    },
+    titleCompact: {
+      fontSize: 14,
+    },
+    hint: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: palette.textSecondary,
+    },
+    hintCompact: {
+      fontSize: 12,
+      lineHeight: 16,
+    },
+    details: {
+      fontSize: 11,
+      color: palette.textMuted,
+    },
+    retryButton: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 8,
+      backgroundColor: palette.brandPrimary,
+    },
+    retryText: {
+      color: palette.onPrimary,
+      fontSize: 13,
+      fontWeight: '700',
+    },
+  });
