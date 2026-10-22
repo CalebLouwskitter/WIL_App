@@ -2,12 +2,17 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, useColorScheme, Alert } from 'react-native';
 import { Feather as Icon, FontAwesome5 as FAIcon } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { MappingStackParamList, TabParamList } from '@/navigation/types';
 import { getHorses, setActiveHorseId, getActiveHorseId, deleteHorse, type Horse } from '../../services/HorseStorage';
 import { Colors } from '@/constants/colors';
 import { getRides } from '../../services/RideStorage';
 
+type SelectHorseNavigationProp = StackNavigationProp<MappingStackParamList, 'SelectHorse'>;
+
 const SelectHorseScreen = () => {
-  const nav = useNavigation<any>();
+  const nav = useNavigation<SelectHorseNavigationProp>();
   const [horses, setHorses] = useState<Horse[]>([]);
   const [rideCounts, setRideCounts] = useState<Record<string, number>>({});
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -120,7 +125,7 @@ const SelectHorseScreen = () => {
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: palette.onSurface }]}>Select Your Horse</Text>
         <TouchableOpacity 
-          onPress={() => nav.navigate('ProfileStack', { screen: 'CreateHorse', params: { returnToSelectHorse: true } })} 
+          onPress={() => nav.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('ProfileStack', { screen: 'CreateHorse', params: { returnToSelectHorse: true } })} 
           style={[styles.addBtn, { backgroundColor: palette.brandPrimary }]}
           activeOpacity={0.8}
         >
@@ -141,7 +146,7 @@ const SelectHorseScreen = () => {
             <Text style={[styles.emptyText, { color: palette.onSurfaceVariant, fontSize: 14, marginTop: -12, marginBottom: 24 }]}>Add your first horse to start tracking rides</Text>
             <TouchableOpacity 
               style={[styles.cta, { backgroundColor: palette.brandPrimary }]} 
-              onPress={() => nav.navigate('ProfileStack', { screen: 'CreateHorse', params: { returnToSelectHorse: true } })}
+              onPress={() => nav.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('ProfileStack', { screen: 'CreateHorse', params: { returnToSelectHorse: true } })}
               activeOpacity={0.8}
             >
               <Text style={[styles.ctaText, { color: palette.onPrimary }]}>Add Your First Horse</Text>

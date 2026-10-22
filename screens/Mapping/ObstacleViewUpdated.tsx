@@ -15,7 +15,8 @@ export default function ObstacleViewUpdated({ route, navigation, onSubmit, onClo
       route={{ 
         params: {
           rideData: route.params?.rideData,
-          rideId: route.params?.rideId
+          rideId: route.params?.rideId,
+          initialTab: route.params?.initialTab,
         }
       } as any}
       navigation={navigation}
@@ -24,6 +25,7 @@ export default function ObstacleViewUpdated({ route, navigation, onSubmit, onClo
       isDuringRide={true}
       rideData={route.params?.rideData}
       rideId={route.params?.rideId}
+      initialTab={route.params?.initialTab}
     />
   );
 }

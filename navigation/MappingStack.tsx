@@ -7,17 +7,9 @@ import MarkObstacleScreen from '@/screens/Mapping/MarkObstacleScreen';
 import OnlineUsersScreen from '../screens/Mapping/OnlineUsers';
 import DuringRideScreen from '../screens/Mapping/DuringRideScreen';
 import ObstacleViewUpdated from '../screens/Mapping/ObstacleViewUpdated';
-import type { RideData } from '@/hooks/useRideTracker';
+import type { MappingStackParamList } from './types';
 
-export type MappingStackParamList = {
-  LiveTracking: { followSosUid?: string; followSosDisplayName?: string; autoStart?: boolean } | undefined;
-  SelectHorse: undefined;
-  RideReviewScreen: { rideData?: RideData; rideId?: string } | undefined;
-  MarkObstacle: { location?: { latitude: number; longitude: number } } | undefined;
-  OnlineUsers: undefined;
-  DuringRideScreen: { rideData?: RideData; rideId?: string; initialTab?: 'sighting' | 'report' | 'obstacles' } | undefined;
-  ObstacleViewUpdated: { rideData?: RideData; rideId?: string; initialTab?: 'sighting' | 'report' | 'obstacles' } | undefined;
-};
+export type { MappingStackParamList };
 
 const Stack = createStackNavigator<MappingStackParamList>();
 

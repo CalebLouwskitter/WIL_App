@@ -22,6 +22,7 @@ import { startLocationBroadcast, stopLocationBroadcast } from '../../services/On
 import { Alert, Linking } from 'react-native';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { formatDistance, formatSpeedKmh } from '../../utils/units';
+import { nextAutoStart, type AutoStartHandledId } from '../../utils/autoStart';
 
 const { width } = Dimensions.get('window');
 
@@ -52,7 +53,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const route = useRoute<any>();
   const followSosDisplayName: string | undefined = route?.params?.followSosDisplayName;
   const followSosUid: string | undefined = route?.params?.followSosUid;
-  const autoStartedRef = useRef(false);
+  const lastHandledAutoStartIdRef = useRef<AutoStartHandledId>(null);
 
   const nav = useNavigation<any>();
   
@@ -127,13 +128,14 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
 
   // Auto-start a ride when navigated with autoStart flag
   useEffect(() => {
-    const shouldAutoStart = route?.params?.autoStart === true;
-    if (shouldAutoStart && !isRiding && !autoStartedRef.current) {
-      autoStartedRef.current = true;
+    const result = nextAutoStart(route?.params, lastHandledAutoStartIdRef.current, isRiding);
+    if (result.start) {
+      lastHandledAutoStartIdRef.current = result.handledId;
+      nav.setParams({ autoStart: undefined, autoStartRequestId: undefined });
       // bypass UI confirmation and trigger the same start flow
       handleStart();
     }
-  }, [route?.params?.autoStart, isRiding]);
+  }, [route?.params?.autoStart, route?.params?.autoStartRequestId, isRiding]);
 
   // Track device heading/compass when riding (only in foreground)
   useEffect(() => {

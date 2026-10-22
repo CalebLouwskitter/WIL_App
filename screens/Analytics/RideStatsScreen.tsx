@@ -5,19 +5,26 @@ import type { RideData } from '../../hooks/useRideTracker';
 import { primaryPreviewRoutes } from '../../constants/trails';
 import MapView, { Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { AnalyticsStackParamList, TabParamList } from '../../navigation/types';
 import { Colors, resolvePalette } from '../../constants/colors';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AnalyticsUnavailableNotice } from '../../components/AnalyticsUnavailableNotice';
 import { analyticsError, type AnalyticsResult } from '../../services/analyticsResult';
 
+type NavigationProp = StackNavigationProp<AnalyticsStackParamList, 'RideHistory'>;
+type ScreenRouteProp = RouteProp<AnalyticsStackParamList, 'RideHistory'>;
+
 const RideStatsScreen = () => {
   const [rides, setRides] = useState<RideData[]>([]);
   const [loading, setLoading] = useState(true);
   const [problem, setProblem] = useState<AnalyticsResult<unknown> | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const navigation = useNavigation<any>();
-  const route = useRoute<any>();
+  const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<ScreenRouteProp>();
   const colorScheme = useColorScheme();
   const theme = resolvePalette(colorScheme);
 
@@ -58,6 +65,15 @@ const RideStatsScreen = () => {
     });
   };
 
+  const handleBack = () => {
+    const fromDashboard = route.params?.fromDashboard;
+    if (fromDashboard) {
+      navigation.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('Dashboard');
+    } else {
+      navigation.goBack();
+    }
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
@@ -65,7 +81,7 @@ const RideStatsScreen = () => {
           <TouchableOpacity 
             style={styles.headerBack} 
             activeOpacity={0.7} 
-            onPress={() => navigation.navigate('ProfileMain')}
+            onPress={handleBack}
           >
             <Feather name="arrow-left" size={24} color={theme.onSurface} />
           </TouchableOpacity>
@@ -89,14 +105,7 @@ const RideStatsScreen = () => {
         <TouchableOpacity 
           style={styles.headerBack} 
           activeOpacity={0.7} 
-          onPress={() => {
-            const fromDashboard = route.params?.fromDashboard;
-            if (fromDashboard) {
-              navigation.getParent()?.navigate('Dashboard');
-            } else {
-              navigation.goBack();
-            }
-          }}
+          onPress={handleBack}
         >
           <Feather name="arrow-left" size={24} color={theme.onSurface} />
         </TouchableOpacity>

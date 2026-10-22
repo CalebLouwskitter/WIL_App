@@ -168,8 +168,9 @@ export const RideRecoveryHandler: React.FC = () => {
     // Use a timeout to ensure navigation stack is ready (especially on slower devices)
     setTimeout(() => {
       try {
-        navigation.navigate('Mapping', {
-          screen: 'LiveTracking',
+        navigation.navigate('Main', {
+          screen: 'Mapping',
+          params: { screen: 'LiveTracking' },
         });
       } catch (navError) {
         console.warn('[RideRecoveryHandler] Navigation error:', navError);
