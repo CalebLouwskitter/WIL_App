@@ -52,6 +52,7 @@ import { useForegroundLocation } from '../../hooks/useForegroundLocation';
 import { locationStatusMessage } from '../../utils/locationStatus';
 import { MapWithStatus } from '../../components/MapStatusFrame';
 import { describeObstacleFeed } from '../../utils/obstacleFeed';
+import { usePreferences } from '../../contexts/PreferencesContext';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -145,6 +146,7 @@ export default function UnifiedRideObstacleScreen({
 
   // Safe area insets
   const insets = useSafeAreaInsets();
+  const { preferences } = usePreferences();
 
   // State management
   const [activeTab, setActiveTab] = useState<'sighting' | 'report' | 'obstacles'>(
@@ -1060,6 +1062,7 @@ export default function UnifiedRideObstacleScreen({
                         {...mapProps}
                         ref={mapRef}
                         style={styles.map}
+                        mapType={preferences.mapType}
                         initialRegion={{
                           latitude: currentLocation?.latitude || -26.2041, // Johannesburg fallback
                           longitude: currentLocation?.longitude || 28.0473,
