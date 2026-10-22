@@ -3,6 +3,7 @@ import { FIREBASE_ENABLED, auth, app } from './firebase';
 import { getFirestore, collection, doc, setDoc, getDocs, query, where, orderBy, Timestamp, onSnapshot, type Unsubscribe } from 'firebase/firestore';
 import * as Location from 'expo-location';
 import { isWithinAuthorizedArea } from '../utils/geofencing';
+import { filterPresent, PRESENCE_WINDOW_MS } from '../utils/presence';
 
 export type OnlineUser = {
   uid: string;
@@ -18,7 +19,7 @@ export type OnlineUser = {
 };
 
 const LOCATION_UPDATE_INTERVAL = 2 * 60 * 1000;
-const ONLINE_THRESHOLD = 30 * 60 * 1000;
+const ONLINE_THRESHOLD = PRESENCE_WINDOW_MS;
 
 const storageKey = 'ONLINE_USERS_LOCAL';
 const deviceIdKey = 'DEVICE_ID';
@@ -129,17 +130,30 @@ export function stopLocationBroadcast() {
   }
 }
 
-export async function getOnlineUsers(): Promise<OnlineUser[]> {
+export async function getOnlineUsersWithSource(): Promise<{
+  users: OnlineUser[];
+  source: 'live' | 'cached' | 'unavailable';
+}> {
+  const now = Date.now();
   if (!FIREBASE_ENABLED || !app) {
     const cached = await AsyncStorage.getItem(storageKey);
-    return cached ? JSON.parse(cached) : [];
+    if (!cached) {
+      return { users: [], source: 'unavailable' };
+    }
+    try {
+      const parsed = JSON.parse(cached);
+      const filtered = filterPresent(Array.isArray(parsed) ? parsed : [], now);
+      return { users: filtered, source: 'cached' };
+    } catch {
+      return { users: [], source: 'unavailable' };
+    }
   }
 
   try {
     console.log('[OnlineUserService] getOnlineUsers: querying recent users...');
     const db = getFirestore(app);
     const onlineUsersRef = collection(db, 'onlineUsers');
-    const threshold = Date.now() - ONLINE_THRESHOLD;
+    const threshold = now - ONLINE_THRESHOLD;
     
     const q = query(
       onlineUsersRef,
@@ -149,11 +163,11 @@ export async function getOnlineUsers(): Promise<OnlineUser[]> {
 
     const snapshot = await getDocs(q);
     console.log(`[OnlineUserService] getOnlineUsers: snapshot size=${snapshot.size}`);
-    const users: OnlineUser[] = [];
+    const rawUsers: OnlineUser[] = [];
 
     snapshot.forEach((doc) => {
       const data = doc.data();
-      users.push({
+      rawUsers.push({
         uid: data.uid,
         displayName: data.displayName,
         photoURL: data.photoURL,
@@ -164,24 +178,43 @@ export async function getOnlineUsers(): Promise<OnlineUser[]> {
       });
     });
 
+    const users = filterPresent(rawUsers, now);
     console.log(`[OnlineUserService] getOnlineUsers: returning users=${users.length}`);
     await AsyncStorage.setItem(storageKey, JSON.stringify(users));
-    return users;
+    return { users, source: 'live' };
   } catch (error) {
     console.warn('Failed to fetch online users:', error);
     const cached = await AsyncStorage.getItem(storageKey);
-    return cached ? JSON.parse(cached) : [];
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        const users = filterPresent(Array.isArray(parsed) ? parsed : [], now);
+        return { users, source: 'cached' };
+      } catch {
+        return { users: [], source: 'unavailable' };
+      }
+    }
+    return { users: [], source: 'unavailable' };
   }
 }
 
-export function subscribeToOnlineUsers(callback: (users: OnlineUser[]) => void): Unsubscribe {
+export async function getOnlineUsers(): Promise<OnlineUser[]> {
+  const { users } = await getOnlineUsersWithSource();
+  return users;
+}
+
+export function subscribeToOnlineUsers(
+  callback: (users: OnlineUser[]) => void,
+  onError?: (error: unknown) => void
+): Unsubscribe {
   if (!FIREBASE_ENABLED || !app) {
     return () => {};
   }
 
   const db = getFirestore(app);
   const onlineUsersRef = collection(db, 'onlineUsers');
-  const threshold = Date.now() - ONLINE_THRESHOLD;
+  const now = Date.now();
+  const threshold = now - ONLINE_THRESHOLD;
   
   const q = query(
     onlineUsersRef,
@@ -192,10 +225,10 @@ export function subscribeToOnlineUsers(callback: (users: OnlineUser[]) => void):
   console.log('[OnlineUserService] subscribeToOnlineUsers: subscribing...');
   return onSnapshot(q, (snapshot) => {
     console.log(`[OnlineUserService] onSnapshot: size=${snapshot.size}`);
-    const users: OnlineUser[] = [];
+    const rawUsers: OnlineUser[] = [];
     snapshot.forEach((doc) => {
       const data = doc.data();
-      users.push({
+      rawUsers.push({
         uid: data.uid,
         displayName: data.displayName,
         photoURL: data.photoURL,
@@ -205,10 +238,14 @@ export function subscribeToOnlineUsers(callback: (users: OnlineUser[]) => void):
         deviceId: data.deviceId,
       });
     });
+    const users = filterPresent(rawUsers, Date.now());
     console.log(`[OnlineUserService] onSnapshot: users after filter=${users.length}`);
     callback(users);
-    AsyncStorage.setItem(storageKey, JSON.stringify(users));
+    AsyncStorage.setItem(storageKey, JSON.stringify(users)).catch(() => {});
   }, (error) => {
     console.warn('Online users subscription error:', error);
+    if (onError) {
+      onError(error);
+    }
   });
 }
