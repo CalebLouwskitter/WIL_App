@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { startLocationBroadcast, stopLocationBroadcast } from '../../services/OnlineUserService';
 import { Alert, Linking } from 'react-native';
 import { usePreferences } from '../../contexts/PreferencesContext';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { formatDistance, formatSpeedKmh } from '../../utils/units';
 import { nextAutoStart, type AutoStartHandledId } from '../../utils/autoStart';
 
@@ -42,6 +43,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
 
   const [activeHorseName, setActiveHorseName] = useState<string | null>(null);
   const { preferences } = usePreferences();
+  const { palette, isDark } = useAppTheme();
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [showResumeBanner, setShowResumeBanner] = useState(false);
@@ -342,6 +344,10 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
     setNotificationsVisible(true);
   };
 
+  const handleOpenOnlineUsers = () => {
+    navigation.navigate('OnlineUsers');
+  };
+
   const handleManualResumeCheck = async () => {
     try {
       // Re-check for recoverable rides; RideRecoveryHandler shows the
@@ -446,10 +452,37 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
           pointerEvents="none"
         />
         <View style={[styles.topIcons, { paddingTop: insets.top + 45 }]}>
-          <TouchableOpacity activeOpacity={0.7} onPress={handleOpenSettings}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={handleOpenSettings}
+            style={styles.headerIconButton}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+          >
             <Feather name="settings" size={27} color="#374151" />
           </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7} onPress={handleOpenNotifications}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={handleOpenOnlineUsers}
+            style={[
+              styles.ridersOnlineButton,
+              { backgroundColor: palette.card, borderColor: palette.divider },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Riders online"
+          >
+            <Feather name="users" size={18} color={palette.brandPrimary} />
+            <Text style={[styles.ridersOnlineText, { color: palette.textPrimary }]}>
+              Riders online
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={handleOpenNotifications}
+            style={styles.headerIconButton}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
+          >
             <Feather name="bell" size={27} color="#374151" />
           </TouchableOpacity>
         </View>
@@ -844,9 +877,36 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
     paddingHorizontal: 16,
     zIndex: 20,
+  },
+  headerIconButton: {
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ridersOnlineButton: {
+    minHeight: 44,
+    minWidth: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 22,
+    borderWidth: 1,
+    gap: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  ridersOnlineText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   topGradient: {
     position: 'absolute',

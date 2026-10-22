@@ -13,6 +13,8 @@ import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import { Colors } from '@/constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
+import ScreenHeader from '../../components/ScreenHeader';
 import useOnlineUsers from '../../hooks/useOnlineUsers';
 import { auth } from '../../services/firebase';
 import { startLocationBroadcast, stopLocationBroadcast, type OnlineUser } from '../../services/OnlineUserService';
@@ -29,8 +31,7 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
   const [selectedUser, setSelectedUser] = useState<OnlineUser | null>(null);
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { palette, isDark } = useAppTheme();
 
   useEffect(() => {
     let cancelled = false;
@@ -125,6 +126,10 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
 
   return (
     <View style={styles.container}>
+      <ScreenHeader
+        title="Online Users"
+        onBack={() => navigation.goBack()}
+      />
       <View style={styles.mapContainer}>
         <MapView
           style={styles.map}
@@ -153,13 +158,7 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
         </MapView>
       </View>
 
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Feather name="arrow-left" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Online Users</Text>
-        <View style={styles.headerRight} />
-      </View>
+
 
       <View
         style={[
@@ -227,31 +226,7 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  headerRight: {
-    width: 40,
-  },
+
   listContainer: {
     position: 'absolute',
     bottom: 0,
