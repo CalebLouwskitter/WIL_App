@@ -35,7 +35,29 @@ describe('rideToGpx', () => {
     expect(gpx).toContain('<name>Ride on 2025-10-18 with Storm &amp; &lt;Co&gt;</name>');
   });
 
-  it('names the file after the start time', () => {
-    expect(gpxFileName(ride)).toBe('ride-2025-10-18-06-30.gpx');
+  it('names the file after the start time and suffix', () => {
+    // Old exact-name assertion was 'ride-2025-10-18-06-30.gpx';
+    // now uses seconds suffix when no id is present.
+    expect(gpxFileName(ride)).toBe('ride-2025-10-18-06-30-00.gpx');
+  });
+
+  it('gives different filenames to two rides starting in the same minute with different ids', () => {
+    const ride1: RideData = { ...ride, id: '1729584000000_ab12cd34' };
+    const ride2: RideData = { ...ride, id: '1729584000000_ef56gh78' };
+    expect(gpxFileName(ride1)).toBe('ride-2025-10-18-06-30-ab12cd34.gpx');
+    expect(gpxFileName(ride2)).toBe('ride-2025-10-18-06-30-ef56gh78.gpx');
+    expect(gpxFileName(ride1)).not.toBe(gpxFileName(ride2));
+  });
+
+  it('falls back to start time seconds when ride has no id', () => {
+    const rideAt30Sec: RideData = { ...ride, startTime: Date.UTC(2025, 9, 18, 6, 30, 30) };
+    expect(gpxFileName(rideAt30Sec)).toBe('ride-2025-10-18-06-30-30.gpx');
+  });
+
+  it('ensures the filename contains only safe characters [A-Za-z0-9._-]', () => {
+    const rideWithWeirdId: RideData = { ...ride, id: 'id#123@special!' };
+    const name = gpxFileName(rideWithWeirdId);
+    expect(name).toBe('ride-2025-10-18-06-30-3special.gpx');
+    expect(/^[A-Za-z0-9._-]+$/.test(name)).toBe(true);
   });
 });
