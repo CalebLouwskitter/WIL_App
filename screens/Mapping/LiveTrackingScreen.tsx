@@ -422,6 +422,8 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             snapRadius={rideData?.snapRadius ?? null}
             followUserDisplayName={followSosDisplayName}
             followUserUid={followSosUid}
+            // Below the warning banner and the settings/bell icons drawn over the map
+            statusPillTop={insets.top + 120}
           />
         </View>
 
