@@ -1,19 +1,10 @@
-import React, { useCallback, useMemo, useRef, useEffect, useState } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, useColorScheme, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather as Icon } from '@expo/vector-icons';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { FIREBASE_ENABLED, auth } from '../../services/firebase';
-import { listUserAchievements } from '../../services/Data';
-import { getRides } from '../../services/RideStorage';
-import { getHorses } from '../../services/HorseStorage';
-import {
-  computeAchievements,
-  normalizeAchievementId,
-  type AchievementStatus,
-} from '../../utils/achievements';
-
-type AwardsSource = 'loading' | 'ok' | 'unavailable' | 'error';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useAchievementProgress } from '../../hooks/useAchievementProgress';
+import { achievementDataNote, type AchievementStatus } from '../../utils/achievements';
 
 const { width: screenWidth } = Dimensions.get('window');
 const CARD_WIDTH = (screenWidth - 52) / 2;
@@ -39,53 +30,7 @@ export default function AchievementsScreen() {
     ]).start();
   }, []);
 
-  const [awardsSource, setAwardsSource] = useState<AwardsSource>('loading');
-  const [awardIds, setAwardIds] = useState<Set<string>>(new Set());
-  const [rides, setRides] = useState<{ startTime: number; totalDistance: number; duration: number }[]>([]);
-  const [horseCount, setHorseCount] = useState<number | null>(null);
-
-  // Real data only: server awards (when connected) plus rides and horses stored for this user
-  useFocusEffect(
-    useCallback(() => {
-      let cancelled = false;
-      (async () => {
-        const uid = auth?.currentUser?.uid ?? null;
-
-        let source: AwardsSource = 'ok';
-        let ids = new Set<string>();
-        if (!FIREBASE_ENABLED || !uid) {
-          source = 'unavailable';
-        } else {
-          try {
-            const awards = await listUserAchievements(uid);
-            ids = new Set(awards.map((a) => normalizeAchievementId(a, uid)).filter((id): id is string => !!id));
-          } catch (error) {
-            console.warn('[Achievements] Could not load awards:', error);
-            source = 'error';
-          }
-        }
-
-        const [rideList, horseList] = await Promise.all([
-          getRides().catch(() => []),
-          getHorses().catch(() => null),
-        ]);
-
-        if (cancelled) return;
-        setAwardIds(ids);
-        setAwardsSource(source);
-        setRides(rideList);
-        setHorseCount(horseList ? horseList.length : null);
-      })();
-      return () => {
-        cancelled = true;
-      };
-    }, [])
-  );
-
-  const statuses = useMemo(
-    () => computeAchievements({ awardIds, rides, horseCount }),
-    [awardIds, rides, horseCount]
-  );
+  const { awardsSource, statuses } = useAchievementProgress();
 
   const { unlocked, inProgress, untracked } = useMemo(() => {
     return {
@@ -101,12 +46,7 @@ export default function AchievementsScreen() {
     return { total, completed, percentage: total === 0 ? 0 : Math.round((completed / total) * 100) };
   }, [statuses, unlocked]);
 
-  const dataNote =
-    awardsSource === 'unavailable'
-      ? "Not connected to SBHRA servers. Progress is calculated from rides and horses stored on this device."
-      : awardsSource === 'error'
-      ? "Couldn't load your awards from SBHRA. Progress is calculated from rides and horses on this device."
-      : null;
+  const dataNote = achievementDataNote(awardsSource);
 
   const renderCard = (achievement: AchievementStatus, isUnlocked: boolean, index: number) => {
     const progress = achievement.progress ?? 0;

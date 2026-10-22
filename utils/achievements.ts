@@ -23,7 +23,24 @@ export type AchievementStatus = AchievementDef & {
   unlocked: boolean;
 };
 
-type RideLike = { startTime: number; totalDistance: number; duration: number };
+export type RideLike = { startTime: number; totalDistance: number; duration: number };
+
+/** Where the server-side awards came from. Local rides and horses are always read from this device. */
+export type AwardsSource = 'loading' | 'ok' | 'unavailable' | 'error';
+
+export type AchievementSnapshot = {
+  awardsSource: AwardsSource;
+  awardIds: ReadonlySet<string>;
+  rides: RideLike[];
+  horseCount: number | null;
+};
+
+export const LOADING_ACHIEVEMENT_SNAPSHOT: AchievementSnapshot = {
+  awardsSource: 'loading',
+  awardIds: new Set<string>(),
+  rides: [],
+  horseCount: null,
+};
 
 /**
  * Award documents are stored as `${uid}_${achievementId}`; the converter exposes either the
@@ -68,4 +85,49 @@ export function computeAchievements(input: {
     const unlocked = awarded || (raw != null && raw >= def.target);
     return { ...def, progress: progress == null ? null : Math.min(progress, def.target), unlocked };
   });
+}
+
+export type AchievementLoaderDeps = {
+  firebaseEnabled: boolean;
+  uid: string | null;
+  listAwards: (uid: string) => Promise<readonly unknown[]>;
+  getRides: () => Promise<RideLike[]>;
+  getHorses: () => Promise<readonly unknown[] | null>;
+};
+
+/**
+ * Gathers everything achievement progress is computed from. A failed award read is reported through
+ * `awardsSource` instead of being turned into zero progress. Dependencies are injected so the rules
+ * can be tested without Firebase or device storage.
+ */
+export async function loadAchievementSnapshot(deps: AchievementLoaderDeps): Promise<AchievementSnapshot> {
+  const { firebaseEnabled, uid, listAwards, getRides, getHorses } = deps;
+
+  let awardsSource: AwardsSource = 'ok';
+  let awardIds = new Set<string>();
+  if (!firebaseEnabled || !uid) {
+    awardsSource = 'unavailable';
+  } else {
+    try {
+      const awards = await listAwards(uid);
+      awardIds = new Set(awards.map((a) => normalizeAchievementId(a, uid)).filter((id): id is string => !!id));
+    } catch (error) {
+      console.warn('[Achievements] Could not load awards:', error);
+      awardsSource = 'error';
+    }
+  }
+
+  const [rides, horses] = await Promise.all([getRides().catch(() => []), getHorses().catch(() => null)]);
+  return { awardsSource, awardIds, rides, horseCount: horses ? horses.length : null };
+}
+
+/** The data note shown on every surface that displays achievement progress. */
+export function achievementDataNote(source: AwardsSource): string | null {
+  if (source === 'unavailable') {
+    return 'Not connected to SBHRA servers. Progress is calculated from rides and horses stored on this device.';
+  }
+  if (source === 'error') {
+    return "Couldn't load your awards from SBHRA. Progress is calculated from rides and horses on this device.";
+  }
+  return null;
 }
