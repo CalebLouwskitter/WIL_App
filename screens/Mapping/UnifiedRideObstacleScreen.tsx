@@ -534,7 +534,7 @@ export default function UnifiedRideObstacleScreen({
                     reportedBy: savedObstacle.userName || 'Anonymous'
                   }
                 );
-                console.log('[UnifiedRideObstacleScreen] FCM notification sent to admins');
+                console.log('[UnifiedRideObstacleScreen] Admin notification saved');
               }
             } catch (notificationError) {
               console.warn('[UnifiedRideObstacleScreen] Failed to send FCM notification:', notificationError);

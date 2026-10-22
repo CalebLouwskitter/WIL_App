@@ -128,7 +128,7 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
               reportedBy: savedObstacle.userName || 'Anonymous'
             }
           );
-          console.log('[MarkObstacleScreen] FCM notification sent to admins');
+          console.log('[MarkObstacleScreen] Admin notification saved');
         }
       } catch (notificationError) {
         console.warn('[MarkObstacleScreen] Failed to send FCM notification:', notificationError);
