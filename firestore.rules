@@ -1,0 +1,350 @@
+rules_version = '2';
+
+// SBHRA Firestore rules. Each match block names the client call sites it was
+// derived from; keep them in sync when a path or payload changes. Anything not
+// matched here is denied. Tests: __emulator__/rules.test.ts.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Actors ----------
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function callerProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasProfile() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    // The role on the caller's own profile, which members cannot change (see users).
+    function isAdmin() {
+      return hasProfile() && callerProfile().get('role', 'member') == 'admin';
+    }
+
+    function isApproved() {
+      return hasProfile() && callerProfile().get('status', 'pending') == 'approved';
+    }
+
+    function isApprovedOrAdmin() {
+      return isApproved() || isAdmin();
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    function validLatLng(lat, lng) {
+      return lat is number && lng is number
+        && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+    }
+
+    // ---------- users/{uid} ----------
+    // Data.ts getOrCreateUserProfile (create), saveRideAndUpdateAggregates
+    // (aggregates), FirebaseUserService (admin approve/role/delete),
+    // FirebaseNotificationService saveExpoPushToken (thread D).
+
+    // Fields the owner may edit on their own profile.
+    function ownProfileKeys() {
+      return ['displayName', 'email', 'photoURL', 'emailLower',
+              'expoPushToken', 'expoPushTokenUpdatedAt', 'updatedAt'];
+    }
+
+    // Fields that only move through a ride upload (or an admin).
+    function aggregateKeys() {
+      return ['totalRides', 'totalDistanceM', 'totalDurationMs', 'points', 'lastRideId'];
+    }
+
+    function profileKeys() {
+      return ownProfileKeys().concat(aggregateKeys()).concat(['role', 'status', 'createdAt']);
+    }
+
+    function zeroAggregates(d) {
+      return d.get('totalRides', 0) == 0 && d.get('totalDistanceM', 0) == 0
+        && d.get('totalDurationMs', 0) == 0 && d.get('points', 0) == 0
+        && !('lastRideId' in d);
+    }
+
+    // The aggregates in d are the previous totals plus exactly one ride, which
+    // is lastRideId, belongs to uid and is created by this same write.
+    function addsOneRide(uid, prevRides, prevDistanceM, prevDurationMs, d) {
+      let ridePath = /databases/$(database)/documents/rides/$(d.lastRideId);
+      let ride = getAfter(ridePath).data;
+      return d.lastRideId is string
+        && !exists(ridePath)
+        && existsAfter(ridePath)
+        && ride.userId == uid
+        && d.totalRides == prevRides + 1
+        && d.totalDistanceM == prevDistanceM + ride.totalDistance
+        && d.totalDurationMs == prevDurationMs + ride.duration
+        && d.points == d.totalRides * 10 + math.round(d.totalDistanceM / 1000.0);
+    }
+
+    function validNewProfile(uid) {
+      let d = incoming();
+      return d.keys().hasOnly(profileKeys())
+        && d.role == 'member'
+        && d.status == 'pending'
+        && (zeroAggregates(d) || addsOneRide(uid, 0, 0, 0, d));
+    }
+
+    function validOwnProfileUpdate(uid) {
+      let changed = changedKeys();
+      return changed.hasOnly(ownProfileKeys())
+        || (changed.hasOnly(ownProfileKeys().concat(aggregateKeys()))
+            && addsOneRide(uid,
+                 resource.data.get('totalRides', 0),
+                 resource.data.get('totalDistanceM', 0),
+                 resource.data.get('totalDurationMs', 0),
+                 incoming()));
+    }
+
+    match /users/{uid} {
+      allow read: if isSelf(uid) || isAdmin();
+      allow create: if isAdmin() || (isSelf(uid) && validNewProfile(uid));
+      allow update: if isAdmin() || (isSelf(uid) && validOwnProfileUpdate(uid));
+      allow delete: if isAdmin();
+
+      // HorseStorage.ts saveHorse/getHorses/deleteHorse
+      match /horses/{horseId} {
+        allow read, delete: if isSelf(uid);
+        allow create, update: if isSelf(uid) && incoming().userId == uid;
+      }
+
+      // ObservationStorage.ts sync, Data.ts sighting helpers
+      match /sightings/{sightingId} {
+        allow read, delete: if isSelf(uid);
+        allow create, update: if isSelf(uid) && incoming().userId == uid;
+      }
+
+      // FirebaseNotificationService markNotificationAsRead
+      match /readNotifications/{notificationId} {
+        allow read, write: if isSelf(uid);
+      }
+    }
+
+    // ---------- rides/{rideId} ----------
+    // RideStorage.ts upload via Data.ts saveRideAndUpdateAggregates (create);
+    // UserAnalyticsService (own query); GlobalAnalyticsService (all rides, used by
+    // the community trail stats screen, hence approved read).
+
+    function validRide() {
+      let d = incoming();
+      return d.userId == request.auth.uid
+        && d.startTime is number
+        && d.totalDistance is number && d.totalDistance >= 0
+        && d.duration is number && d.duration >= 0;
+    }
+
+    match /rides/{rideId} {
+      // A missing ride is readable so the upload transaction can check for it.
+      allow get: if signedIn()
+        && (resource == null || resource.data.userId == request.auth.uid || isApprovedOrAdmin());
+      allow list: if signedIn()
+        && (resource.data.userId == request.auth.uid || isApprovedOrAdmin());
+      allow create: if signedIn() && validRide();
+      // Changing the owner or the totals would desync the profile aggregates.
+      allow update: if isAdmin()
+        || (isSelf(resource.data.userId)
+            && !changedKeys().hasAny(['userId', 'totalDistance', 'duration']));
+      allow delete: if isAdmin();
+    }
+
+    // ---------- horses/{horseId} (legacy top level) ----------
+    // HorseStorage.ts getHorses copies these into users/{uid}/horses and never
+    // deletes them; deleteHorse removes both copies on an explicit user delete,
+    // otherwise the legacy copy would reappear on the next read.
+    match /horses/{horseId} {
+      allow read, delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // ---------- obstacles/{obstacleId} ----------
+    // ObstacleService.ts saveObstacle/getObstacles/subscribeToObstacles/
+    // verifyObstacle; AdminObstacleManagement (status, remove).
+
+    function obstacleKeys() {
+      return ['userId', 'userName', 'type', 'severity', 'status', 'title', 'description',
+              'location', 'photoUrl', 'reportedAt', 'resolvedAt', 'verifiedBy',
+              'createdAt', 'updatedAt'];
+    }
+
+    function validNewObstacle() {
+      let d = incoming();
+      return d.keys().hasOnly(obstacleKeys())
+        && d.userId == request.auth.uid
+        && d.status == 'active'
+        && d.get('verifiedBy', []).size() == 0
+        && d.title is string
+        && validLatLng(d.location.latitude, d.location.longitude);
+    }
+
+    // verifiedBy becomes exactly the old list plus the caller's own uid.
+    function isOwnVerifyVote() {
+      let before = resource.data.get('verifiedBy', []);
+      let after = incoming().get('verifiedBy', []);
+      return changedKeys().hasOnly(['verifiedBy', 'updatedAt'])
+        && after.toSet() == before.toSet().union([request.auth.uid].toSet())
+        && after.size() == after.toSet().size();
+    }
+
+    match /obstacles/{obstacleId} {
+      allow read: if isApprovedOrAdmin();
+      allow create: if isApprovedOrAdmin() && validNewObstacle();
+      allow update: if isAdmin() || (isApproved() && isOwnVerifyVote());
+      allow delete: if isAdmin();
+    }
+
+    // ---------- notifications/{notificationId} ----------
+    // FirebaseNotificationService.ts. Members read by audience; the only member
+    // write is the obstacle-report alert that UnifiedRideObstacleScreen and
+    // MarkObstacleScreen send through createAdminNotification(uid, 'alert', ...,
+    // 'admins', { obstacleId, type, severity, location, reportedBy }).
+
+    function notificationKeys() {
+      return ['type', 'title', 'body', 'audience', 'createdAt', 'createdBy',
+              'metadata', 'sentAt', 'queuedAt', 'updatedAt'];
+    }
+
+    function serverTimeIfPresent(d, key) {
+      return !(key in d) || d[key] == request.time;
+    }
+
+    function isObstacleReportNotification() {
+      let d = incoming();
+      let obstaclePath = /databases/$(database)/documents/obstacles/$(d.metadata.obstacleId);
+      return d.keys().hasOnly(notificationKeys())
+        && d.type == 'alert'
+        && d.audience == 'admins'
+        && d.createdBy == request.auth.uid
+        && d.title is string && d.title.size() <= 200
+        && d.body is string && d.body.size() <= 2000
+        && d.createdAt == request.time
+        && serverTimeIfPresent(d, 'sentAt')
+        && serverTimeIfPresent(d, 'queuedAt')
+        && !('updatedAt' in d)
+        && d.metadata.keys().hasOnly(['obstacleId', 'type', 'severity', 'location', 'reportedBy'])
+        && d.metadata.obstacleId is string
+        && exists(obstaclePath)
+        && get(obstaclePath).data.userId == request.auth.uid;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAdmin()
+        || (isApproved() && resource.data.audience in ['users', 'all']);
+      allow create: if (isAdmin() && incoming().keys().hasOnly(notificationKeys()))
+        || (isApproved() && isObstacleReportNotification());
+      allow update: if isAdmin() && incoming().keys().hasOnly(notificationKeys());
+      allow delete: if isAdmin();
+    }
+
+    // ---------- pushNotificationRequests/{requestId} ----------
+    // FirebaseNotificationService.ts sendPushTo*. Write-only queue for a trusted
+    // worker; clients never read, update or delete. Members may only alert admins.
+    function validPushRequest() {
+      let d = incoming();
+      return d.keys().hasAll(['title', 'body', 'audience', 'createdAt', 'processed'])
+        && d.keys().hasOnly(['title', 'body', 'audience', 'createdAt', 'processed',
+                             'transport', 'notificationId', 'createdBy'])
+        && d.title is string && d.title.size() <= 200
+        && d.body is string && d.body.size() <= 2000
+        && d.audience in ['admins', 'users', 'all']
+        && (isAdmin() || d.audience == 'admins')
+        && d.createdAt == request.time
+        && d.processed == false
+        && (!('transport' in d) || d.transport is string)
+        && (!('notificationId' in d) || d.notificationId is string)
+        && (!('createdBy' in d) || d.createdBy == request.auth.uid);
+    }
+
+    match /pushNotificationRequests/{requestId} {
+      allow create: if isApprovedOrAdmin() && validPushRequest();
+      allow read, update, delete: if false;
+    }
+
+    // ---------- sos_active/{uid} and SosAlerts/{uid} ----------
+    // contexts/SosContext.tsx (owner activate/clear), DashboardScreen (read all),
+    // AdminSosManagement (read all, cancel). Only an Auth uid can raise an
+    // alert; the device-id fallback in SosContext is denied.
+
+    function sosKeys() {
+      return ['uid', 'name', 'latitude', 'longitude', 'status', 'timestamp', 'clearedAt'];
+    }
+
+    match /sos_active/{uid} {
+      allow read: if isSelf(uid) || isApprovedOrAdmin();
+      allow create, update: if isSelf(uid)
+        && incoming().keys().hasOnly(sosKeys())
+        && incoming().uid == uid
+        && incoming().status == 'active'
+        && validLatLng(incoming().latitude, incoming().longitude);
+      allow delete: if isSelf(uid) || isAdmin();
+    }
+
+    match /SosAlerts/{uid} {
+      allow read: if isSelf(uid) || isApprovedOrAdmin();
+      allow create, update: if isAdmin()
+        || (isSelf(uid)
+            && incoming().keys().hasOnly(sosKeys())
+            && incoming().get('uid', uid) == uid
+            && incoming().status in ['active', 'cleared']);
+      allow delete: if isAdmin();
+    }
+
+    // ---------- onlineUsers/{uid}_{deviceId} ----------
+    // OnlineUserService.ts broadcast/stop (own device), useOnlineUsers (read).
+    function isOwnDeviceDoc(docId) {
+      return signedIn() && docId.matches(request.auth.uid + '_.+');
+    }
+
+    match /onlineUsers/{docId} {
+      allow read: if isApprovedOrAdmin();
+      allow create, update: if isOwnDeviceDoc(docId)
+        && incoming().get('uid', request.auth.uid) == request.auth.uid;
+      allow delete: if isOwnDeviceDoc(docId) || isAdmin();
+    }
+
+    // ---------- achievements/{uid}_{achievementId} ----------
+    // Data.ts awardAchievement / listUserAchievements. Awards are write-once for
+    // the owner; reconciliation reads before writing.
+    match /achievements/{awardId} {
+      allow get: if isAdmin()
+        || (signedIn() && awardId.matches(request.auth.uid + '_.+'));
+      allow list: if isAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && awardId.matches(request.auth.uid + '_.+')
+        && incoming().keys().hasOnly(['userId', 'earnedAt', 'meta', 'createdAt', 'updatedAt'])
+        && incoming().userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // ---------- notification_prefs/{uid} ----------
+    // Data.ts setNotificationPrefs / getNotificationPrefs.
+    match /notification_prefs/{uid} {
+      allow read, write: if isSelf(uid);
+    }
+
+    // ---------- reports/{reportId} ----------
+    // Data.ts report helpers (ObservationStorage / UnifiedRideObstacleScreen).
+    match /reports/{reportId} {
+      allow get: if signedIn()
+        && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if signedIn() && incoming().userId == request.auth.uid;
+      allow update: if isAdmin()
+        || (isSelf(resource.data.userId) && incoming().userId == resource.data.userId);
+      allow delete: if isAdmin() || isSelf(resource.data.userId);
+    }
+  }
+}
