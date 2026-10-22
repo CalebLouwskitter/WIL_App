@@ -22,7 +22,7 @@ const RideStatsScreen = () => {
       try {
         setLoading(true);
         const data = await getCurrentUserRides();
-        setRides(data.sort((a, b) => b.startTime - a.startTime));
+        setRides([...data.data].sort((a, b) => b.startTime - a.startTime));
       } catch (error) {
         console.error('Error loading rides from Firebase:', error);
       } finally {

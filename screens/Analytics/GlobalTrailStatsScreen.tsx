@@ -44,9 +44,9 @@ const GlobalTrailStatsScreen = () => {
         getGlobalTrailUsage(),
       ]);
       
-      setGlobalStats(stats);
-      setUserStats(users);
-      setTrailUsage(trails);
+      setGlobalStats(stats.data);
+      setUserStats(users.data);
+      setTrailUsage(trails.data);
     } catch (error) {
       console.error('Failed to load global analytics:', error);
     } finally {

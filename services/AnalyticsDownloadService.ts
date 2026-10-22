@@ -34,11 +34,14 @@ export interface GlobalAnalyticsExport {
 export const fetchGlobalAnalyticsForExport = async (): Promise<GlobalAnalyticsExport> => {
   console.log('[AnalyticsDownload] Fetching global analytics data...');
   
-  const [globalStats, userStats, trailUsage] = await Promise.all([
+  const [globalStatsResult, userStatsResult, trailUsageResult] = await Promise.all([
     getGlobalRideStats(),
     getUserRideStats(),
     getGlobalTrailUsage(),
   ]);
+  const globalStats = globalStatsResult.data;
+  const userStats = userStatsResult.data;
+  const trailUsage = trailUsageResult.data;
 
   const now = new Date();
   const exportData: GlobalAnalyticsExport = {

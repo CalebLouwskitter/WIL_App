@@ -27,8 +27,8 @@ export const useAnalytics = (): UseAnalyticsReturn => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getUserAnalytics();
-      setStats(data);
+      const result = await getUserAnalytics();
+      setStats(result.data);
     } catch (err) {
       console.error('Error loading analytics:', err);
       setError('Failed to load analytics data. Please try again.');

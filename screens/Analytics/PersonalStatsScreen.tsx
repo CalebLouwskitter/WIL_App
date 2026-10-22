@@ -215,7 +215,7 @@ function PersonalStatsScreen() {
       try {
         setLoading(true);
         const stored = await getUserRidesByTimePeriod(timeSlot);
-        setRides(stored); 
+        setRides(stored.data); 
       } catch (error) {
         console.error('Error loading rides from Firebase:', error);
       } finally {

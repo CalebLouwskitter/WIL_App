@@ -2,6 +2,13 @@ import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { auth, firestore, FIREBASE_ENABLED } from './FirebaseConfig';
 import type { RideData } from '../hooks/useRideTracker';
 import { Converters, COLLECTIONS, type RideDTO, ridePointFromDTO } from './Data';
+import {
+  analyticsError,
+  analyticsOk,
+  analyticsUnavailable,
+  mapAnalytics,
+  type AnalyticsResult,
+} from './analyticsResult';
 
 export interface UserAnalyticsData {
   totalRides: number;
@@ -16,18 +23,18 @@ export interface UserAnalyticsData {
 }
 
 /**
- * Fetch all rides for the current authenticated user from Firebase
+ * Fetch all rides for the current authenticated user from Firebase.
+ * 'unavailable' (Firebase off, or signed out) is an expected state and is not logged;
+ * 'error' means a configured query failed and is logged with its detail.
  */
-export const getCurrentUserRides = async (): Promise<RideData[]> => {
+export const getCurrentUserRides = async (): Promise<AnalyticsResult<RideData[]>> => {
   try {
     if (!FIREBASE_ENABLED || !firestore) {
-      console.error('[UserAnalytics] Firebase Firestore not initialized');
-      return [];
+      return analyticsUnavailable('firebase-off', []);
     }
 
     if (!auth?.currentUser) {
-      console.warn('[UserAnalytics] User not authenticated');
-      return [];
+      return analyticsUnavailable('signed-out', []);
     }
 
     const userId = auth.currentUser.uid;
@@ -44,7 +51,7 @@ export const getCurrentUserRides = async (): Promise<RideData[]> => {
 
     if (snapshot.empty) {
       console.log('[UserAnalytics] No rides found for current user');
-      return [];
+      return analyticsOk([]);
     }
 
     const userRides: RideData[] = snapshot.docs.map(docSnap => {
@@ -69,19 +76,20 @@ export const getCurrentUserRides = async (): Promise<RideData[]> => {
     });
 
     console.log(`[UserAnalytics] Fetched ${userRides.length} rides for user ${userId}`);
-    return userRides;
+    return analyticsOk(userRides);
   } catch (error) {
-    console.error('[UserAnalytics] Error fetching user rides:', error);
-    return [];
+    console.warn('[UserAnalytics] Error fetching user rides:', error);
+    return analyticsError(error, []);
   }
 };
 
 /**
  * Calculate comprehensive analytics for the current user
  */
-export const getUserAnalytics = async (): Promise<UserAnalyticsData> => {
-  const rides = await getCurrentUserRides();
-  
+export const getUserAnalytics = async (): Promise<AnalyticsResult<UserAnalyticsData>> =>
+  mapAnalytics(await getCurrentUserRides(), summarizeRides);
+
+const summarizeRides = (rides: RideData[]): UserAnalyticsData => {
   if (rides.length === 0) {
     return {
       totalRides: 0,
@@ -134,9 +142,10 @@ export interface UserTrailUsage {
   averageDistance: number;
 }
 
-export const getUserTrailUsage = async (): Promise<UserTrailUsage[]> => {
-  const rides = await getCurrentUserRides();
-  
+export const getUserTrailUsage = async (): Promise<AnalyticsResult<UserTrailUsage[]>> => {
+  const ridesResult = await getCurrentUserRides();
+  const rides = ridesResult.data;
+
   const trailMap = new Map<string, {
     name: string;
     distance: number;
@@ -163,15 +172,17 @@ export const getUserTrailUsage = async (): Promise<UserTrailUsage[]> => {
     });
   });
   
-  return Array.from(trailMap.entries())
-    .map(([trailId, data]) => ({
-      trailId,
-      trailName: data.name,
-      totalDistance: data.distance,
-      rideCount: data.rideCount,
-      averageDistance: data.rideCount > 0 ? data.distance / data.rideCount : 0,
-    }))
-    .sort((a, b) => b.totalDistance - a.totalDistance);
+  return mapAnalytics(ridesResult, () =>
+    Array.from(trailMap.entries())
+      .map(([trailId, data]) => ({
+        trailId,
+        trailName: data.name,
+        totalDistance: data.distance,
+        rideCount: data.rideCount,
+        averageDistance: data.rideCount > 0 ? data.distance / data.rideCount : 0,
+      }))
+      .sort((a, b) => b.totalDistance - a.totalDistance),
+  );
 };
 
 /**
@@ -179,9 +190,9 @@ export const getUserTrailUsage = async (): Promise<UserTrailUsage[]> => {
  */
 export const getUserRidesByTimePeriod = async (
   period: 'day' | 'week' | 'month' | '3month' | '6month' | '1year'
-): Promise<RideData[]> => {
+): Promise<AnalyticsResult<RideData[]>> => {
   const allRides = await getCurrentUserRides();
-  
+
   const now = new Date();
   const start = new Date(now);
   
@@ -206,5 +217,5 @@ export const getUserRidesByTimePeriod = async (
       break;
   }
   
-  return allRides.filter(ride => ride.startTime >= start.getTime());
+  return mapAnalytics(allRides, (rides) => rides.filter(ride => ride.startTime >= start.getTime()));
 };
