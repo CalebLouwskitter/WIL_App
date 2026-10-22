@@ -8,12 +8,11 @@ import {
   Switch,
   ScrollView,
   TouchableWithoutFeedback,
-  useColorScheme,
   Linking,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets, type EdgeInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/colors';
+import { useAppTheme, type AppPalette } from '../../hooks/useAppTheme';
 import {
   usePreferences,
   getLocationPermissionStatus,
@@ -29,8 +28,7 @@ type Props = {
 
 const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSettings }) => {
   const insets = useSafeAreaInsets();
-  const scheme = useColorScheme();
-  const palette = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { palette } = useAppTheme();
   const { preferences, setUnits, setNotificationsWanted, saveError } = usePreferences();
   const isMetric = preferences.units === 'metric';
 
@@ -73,12 +71,12 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
               <View style={styles.header}>
                 <View style={styles.headerLeft}>
                   <View style={styles.headerIcon}>
-                    <Feather name="settings" size={18} color={palette.onPrimary || '#FFFFFF'} />
+                    <Feather name="settings" size={18} color={palette.onPrimary} />
                   </View>
-                  <Text style={[styles.headerTitle, { color: palette.text }]}>Quick Settings</Text>
+                  <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>Quick Settings</Text>
                 </View>
                 <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                  <Feather name="x" size={22} color={palette.text} />
+                  <Feather name="x" size={22} color={palette.textPrimary} />
                 </TouchableOpacity>
               </View>
 
@@ -96,50 +94,50 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
                 <View
                   style={[
                     styles.card,
-                    { backgroundColor: palette.cardElevated || palette.surface || '#FFFFFF' },
+                    { backgroundColor: palette.card },
                   ]}
                 >
-                  <Text style={[styles.cardTitle, { color: palette.secondary || palette.text }]}>Preferences</Text>
+                  <Text style={[styles.cardTitle, { color: palette.textSecondary }]}>Preferences</Text>
                   <View style={styles.switchRow}>
                     <View style={styles.switchLabelRow}>
-                      <Feather name="compass" size={18} color={palette.icon || palette.text} />
-                      <Text style={[styles.switchLabel, { color: palette.text }]}>Use metric units</Text>
+                      <Feather name="compass" size={18} color={palette.textSecondary} />
+                      <Text style={[styles.switchLabel, { color: palette.textPrimary }]}>Use metric units</Text>
                     </View>
                     <Switch
                       value={isMetric}
                       onValueChange={handleToggleUnits}
                       trackColor={{
-                        false: palette.border || '#CBD5F5',
-                        true: palette.brandPrimary || '#2563EB',
+                        false: palette.divider,
+                        true: palette.brandPrimary,
                       }}
                       thumbColor={
                         isMetric
-                          ? palette.brandPrimary || '#2563EB'
-                          : palette.surfaceVariant || palette.surface || '#FFFFFF'
+                          ? palette.brandPrimary
+                          : palette.card
                       }
                     />
                   </View>
 
                   <View style={styles.switchRow}>
                     <View style={styles.switchLabelRow}>
-                      <Feather name="bell" size={18} color={palette.icon || palette.text} />
-                      <Text style={[styles.switchLabel, { color: palette.text }]}>Notifications</Text>
+                      <Feather name="bell" size={18} color={palette.textSecondary} />
+                      <Text style={[styles.switchLabel, { color: palette.textPrimary }]}>Notifications</Text>
                     </View>
                     <Switch
                       value={preferences.notificationsWanted}
                       onValueChange={(val) => setNotificationsWanted(val)}
                       trackColor={{
-                        false: palette.border || '#CBD5F5',
-                        true: palette.brandPrimary || '#2563EB',
+                        false: palette.divider,
+                        true: palette.brandPrimary,
                       }}
                       thumbColor={
                         preferences.notificationsWanted
-                          ? palette.brandPrimary || '#2563EB'
-                          : palette.surfaceVariant || palette.surface || '#FFFFFF'
+                          ? palette.brandPrimary
+                          : palette.card
                       }
                     />
                   </View>
-                  <Text style={[styles.helperCaption, { color: palette.placeholder || '#64748B' }]}>
+                  <Text style={[styles.helperCaption, { color: palette.textMuted }]}>
                     Ride alerts aren't being delivered yet — this saves your choice for when they are.
                   </Text>
                 </View>
@@ -147,15 +145,15 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
                 <View
                   style={[
                     styles.card,
-                    { backgroundColor: palette.cardElevated || palette.surface || '#FFFFFF' },
+                    { backgroundColor: palette.card },
                   ]}
                 >
-                  <Text style={[styles.cardTitle, { color: palette.secondary || palette.text }]}>Location permissions</Text>
+                  <Text style={[styles.cardTitle, { color: palette.textSecondary }]}>Location permissions</Text>
 
                   <View style={styles.permissionSection}>
                     <View style={styles.switchLabelRow}>
-                      <Feather name="map-pin" size={18} color={palette.icon || palette.text} />
-                      <Text style={[styles.switchLabel, { color: palette.text }]}>Location permission</Text>
+                      <Feather name="map-pin" size={18} color={palette.textSecondary} />
+                      <Text style={[styles.switchLabel, { color: palette.textPrimary }]}>Location permission</Text>
                     </View>
                     <View style={styles.permissionRow}>
                       <View style={styles.permissionStatus}>
@@ -164,11 +162,11 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
                             styles.statusDot,
                             {
                               backgroundColor:
-                                locationPermission === 'Not allowed' ? '#ef4444' : '#10b981',
+                                locationPermission === 'Not allowed' ? palette.danger : palette.success,
                             },
                           ]}
                         />
-                        <Text style={[styles.permissionText, { color: palette.text }]}>
+                        <Text style={[styles.permissionText, { color: palette.textPrimary }]}>
                           {locationPermission}
                         </Text>
                       </View>
@@ -177,15 +175,15 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
                           style={[
                             styles.smallBtn,
                             {
-                              backgroundColor: palette.surface || '#FFFFFF',
+                              backgroundColor: palette.card,
                               borderWidth: 1,
-                              borderColor: palette.border || 'rgba(148,163,184,0.25)',
+                              borderColor: palette.divider,
                             },
                           ]}
                           onPress={() => Linking.openSettings()}
                           activeOpacity={0.9}
                         >
-                          <Text style={[styles.smallBtnText, { color: palette.text }]}>Open Settings</Text>
+                          <Text style={[styles.smallBtnText, { color: palette.textPrimary }]}>Open Settings</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -194,33 +192,40 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
                   <View style={styles.divider} />
 
                   <View style={styles.permissionSection}>
-                    <Text style={[styles.permissionLabel, { color: palette.secondary || palette.text }]}>
+                    <Text style={[styles.permissionLabel, { color: palette.textSecondary }]}>
                       Background tracking
                     </Text>
                     <View style={styles.permissionRow}>
                       <View style={styles.permissionStatus}>
-                        <View style={[styles.statusDot, { backgroundColor: backgroundEnabled ? '#10b981' : '#f59e0b' }]} />
-                        <Text style={[styles.permissionText, { color: palette.text }]}>
+                        <View style={[styles.statusDot, { backgroundColor: backgroundEnabled ? palette.success : palette.caution }]} />
+                        <Text style={[styles.permissionText, { color: palette.textPrimary }]}>
                           {backgroundEnabled ? 'Enabled' : 'Disabled'}
                         </Text>
                       </View>
                       <View style={styles.permissionActions}>
                         <TouchableOpacity
-                          style={[styles.smallBtn, { backgroundColor: palette.brandPrimary || '#2563EB' }]}
+                          style={[styles.smallBtn, { backgroundColor: palette.brandPrimary }]}
                           onPress={async () => {
                             await BackgroundLocationService.requestPermissions();
                             await refreshPermissions();
                           }}
                           activeOpacity={0.9}
                         >
-                          <Text style={[styles.smallBtnText, { color: palette.onPrimary || '#FFFFFF' }]}>Request</Text>
+                          <Text style={[styles.smallBtnText, { color: palette.onPrimary }]}>Request</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                          style={[styles.smallBtn, { backgroundColor: palette.surface || '#FFFFFF', borderWidth: 1, borderColor: palette.border || 'rgba(148,163,184,0.25)' }]}
+                          style={[
+                            styles.smallBtn,
+                            {
+                              backgroundColor: palette.card,
+                              borderWidth: 1,
+                              borderColor: palette.divider,
+                            },
+                          ]}
                           onPress={() => Linking.openSettings()}
                           activeOpacity={0.9}
                         >
-                          <Text style={[styles.smallBtnText, { color: palette.text }]}>Open Settings</Text>
+                          <Text style={[styles.smallBtnText, { color: palette.textPrimary }]}>Open Settings</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -230,10 +235,10 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
 
               {onRequestFullSettings ? (
                 <TouchableOpacity
-                  style={[styles.fullButton, { backgroundColor: palette.brandPrimary || '#2563EB' }]}
+                  style={[styles.fullButton, { backgroundColor: palette.brandPrimary }]}
                   onPress={handleFullSettings}
                 >
-                  <Text style={[styles.fullButtonText, { color: palette.onPrimary || '#FFFFFF' }]}>
+                  <Text style={[styles.fullButtonText, { color: palette.onPrimary }]}>
                     Open full settings
                   </Text>
                 </TouchableOpacity>
@@ -246,11 +251,11 @@ const SettingsModal: React.FC<Props> = ({ visible, onClose, onRequestFullSetting
   );
 };
 
-const createStyles = (palette: any, insets: EdgeInsets) =>
+const createStyles = (palette: AppPalette, insets: EdgeInsets) =>
   StyleSheet.create({
     overlay: {
       flex: 1,
-      backgroundColor: 'rgba(15, 23, 42, 0.55)',
+      backgroundColor: palette.mapOverlay,
       justifyContent: 'center',
       alignItems: 'center',
       paddingTop: insets.top + 16,
@@ -261,7 +266,7 @@ const createStyles = (palette: any, insets: EdgeInsets) =>
       width: '100%',
       maxWidth: 420,
       borderRadius: 24,
-      backgroundColor: palette.background || '#FFFFFF',
+      backgroundColor: palette.card,
       overflow: 'hidden',
     },
     header: {
@@ -280,7 +285,7 @@ const createStyles = (palette: any, insets: EdgeInsets) =>
       width: 36,
       height: 36,
       borderRadius: 18,
-      backgroundColor: palette.brandPrimary || '#2563EB',
+      backgroundColor: palette.brandPrimary,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -304,7 +309,7 @@ const createStyles = (palette: any, insets: EdgeInsets) =>
       paddingHorizontal: 20,
       paddingVertical: 18,
       borderWidth: 1,
-      borderColor: palette.border || 'rgba(148, 163, 184, 0.25)',
+      borderColor: palette.divider,
       gap: 18,
     },
     cardTitle: {
@@ -398,7 +403,7 @@ const createStyles = (palette: any, insets: EdgeInsets) =>
     },
     divider: {
       height: 1,
-      backgroundColor: palette.border || 'rgba(148, 163, 184, 0.25)',
+      backgroundColor: palette.divider,
       marginVertical: 4,
     },
     permissionSection: {
