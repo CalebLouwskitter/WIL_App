@@ -8,8 +8,8 @@ import {
   Text,
   TouchableOpacity,
   View,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -25,6 +25,7 @@ import {
 } from '../../services/ObstacleService';
 import { type ObstacleStatus } from '../../services/Data';
 import type { ProfileStackParamList } from '../../navigation/ProfileStack';
+import { useAppTheme, type AppPalette } from '../../hooks/useAppTheme';
 
 const FILTERS: { label: string; value: ObstacleStatus | 'all' }[] = [
   { label: 'Active', value: 'active' },
@@ -36,6 +37,8 @@ type AdminObstacleNavigationProp = StackNavigationProp<ProfileStackParamList, 'A
 
 export default function AdminObstacleManagement() {
   const navigation = useNavigation<AdminObstacleNavigationProp>();
+  const { palette, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(palette, isDark), [palette, isDark]);
   const { profile, loading: profileLoading } = useCurrentUser();
   const [filter, setFilter] = useState<typeof FILTERS[number]['value']>('active');
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
@@ -45,15 +48,12 @@ export default function AdminObstacleManagement() {
   const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
 
   useEffect(() => {
-    // Wait for profile to finish loading
     if (!profileLoading) {
       if (profile === null) {
-        // Not authenticated: navigate back
         Alert.alert('Access denied', 'You must be logged in to view this screen.', [
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);
       } else if (profile.role !== 'admin') {
-        // Authenticated but not admin: navigate back
         Alert.alert('Access denied', 'You do not have permission to view this screen.', [
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);
@@ -76,9 +76,8 @@ export default function AdminObstacleManagement() {
   }, [filter]);
 
   useEffect(() => {
-    // Set up real-time subscription
     let unsubscribe: (() => void) | null = null;
-    
+
     if (isRealTimeEnabled && profile && profile.role === 'admin') {
       try {
         const status = filter === 'all' ? undefined : (filter as ObstacleStatus);
@@ -86,23 +85,20 @@ export default function AdminObstacleManagement() {
           setObstacles(newObstacles);
           setLoading(false);
         }, { status });
-        
+
         console.log('[AdminObstacleManagement] Real-time subscription enabled');
       } catch (error) {
         console.warn('[AdminObstacleManagement] Failed to set up real-time subscription:', error);
         setIsRealTimeEnabled(false);
-        // Fallback to manual loading
         loadObstacles();
       }
     } else {
-      // Manual refresh mode
       loadObstacles();
-      // Set up periodic refresh as fallback
       const interval = setInterval(() => {
         console.log('[AdminObstacleManagement] Periodic refresh');
         loadObstacles();
-      }, 30000); // Refresh every 30 seconds
-      
+      }, 30000);
+
       return () => clearInterval(interval);
     }
 
@@ -116,9 +112,8 @@ export default function AdminObstacleManagement() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    
+
     if (isRealTimeEnabled) {
-      // In real-time mode, just trigger a manual fetch once
       try {
         const status = filter === 'all' ? undefined : (filter as ObstacleStatus);
         const data = await getObstacles({ status });
@@ -129,7 +124,7 @@ export default function AdminObstacleManagement() {
     } else {
       await loadObstacles();
     }
-    
+
     setRefreshing(false);
   }, [loadObstacles, filter, isRealTimeEnabled]);
 
@@ -197,16 +192,14 @@ export default function AdminObstacleManagement() {
     );
   }, []);
 
-  const styles = useMemo(() => createStyles(), []);
-
   const renderObstacle = ({ item }: { item: Obstacle }) => {
-    const severityColor = getSeverityColor(item.severity);
+    const severityColor = getSeverityColor(item.severity, palette);
     const isActive = item.status === 'active';
 
     return (
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <View style={[styles.iconContainer, { backgroundColor: `${severityColor}22` }]}>
+          <View style={[styles.iconContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : `${severityColor}22` }]}>
             <Feather name={getObstacleIcon(item.type)} size={22} color={severityColor} />
           </View>
           <View style={styles.cardTitleContainer}>
@@ -214,7 +207,9 @@ export default function AdminObstacleManagement() {
             <Text style={styles.cardSubtitle}>{item.type}</Text>
           </View>
           <View style={[styles.statusPill, isActive ? styles.activePill : styles.resolvedPill]}>
-            <Text style={styles.statusPillText}>{item.status}</Text>
+            <Text style={[styles.statusPillText, isActive ? styles.activePillText : styles.resolvedPillText]}>
+              {item.status}
+            </Text>
           </View>
         </View>
 
@@ -222,11 +217,11 @@ export default function AdminObstacleManagement() {
 
         <View style={styles.metaRow}>
           <View style={styles.metaItem}>
-            <Feather name="user" size={14} color="#6B7280" />
+            <Feather name="user" size={14} color={palette.textSecondary} />
             <Text style={styles.metaText}>{item.userName ?? 'Anonymous'}</Text>
           </View>
           <View style={styles.metaItem}>
-            <Feather name="clock" size={14} color="#6B7280" />
+            <Feather name="clock" size={14} color={palette.textSecondary} />
             <Text style={styles.metaText}>{formatDate(item.reportedAt)}</Text>
           </View>
         </View>
@@ -237,7 +232,7 @@ export default function AdminObstacleManagement() {
               style={[styles.actionButton, styles.resolveButton]}
               onPress={() => handleUpdateStatus(item, 'resolved')}
             >
-              <Feather name="check-circle" size={18} color="#FFFFFF" />
+              <Feather name="check-circle" size={18} color={palette.onPrimary} />
               <Text style={styles.actionButtonText}>Mark Resolved</Text>
             </TouchableOpacity>
           ) : (
@@ -245,7 +240,7 @@ export default function AdminObstacleManagement() {
               style={[styles.actionButton, styles.reopenButton]}
               onPress={() => handleUpdateStatus(item, 'active')}
             >
-              <Feather name="rotate-ccw" size={18} color="#FFFFFF" />
+              <Feather name="rotate-ccw" size={18} color={palette.onPrimary} />
               <Text style={styles.actionButtonText}>Reopen</Text>
             </TouchableOpacity>
           )}
@@ -254,7 +249,7 @@ export default function AdminObstacleManagement() {
             style={[styles.actionButton, styles.deleteButton]}
             onPress={() => handleDelete(item)}
           >
-            <Feather name="trash-2" size={18} color="#FFFFFF" />
+            <Feather name="trash-2" size={18} color={palette.onPrimary} />
             <Text style={styles.actionButtonText}>Delete</Text>
           </TouchableOpacity>
         </View>
@@ -262,7 +257,6 @@ export default function AdminObstacleManagement() {
     );
   };
 
-  // Show loading while profile is being fetched
   if (profileLoading) {
     return (
       <View style={styles.container}>
@@ -274,7 +268,7 @@ export default function AdminObstacleManagement() {
             hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
           >
             <View style={styles.iconButton}>
-              <Ionicons name="chevron-back" size={24} color="#111" />
+              <Ionicons name="chevron-back" size={24} color={palette.textPrimary} />
             </View>
           </TouchableOpacity>
           <View style={{ flex: 1, alignItems: 'center' }}>
@@ -289,8 +283,8 @@ export default function AdminObstacleManagement() {
           <View style={{ width: 48 }} />
         </View>
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text style={{ marginTop: 16, color: '#6B7280' }}>Loading...</Text>
+          <ActivityIndicator size="large" color={palette.brandPrimary} />
+          <Text style={{ marginTop: 16, color: palette.textSecondary }}>Loading...</Text>
         </View>
       </View>
     );
@@ -306,7 +300,7 @@ export default function AdminObstacleManagement() {
           hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
         >
           <View style={styles.iconButton}>
-            <Ionicons name="chevron-back" size={24} color="#111" />
+            <Ionicons name="chevron-back" size={24} color={palette.textPrimary} />
           </View>
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center' }}>
@@ -340,18 +334,18 @@ export default function AdminObstacleManagement() {
 
       {loading ? (
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color="#2563eb" />
+          <ActivityIndicator size="large" color={palette.brandPrimary} />
         </View>
       ) : (
         <FlatList
           data={obstacles}
           keyExtractor={(item) => item.id}
           contentContainerStyle={obstacles.length ? styles.listContent : styles.emptyContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.brandPrimary} colors={[palette.brandPrimary]} />}
           renderItem={renderObstacle}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Feather name="check" size={42} color="#9CA3AF" />
+              <Feather name="check" size={42} color={palette.textMuted} />
               <Text style={styles.emptyTitle}>No obstacles here</Text>
               <Text style={styles.emptySubtitle}>
                 {filter === 'active'
@@ -388,26 +382,26 @@ function getObstacleIcon(type: string): keyof typeof Feather.glyphMap {
   }
 }
 
-function getSeverityColor(severity: string) {
+function getSeverityColor(severity: string, palette: AppPalette) {
   switch (severity) {
     case 'critical':
-      return '#DC2626';
+      return palette.danger;
     case 'high':
-      return '#EA580C';
+      return palette.caution;
     case 'medium':
-      return '#F59E0B';
+      return palette.brandSecondary;
     case 'low':
-      return '#10B981';
+      return palette.success;
     default:
-      return '#6B7280';
+      return palette.textSecondary;
   }
 }
 
-function createStyles() {
+function createStyles(palette: AppPalette, isDark: boolean) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: '#F4F7FE',
+      backgroundColor: palette.background,
     },
     headerRow: {
       flexDirection: 'row',
@@ -421,10 +415,10 @@ function createStyles() {
       width: 44,
       height: 44,
       borderRadius: 22,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: palette.card,
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: '#000',
+      shadowColor: palette.shadowStrong,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
       shadowRadius: 4,
@@ -434,10 +428,10 @@ function createStyles() {
       width: 44,
       height: 44,
       borderRadius: 22,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: palette.card,
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: '#000',
+      shadowColor: palette.shadowStrong,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
       shadowRadius: 4,
@@ -446,7 +440,7 @@ function createStyles() {
     title: {
       fontSize: 24,
       fontWeight: '700',
-      color: '#111827',
+      color: palette.textPrimary,
     },
     statusRow: {
       flexDirection: 'row',
@@ -460,15 +454,15 @@ function createStyles() {
       borderRadius: 4,
     },
     statusLive: {
-      backgroundColor: '#10B981',
+      backgroundColor: palette.success,
     },
     statusManual: {
-      backgroundColor: '#F59E0B',
+      backgroundColor: palette.caution,
     },
     statusText: {
       fontSize: 12,
       fontWeight: '500',
-      color: '#6B7280',
+      color: palette.textSecondary,
     },
     filterRow: {
       flexDirection: 'row',
@@ -482,25 +476,27 @@ function createStyles() {
       marginHorizontal: 4,
       borderRadius: 8,
       borderWidth: 1,
-      borderColor: '#D1D5DB',
+      borderColor: palette.divider,
+      backgroundColor: palette.card,
       alignItems: 'center',
     },
     filterButtonActive: {
-      backgroundColor: '#2563eb',
-      borderColor: '#2563eb',
+      backgroundColor: palette.brandPrimary,
+      borderColor: palette.brandPrimary,
     },
     filterButtonText: {
       fontSize: 14,
       fontWeight: '600',
-      color: '#4B5563',
+      color: palette.textSecondary,
     },
     filterButtonTextActive: {
-      color: '#FFFFFF',
+      color: palette.onPrimary,
     },
     loading: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
+      backgroundColor: palette.background,
     },
     listContent: {
       paddingHorizontal: 16,
@@ -513,11 +509,11 @@ function createStyles() {
       padding: 24,
     },
     card: {
-      backgroundColor: '#FFFFFF',
+      backgroundColor: palette.card,
       borderRadius: 12,
       padding: 16,
       marginBottom: 12,
-      shadowColor: '#00000010',
+      shadowColor: palette.shadowStrong,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.1,
       shadowRadius: 6,
@@ -542,11 +538,11 @@ function createStyles() {
     cardTitle: {
       fontSize: 16,
       fontWeight: '700',
-      color: '#111827',
+      color: palette.textPrimary,
     },
     cardSubtitle: {
       fontSize: 13,
-      color: '#6B7280',
+      color: palette.textSecondary,
       textTransform: 'capitalize',
     },
     statusPill: {
@@ -555,20 +551,25 @@ function createStyles() {
       borderRadius: 999,
     },
     activePill: {
-      backgroundColor: '#2563eb1A',
+      backgroundColor: palette.brandSoft,
+    },
+    activePillText: {
+      color: palette.brandPrimary,
     },
     resolvedPill: {
-      backgroundColor: '#10B9811A',
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#D1FAE5',
+    },
+    resolvedPillText: {
+      color: palette.success,
     },
     statusPillText: {
       fontSize: 12,
       fontWeight: '600',
-      color: '#1F2937',
       textTransform: 'capitalize',
     },
     description: {
       fontSize: 14,
-      color: '#4B5563',
+      color: palette.textSecondary,
       marginBottom: 12,
     },
     metaRow: {
@@ -584,7 +585,7 @@ function createStyles() {
     },
     metaText: {
       fontSize: 13,
-      color: '#6B7280',
+      color: palette.textSecondary,
     },
     actionsRow: {
       flexDirection: 'row',
@@ -599,18 +600,18 @@ function createStyles() {
       flex: 1,
     },
     resolveButton: {
-      backgroundColor: '#2563eb',
+      backgroundColor: palette.brandPrimary,
     },
     reopenButton: {
-      backgroundColor: '#6B7280',
+      backgroundColor: palette.textSecondary,
     },
     actionButtonText: {
-      color: '#FFFFFF',
+      color: palette.onPrimary,
       fontSize: 15,
       fontWeight: '600',
     },
     deleteButton: {
-      backgroundColor: '#DC2626',
+      backgroundColor: palette.danger,
     },
     emptyState: {
       alignItems: 'center',
@@ -621,11 +622,11 @@ function createStyles() {
     emptyTitle: {
       fontSize: 18,
       fontWeight: '700',
-      color: '#1F2937',
+      color: palette.textPrimary,
     },
     emptySubtitle: {
       fontSize: 14,
-      color: '#6B7280',
+      color: palette.textSecondary,
       textAlign: 'center',
     },
   });

@@ -4,6 +4,9 @@ import TestRenderer, { act } from 'react-test-renderer';
 import HorsesListScreen from '../screens/Profile/HorsesListScreen';
 import CreateHorseScreen from '../screens/Profile/CreateHorseScreen';
 import HistoryScreen from '../screens/Profile/HistoryScreen';
+import AdminManagementScreen from '../screens/Profile/AdminManagementScreen';
+import AdminNotificationManagement from '../screens/Profile/AdminNotificationManagement';
+import AdminObstacleManagement from '../screens/Profile/AdminObstacleManagement';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Colors } from '../constants/colors';
 import { saveHorse } from '../services/HorseStorage';
@@ -42,7 +45,10 @@ jest.mock('expo-linear-gradient', () => ({
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 40, bottom: 20, left: 0, right: 0 }),
-  SafeAreaView: ({ children, style }: any) => <>{children}</>,
+  SafeAreaView: ({ children, style }: any) => {
+    const { View } = require('react-native');
+    return <View style={style}>{children}</View>;
+  },
 }));
 
 const mockHorses = [
@@ -73,6 +79,56 @@ jest.mock('../contexts/PreferencesContext', () => ({
   usePreferences: () => ({ preferences: mockPreferences }),
 }));
 
+const mockUsers = [
+  { uid: 'u1', email: 'rider@example.com', status: 'approved', role: 'member' },
+  { uid: 'u2', email: 'pending@example.com', status: 'pending', role: 'member' },
+];
+
+jest.mock('../services/FirebaseUserService', () => ({
+  getAllUsers: jest.fn(() => Promise.resolve(mockUsers)),
+  approveUser: jest.fn(() => Promise.resolve()),
+  disapproveUser: jest.fn(() => Promise.resolve()),
+  deleteUserDoc: jest.fn(() => Promise.resolve()),
+  setUserRole: jest.fn(() => Promise.resolve()),
+}));
+
+const mockCurrentUser = { uid: 'admin_1', role: 'admin' };
+jest.mock('../hooks/useCurrentUser', () => ({
+  useCurrentUser: () => ({ profile: mockCurrentUser, loading: false }),
+}));
+
+jest.mock('../services/FirebaseNotificationService', () => ({
+  createAdminNotification: jest.fn(() => Promise.resolve({ pushQueued: true })),
+  getNotificationsForRole: jest.fn(() => Promise.resolve([])),
+  subscribeToNotifications: jest.fn(() => () => {}),
+  deleteNotification: jest.fn(() => Promise.resolve()),
+  updateNotification: jest.fn(() => Promise.resolve()),
+  getNotificationStats: jest.fn(() => Promise.resolve({ total: 0, byType: {}, byAudience: {} })),
+}));
+
+jest.mock('../components/Notifications', () => ({
+  NotificationList: () => null,
+}));
+
+const mockObstacles = [
+  {
+    id: 'o1',
+    title: 'Fallen Tree',
+    type: 'tree',
+    severity: 'critical',
+    status: 'active',
+    reportedAt: 1700000000000,
+    userName: 'Rider 1',
+  },
+];
+
+jest.mock('../services/ObstacleService', () => ({
+  getObstacles: jest.fn(() => Promise.resolve(mockObstacles)),
+  updateObstacleStatus: jest.fn(() => Promise.resolve()),
+  removeObstacle: jest.fn(() => Promise.resolve()),
+  subscribeToObstacles: jest.fn(() => () => {}),
+}));
+
 const flushAsync = async () => {
   await act(async () => {
     await new Promise((r) => setTimeout(r, 50));
@@ -101,7 +157,6 @@ describe('G2 — HorsesListScreen', () => {
     expect(header).toBeDefined();
     expect(header.props.title).toBe('My Horses');
 
-    // Test back button
     act(() => {
       header.props.onBack();
     });
@@ -379,7 +434,6 @@ describe('G2 — HistoryScreen', () => {
   });
 
   it('formats distance in metric and imperial correctly', async () => {
-    // Metric: 5000m -> 5.0 km
     let renderer!: TestRenderer.ReactTestRenderer;
     await act(async () => {
       renderer = TestRenderer.create(<HistoryScreen />);
@@ -406,5 +460,82 @@ describe('G2 — HistoryScreen', () => {
     expect(rideTitle).toBeDefined();
     const flatStyle = StyleSheet.flatten(rideTitle!.props.style);
     expect(flatStyle.color).toBe(Colors.dark.textPrimary);
+  });
+});
+
+describe('G2 — Admin Screens Theme & Readability', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  afterEach(async () => {
+    await flushAsync();
+    jest.restoreAllMocks();
+  });
+
+  it('AdminManagementScreen: title renders with dark-mode textPrimary', async () => {
+    const ReactNative = require('react-native');
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<AdminManagementScreen />);
+    });
+    await flushAsync();
+
+    const texts = renderer.root.findAllByType(Text);
+    const titleText = texts.find((t) => [t.props.children].flat().join('') === 'Admin');
+    expect(titleText).toBeDefined();
+    const titleStyle = StyleSheet.flatten(titleText!.props.style);
+    expect(titleStyle.color).toBe(Colors.dark.textPrimary);
+  });
+
+  it('AdminManagementScreen: status badges use semantic tokens', async () => {
+    const ReactNative = require('react-native');
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('light');
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<AdminManagementScreen />);
+    });
+    await flushAsync();
+
+    const texts = renderer.root.findAllByType(Text);
+    const approvedText = texts.find((t) => [t.props.children].flat().join('') === 'approved');
+    expect(approvedText).toBeDefined();
+  });
+
+  it('AdminNotificationManagement: title renders with dark-mode textPrimary', async () => {
+    const ReactNative = require('react-native');
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<AdminNotificationManagement />);
+    });
+    await flushAsync();
+
+    const texts = renderer.root.findAllByType(Text);
+    const titleText = texts.find((t) => [t.props.children].flat().join('') === 'Notifications');
+    expect(titleText).toBeDefined();
+    const titleStyle = StyleSheet.flatten(titleText!.props.style);
+    expect(titleStyle.color).toBe(Colors.dark.textPrimary);
+  });
+
+  it('AdminObstacleManagement: title renders with dark-mode textPrimary', async () => {
+    const ReactNative = require('react-native');
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<AdminObstacleManagement />);
+    });
+    await flushAsync();
+
+    const texts = renderer.root.findAllByType(Text);
+    const titleText = texts.find((t) => [t.props.children].flat().join('') === 'Obstacle Management');
+    expect(titleText).toBeDefined();
+    const titleStyle = StyleSheet.flatten(titleText!.props.style);
+    expect(titleStyle.color).toBe(Colors.dark.textPrimary);
   });
 });
