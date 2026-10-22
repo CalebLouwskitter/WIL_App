@@ -377,7 +377,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
 
   return (
     <>
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: palette.background }]}>
         {/* Background Status Banner */}
         {isInBackground && (
           <View style={styles.backgroundBanner}>
@@ -459,7 +459,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             accessibilityRole="button"
             accessibilityLabel="Settings"
           >
-            <Feather name="settings" size={27} color="#374151" />
+            <Feather name="settings" size={27} color={palette.textPrimary} />
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.7}
@@ -483,7 +483,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             accessibilityRole="button"
             accessibilityLabel="Notifications"
           >
-            <Feather name="bell" size={27} color="#374151" />
+            <Feather name="bell" size={27} color={palette.textPrimary} />
           </TouchableOpacity>
         </View>
 
@@ -498,14 +498,14 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                 },
               ]}
             >
-              <BlurView intensity={80} tint="light" style={styles.statsCardContainer}>
+              <BlurView intensity={80} tint={isDark ? 'dark' : 'light'} style={[styles.statsCardContainer, { backgroundColor: isDark ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)', borderColor: palette.divider }]}>
                 <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.05)']}
+                  colors={isDark ? ['rgba(255, 255, 255, 0.05)', 'transparent'] : ['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.05)']}
                   style={styles.statsGradient}
                 >
                   <View style={styles.statsHeader}>
-                    <Text style={styles.statsTitle}>Active Ride</Text>
-                    <View style={styles.recordingBadge}>
+                    <Text style={[styles.statsTitle, { color: palette.textPrimary }]}>Active Ride</Text>
+                    <View style={[styles.recordingBadge, isDark && { backgroundColor: palette.cardMuted }]}>
                       <Animated.View
                         style={[
                           styles.recordingDot,
@@ -526,12 +526,12 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                               <Text style={[styles.statValue, styles.statValueEmerald]}>
                                 {dist.value}
                               </Text>
-                              <Text style={styles.statLabel}>{dist.unit === 'mi' ? 'miles' : 'kilometers'}</Text>
+                              <Text style={[styles.statLabel, { color: palette.textSecondary }]}>{dist.unit === 'mi' ? 'miles' : 'kilometers'}</Text>
                             </>
                           );
                         })()}
                       </View>
-                      <View style={[styles.statItem, styles.statItemBorder]}>
+                      <View style={[styles.statItem, styles.statItemBorder, { borderColor: palette.divider }]}>
                         {(() => {
                           const spd = formatSpeedKmh(currentSpeed, preferences.units, 1);
                           return (
@@ -539,22 +539,22 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                               <Text style={[styles.statValue, styles.statValueOrange]}>
                                 {spd.value}
                               </Text>
-                              <Text style={styles.statLabel}>{spd.unit}</Text>
+                              <Text style={[styles.statLabel, { color: palette.textSecondary }]}>{spd.unit}</Text>
                             </>
                           );
                         })()}
                       </View>
-                      <View style={[styles.statItem, styles.statItemBorder]}>
+                      <View style={[styles.statItem, styles.statItemBorder, { borderColor: palette.divider }]}>
                         <Text style={[styles.statValue, styles.statValueBlue]}>
                           {rideData.elevationGain.toFixed(0)}
                         </Text>
-                        <Text style={styles.statLabel}>elevation</Text>
+                        <Text style={[styles.statLabel, { color: palette.textSecondary }]}>elevation</Text>
                       </View>
                       <View style={styles.statItem}>
                         <Text style={[styles.statValue, styles.statValuePurple]}>
                           {Math.floor(rideData.duration / 60000)}
                         </Text>
-                        <Text style={styles.statLabel}>minutes</Text>
+                        <Text style={[styles.statLabel, { color: palette.textSecondary }]}>minutes</Text>
                       </View>
                     </View>
                   )}
@@ -588,10 +588,10 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                 })
               }
             >
-              <BlurView intensity={60} tint="light" style={styles.reportButtonBlur}>
+              <BlurView intensity={60} tint={isDark ? 'dark' : 'light'} style={[styles.reportButtonBlur, { backgroundColor: isDark ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)', borderColor: palette.divider }]}>
                 <View style={styles.reportButtonInner}>
-                  <Feather name="alert-triangle" size={20} color="#EA580C" />
-                  <Text style={styles.reportButtonText}>Report</Text>
+                  <Feather name="alert-triangle" size={20} color={palette.caution} />
+                  <Text style={[styles.reportButtonText, { color: palette.caution }]}>Report</Text>
                 </View>
               </BlurView>
             </TouchableOpacity>
@@ -599,7 +599,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             {/* Compass/Heading Indicator */}
             {userHeading !== null && (
               <View style={[styles.compassContainer, { top: insets.top + 170 }]}>
-                <BlurView intensity={60} tint="light" style={styles.compassBlur}>
+                <BlurView intensity={60} tint={isDark ? 'dark' : 'light'} style={[styles.compassBlur, { backgroundColor: isDark ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)', borderColor: palette.divider }]}>
                   <LinearGradient
                     colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.08)']}
                     style={styles.compassGradient}
@@ -615,7 +615,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                     <Text style={styles.compassText}>
                       {getCardinalDirection(userHeading)}
                     </Text>
-                    <Text style={styles.compassDegrees}>{Math.round(userHeading)}°</Text>
+                    <Text style={[styles.compassDegrees, { color: palette.textSecondary }]}>{Math.round(userHeading)}°</Text>
                   </LinearGradient>
                 </BlurView>
               </View>
@@ -635,9 +635,9 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                 },
               ]}
             >
-              <BlurView intensity={80} tint="light" style={styles.bottomSheetBlur}>
+              <BlurView intensity={80} tint={isDark ? 'dark' : 'light'} style={[styles.bottomSheetBlur, { backgroundColor: isDark ? 'rgba(30, 30, 30, 0.98)' : 'rgba(255, 255, 255, 0.98)', borderColor: palette.divider }]}>
                 <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.05)']}
+                  colors={isDark ? ['rgba(255, 255, 255, 0.05)', 'transparent'] : ['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.05)']}
                   style={styles.bottomSheetGradient}
                 >
                   {/* Drag Handle */}
@@ -651,27 +651,27 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                     accessibilityActions={[{ name: 'activate' }]}
                     onAccessibilityAction={() => toggleBottomSheet(!bottomSheetExpandedRef.current)}
                   >
-                    <View style={styles.dragHandle} />
+                    <View style={[styles.dragHandle, { backgroundColor: palette.divider }]} />
                   </View>
 
                   {/* Active Horse Display */}
                   <TouchableOpacity
-                    style={styles.horseSelector}
+                    style={[styles.horseSelector, { backgroundColor: palette.card, borderColor: palette.brandPrimary }]}
                     onPress={() => {
                       navigation.navigate('SelectHorse');
                       toggleBottomSheet(false);
                     }}
                     activeOpacity={0.7}
                   >
-                    <FAIcon name="horse" size={18} color="#2C5530" />
+                    <FAIcon name="horse" size={18} color={palette.brandPrimary} />
 
                     <View style={styles.horseSelectorText}>
-                      <Text style={styles.horseSelectorLabel}>Active Horse</Text>
-                      <Text style={styles.horseSelectorValue}>
+                      <Text style={[styles.horseSelectorLabel, { color: palette.textSecondary }]}>Active Horse</Text>
+                      <Text style={[styles.horseSelectorValue, { color: palette.textPrimary }]}>
                         {activeHorseName || 'Tap to select'}
                       </Text>
                     </View>
-                    <Feather name="chevron-right" size={20} color="#6B7280" />
+                    <Feather name="chevron-right" size={20} color={palette.textMuted} />
                   </TouchableOpacity>
 
                   {/* Manual Resume Button */}
@@ -697,7 +697,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                   {/* Action Cards (Dashboard style) */}
                   <View style={styles.sheetWidgetsContainer}>
                     <TouchableOpacity
-                      style={styles.sheetCard}
+                      style={[styles.sheetCard, { backgroundColor: palette.cardElevated || palette.card }]}
                       onPress={async () => {
                         toggleBottomSheet(false);
                         await handleStart();
@@ -708,13 +708,13 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                         <View style={[styles.iconCircle, { backgroundColor: '#10b98120' }]}>
                           <Feather name="play" size={22} color="#10b981" />
                         </View>
-                        <Text style={styles.sheetCardTitle}>Start Ride</Text>
+                        <Text style={[styles.sheetCardTitle, { color: palette.textPrimary }]}>Start Ride</Text>
                       </View>
-                      <Text style={styles.sheetCardSubtitle}>Begin recording your ride immediately</Text>
+                      <Text style={[styles.sheetCardSubtitle, { color: palette.textSecondary }]}>Begin recording your ride immediately</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.sheetCard}
+                      style={[styles.sheetCard, { backgroundColor: palette.cardElevated || palette.card }]}
                       onPress={() => {
                         (navigation as any).navigate('ProfileStack', { screen: 'RideHistory', params: { fromMapping: true } });
                         toggleBottomSheet(false);
@@ -725,9 +725,9 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                         <View style={[styles.iconCircle, { backgroundColor: '#3b82f620' }]}> 
                           <Feather name="clock" size={22} color="#3b82f6" />
                         </View>
-                        <Text style={styles.sheetCardTitle}>Recent</Text>
+                        <Text style={[styles.sheetCardTitle, { color: palette.textPrimary }]}>Recent</Text>
                       </View>
-                      <Text style={styles.sheetCardSubtitle}>View your latest rides and metrics</Text>
+                      <Text style={[styles.sheetCardSubtitle, { color: palette.textSecondary }]}>View your latest rides and metrics</Text>
                     </TouchableOpacity>
                   </View>
                 </LinearGradient>
@@ -746,17 +746,17 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                     }
                   ]}
                 >
-                  <BlurView intensity={80} tint="light" style={styles.confirmBlur}>
+                  <BlurView intensity={80} tint={isDark ? 'dark' : 'light'} style={[styles.confirmBlur, { backgroundColor: isDark ? 'rgba(30, 30, 30, 0.98)' : 'rgba(255, 255, 255, 0.98)', borderColor: palette.divider }]}>
                     <LinearGradient
                       colors={['rgba(255, 255, 255, 0.1)', 'rgba(175, 91, 91, 0.05)']}
                       style={styles.confirmGradientBg}
                     >
                       <View style={styles.confirmHeader}>
                         <Feather name="navigation" size={24} color="#059669" />
-                        <Text style={styles.confirmTitle}>Start Your Ride?</Text>
+                        <Text style={[styles.confirmTitle, { color: palette.textPrimary }]}>Start Your Ride?</Text>
                       </View>
                       {activeHorseName && (
-                        <Text style={styles.confirmSubtitle}>
+                        <Text style={[styles.confirmSubtitle, { color: palette.textSecondary }]}>
                           Recording ride with {activeHorseName}
                         </Text>
                       )}
@@ -868,7 +868,6 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   topIcons: {
     position: 'absolute',
@@ -945,7 +944,6 @@ const styles = StyleSheet.create({
   statsTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F2937',
   },
   recordingBadge: {
     flexDirection: 'row',
@@ -981,7 +979,6 @@ const styles = StyleSheet.create({
   statItemBorder: {
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
   },
   statValue: {
     fontSize: 28,
@@ -1002,7 +999,6 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 10,
-    color: '#6B7280',
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -1039,8 +1035,6 @@ const styles = StyleSheet.create({
   reportButtonBlur: {
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
   },
   reportButtonInner: {
     flexDirection: 'row',
@@ -1050,7 +1044,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   reportButtonText: {
-    color: '#EA580C',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -1173,8 +1166,6 @@ const styles = StyleSheet.create({
   confirmBlur: {
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
   },
   confirmRow: {
     flexDirection: 'row',
@@ -1327,9 +1318,7 @@ const styles = StyleSheet.create({
   },
   compassBlur: {
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
   },
   compassGradient: {
     paddingVertical: 10,
@@ -1346,7 +1335,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   compassDegrees: {
-    color: '#6B7280',
     fontSize: 10,
     fontWeight: '600',
   },
@@ -1364,11 +1352,9 @@ const styles = StyleSheet.create({
   confirmTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
   },
   confirmSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -1388,11 +1374,9 @@ const styles = StyleSheet.create({
   sheetCardTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1f2937',
   },
   sheetCardSubtitle: {
     fontSize: 10,
-    color: '#6b7280',
     marginLeft: 0,
     marginTop: 2,
   },
@@ -1416,8 +1400,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
   },
   bottomSheetGradient: {
     flex: 1,
@@ -1436,16 +1418,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   horseSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#0051f3ff',
     marginBottom: 16,
     gap: 12,
     shadowColor: '#000',
@@ -1459,14 +1438,12 @@ const styles = StyleSheet.create({
   },
   horseSelectorLabel: {
     fontSize: 12,
-    color: '#6B7280',
     marginBottom: 4,
     fontWeight: '600',
   },
   horseSelectorValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F2937',
   },
   resumeRideButton: {
     borderRadius: 12,
@@ -1552,7 +1529,6 @@ const styles = StyleSheet.create({
   // Dashboard-like single card
   sheetCard: {
     flex: 1,
-    backgroundColor: 'white',
     padding: 15,
     borderRadius: 12,
     shadowColor: '#000',

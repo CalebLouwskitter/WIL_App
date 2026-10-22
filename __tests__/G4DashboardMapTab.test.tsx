@@ -216,7 +216,7 @@ describe('G4 Dashboard & Map Tab — Task 1: Riders Online & OnlineUsers ScreenH
       ridersBtn!.props.onPress();
     });
     expect(mockNavigate).toHaveBeenCalledWith('OnlineUsers');
-    renderer.unmount();
+    act(() => { renderer.unmount(); });
   });
 
   it('OnlineUsers screen renders ScreenHeader and its back button calls navigation.goBack()', async () => {
@@ -236,7 +236,7 @@ describe('G4 Dashboard & Map Tab — Task 1: Riders Online & OnlineUsers ScreenH
       backBtn!.props.onPress();
     });
     expect(mockGoBack).toHaveBeenCalledTimes(1);
-    renderer.unmount();
+    act(() => { renderer.unmount(); });
   });
 });
 
@@ -259,7 +259,7 @@ describe('G4 Dashboard — Task 2: 7-day chart follows km/mi', () => {
     const allTexts = renderer.root.findAllByType(Text).map((t) => [t.props.children].flat().join(''));
     expect(allTexts).toContain('Distance ridden per day, last 7 days (km)');
     expect(allTexts).toContain('10.0 km');
-    renderer.unmount();
+    act(() => { renderer.unmount(); });
   });
 
   it('shows mi subtitle and mi total when preferences.units is imperial', async () => {
@@ -277,7 +277,7 @@ describe('G4 Dashboard — Task 2: 7-day chart follows km/mi', () => {
     expect(allTexts).toContain('Distance ridden per day, last 7 days (mi)');
     // 10000 metres in miles: 10000 / 1609.344 = 6.2137 => 6.2 mi
     expect(allTexts).toContain('6.2 mi');
-    renderer.unmount();
+    act(() => { renderer.unmount(); });
   });
 });
 
@@ -297,7 +297,7 @@ describe('G4 Dashboard — Task 3: map preview uses stored map type', () => {
     const mapViews = renderer.root.findAllByProps({ testID: 'map-view' });
     expect(mapViews.length).toBeGreaterThan(0);
     expect(mapViews[0].props.mapType).toBe('satellite');
-    renderer.unmount();
+    act(() => { renderer.unmount(); });
   });
 
   it('renders Dashboard with dark theme tokens in dark mode', async () => {
@@ -318,7 +318,7 @@ describe('G4 Dashboard — Task 3: map preview uses stored map type', () => {
     const textStyle = StyleSheet.flatten(startRideText!.props.style);
     expect(textStyle.color).toBe(Colors.dark.textPrimary);
 
-    renderer.unmount();
+    act(() => { renderer.unmount(); });
   });
 });
 
@@ -354,7 +354,7 @@ describe('G4 ErrorBoundary — Theme support', () => {
     const titleStyle = StyleSheet.flatten(titleText!.props.style);
     expect(titleStyle.color).toBe(Colors.dark.textPrimary);
 
-    renderer.unmount();
+    act(() => { renderer.unmount(); });
   });
 });
 
@@ -381,7 +381,7 @@ describe('G4 SelectHorseScreen — Theme support', () => {
     const titleStyle = StyleSheet.flatten(titleText!.props.style);
     expect(titleStyle.color).toBe(Colors.dark.textPrimary);
 
-    renderer.unmount();
+    act(() => { renderer.unmount(); });
   });
 });
 
@@ -413,6 +413,39 @@ describe('G4 OnlineUsersScreen — Theme support', () => {
     const userStyle = StyleSheet.flatten(userText!.props.style);
     expect(userStyle.color).toBe(Colors.dark.textPrimary);
 
-    renderer.unmount();
+    act(() => { renderer.unmount(); });
+  });
+});
+
+describe('G4 LiveTrackingScreen — Theme support', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('renders Map tab panel with dark theme tokens in dark mode', async () => {
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<LiveTrackingScreen navigation={{ navigate: mockNavigate } as any} />);
+    });
+
+    const texts = renderer.root.findAllByType(Text);
+    const horseLabel = texts.find((t) => [t.props.children].flat().join('') === 'Active Horse');
+    expect(horseLabel).toBeDefined();
+    const horseLabelStyle = StyleSheet.flatten(horseLabel!.props.style);
+    expect(horseLabelStyle.color).toBe(Colors.dark.textSecondary);
+
+    const horseVal = texts.find((t) => [t.props.children].flat().join('') === 'Tap to select');
+    expect(horseVal).toBeDefined();
+    const horseValStyle = StyleSheet.flatten(horseVal!.props.style);
+    expect(horseValStyle.color).toBe(Colors.dark.textPrimary);
+
+    const cardTitle = texts.find((t) => [t.props.children].flat().join('') === 'Start Ride');
+    expect(cardTitle).toBeDefined();
+    const cardTitleStyle = StyleSheet.flatten(cardTitle!.props.style);
+    expect(cardTitleStyle.color).toBe(Colors.dark.textPrimary);
+
+    act(() => { renderer.unmount(); });
   });
 });
