@@ -300,4 +300,41 @@ describe('G3 Analytics flow — five required behaviours', () => {
       expect(mockParentNavigate).toHaveBeenCalledWith('Dashboard');
     });
   });
+
+  describe('The hub (UserStatsScreen) follows km/mi preferences', () => {
+    it('shows KM, km/h, and km when metric is selected', async () => {
+      mockUnits = 'metric';
+      let renderer!: TestRenderer.ReactTestRenderer;
+      await act(async () => {
+        renderer = TestRenderer.create(<UserStatsScreen />);
+      });
+
+      const allTexts = renderer.root
+        .findAllByType(Text)
+        .map((t) => [t.props.children].flat().join(''));
+
+      expect(allTexts).toContain('KM');
+      expect(allTexts).not.toContain('MI');
+      expect(allTexts.some((t) => t.includes('km/h'))).toBe(true);
+      expect(allTexts.some((t) => t.includes('mph'))).toBe(false);
+    });
+
+    it('shows MI, mph, and mi when imperial is selected', async () => {
+      mockUnits = 'imperial';
+      let renderer!: TestRenderer.ReactTestRenderer;
+      await act(async () => {
+        renderer = TestRenderer.create(<UserStatsScreen />);
+      });
+
+      const allTexts = renderer.root
+        .findAllByType(Text)
+        .map((t) => [t.props.children].flat().join(''));
+
+      expect(allTexts).toContain('MI');
+      expect(allTexts).not.toContain('KM');
+      expect(allTexts.some((t) => t.includes('mph'))).toBe(true);
+      expect(allTexts.some((t) => t.includes('km/h'))).toBe(false);
+      expect(allTexts.some((t) => t.includes('mi'))).toBe(true);
+    });
+  });
 });

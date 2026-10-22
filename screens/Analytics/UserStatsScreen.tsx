@@ -9,6 +9,8 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { Colors, resolvePalette } from '../../constants/colors';
+import { usePreferences } from '../../contexts/PreferencesContext';
+import { formatDistance, formatSpeedKmh } from '../../utils/units';
 import { Dimensions } from 'react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -25,6 +27,8 @@ const UserStatsScreen = () => {
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const colorScheme = useColorScheme();
   const theme = resolvePalette(colorScheme);
+  const { preferences } = usePreferences();
+  const unitSystem = preferences?.units || 'metric';
 
   useFocusEffect(
     React.useCallback(() => {
@@ -51,9 +55,7 @@ const UserStatsScreen = () => {
     return `${minutes}m`;
   };
 
-  const formatDistance = (meters: number) => {
-    return (meters / 1000).toFixed(1);
-  };
+
 
   if (loading) {
     return (
@@ -145,9 +147,11 @@ const UserStatsScreen = () => {
                 <Feather name="map" size={20} color="#fff" />
               </View>
               <Text style={[styles.statValue, { color: theme.onSurface }]}>
-                {formatDistance(stats.totalDistance)}
+                {formatDistance(stats.totalDistance, unitSystem, 1).value}
               </Text>
-              <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>KM</Text>
+              <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>
+                {formatDistance(stats.totalDistance, unitSystem, 1).unit.toUpperCase()}
+              </Text>
             </View>
 
             <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
@@ -181,7 +185,7 @@ const UserStatsScreen = () => {
                 <View style={styles.performanceInfo}>
                   <Text style={[styles.performanceLabel, { color: theme.onSurfaceVariant }]}>Avg Speed</Text>
                   <Text style={[styles.performanceValue, { color: theme.onSurface }]}>
-                    {stats.averageSpeed.toFixed(1)} km/h
+                    {formatSpeedKmh(stats.averageSpeed, unitSystem, 1).value} {formatSpeedKmh(stats.averageSpeed, unitSystem, 1).unit}
                   </Text>
                 </View>
               </View>
@@ -191,7 +195,7 @@ const UserStatsScreen = () => {
                 <View style={styles.performanceInfo}>
                   <Text style={[styles.performanceLabel, { color: theme.onSurfaceVariant }]}>Avg Distance</Text>
                   <Text style={[styles.performanceValue, { color: theme.onSurface }]}>
-                    {formatDistance(stats.averageDistance)} km
+                    {formatDistance(stats.averageDistance, unitSystem, 1).value} {formatDistance(stats.averageDistance, unitSystem, 1).unit}
                   </Text>
                 </View>
               </View>
@@ -215,7 +219,7 @@ const UserStatsScreen = () => {
                 <View style={styles.performanceInfo}>
                   <Text style={[styles.performanceLabel, { color: theme.onSurfaceVariant }]}>Longest Ride</Text>
                   <Text style={[styles.performanceValue, { color: theme.onSurface }]}>
-                    {formatDistance(stats.longestRide)} km
+                    {formatDistance(stats.longestRide, unitSystem, 1).value} {formatDistance(stats.longestRide, unitSystem, 1).unit}
                   </Text>
                 </View>
               </View>
