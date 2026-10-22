@@ -10,6 +10,7 @@ import {
   type GlobalTrailUsage
 } from './GlobalAnalyticsService';
 import { firstProblem } from './analyticsResult';
+import { csvRow } from '../utils/csv';
 
 export interface GlobalAnalyticsExport {
   exportDate: string;
@@ -253,6 +254,75 @@ export const exportGlobalAnalyticsJSON = async (): Promise<string> => {
 /**
  * Export global analytics data as CSV file
  */
+export const buildGlobalAnalyticsCsv = (data: GlobalAnalyticsExport): string => {
+  const lines: string[] = [
+    '# Global Trail Analytics Export',
+    `# Export Date: ${data.exportDate}`,
+    '',
+    '# SUMMARY',
+    csvRow(['Metric', 'Value']),
+    csvRow(['Total Users', data.summary.totalUsers]),
+    csvRow(['Total Rides', data.summary.totalRides]),
+    csvRow(['Total Distance (km)', data.summary.totalDistanceKm.toFixed(2)]),
+    csvRow(['Total Duration (hours)', data.summary.totalDurationHours.toFixed(2)]),
+    csvRow(['Total Elevation (m)', data.summary.totalElevationM.toFixed(0)]),
+    csvRow(['Total Trails', data.summary.totalTrails]),
+    csvRow(['Average Ride Distance (km)', data.summary.averageRideDistanceKm.toFixed(2)]),
+    csvRow(['Average Ride Duration (minutes)', data.summary.averageRideDurationMinutes.toFixed(1)]),
+    '',
+    '# USER STATISTICS',
+    csvRow([
+      'Rank',
+      'User ID',
+      'User Name',
+      'Ride Count',
+      'Total Distance (km)',
+      'Total Duration (hours)',
+      'Average Distance (km)',
+    ]),
+    ...data.userStats.map((user, index) => {
+      const userName = user.userName || `Rider ${user.userId.slice(0, 8)}`;
+      return csvRow([
+        index + 1,
+        user.userId,
+        userName,
+        user.rideCount,
+        (user.totalDistance / 1000).toFixed(2),
+        (user.totalDuration / (1000 * 60 * 60)).toFixed(2),
+        (user.averageDistance / 1000).toFixed(2),
+      ]);
+    }),
+    '',
+    '# TRAIL USAGE STATISTICS',
+    csvRow([
+      'Rank',
+      'Trail ID',
+      'Trail Name',
+      'Total Distance (km)',
+      'Ride Count',
+      'Unique Users',
+      'Average Distance (km)',
+    ]),
+    ...data.trailUsage.map((trail, index) =>
+      csvRow([
+        index + 1,
+        trail.trailId,
+        trail.trailName,
+        (trail.totalDistance / 1000).toFixed(2),
+        trail.rideCount,
+        trail.uniqueUsers,
+        (trail.averageDistance / 1000).toFixed(2),
+      ])
+    ),
+    '',
+  ];
+
+  return lines.join('\n');
+};
+
+/**
+ * Export global analytics data as CSV file
+ */
 export const exportGlobalAnalyticsCSV = async (): Promise<string> => {
   try {
     const data = await fetchGlobalAnalyticsForExport();
@@ -260,38 +330,7 @@ export const exportGlobalAnalyticsCSV = async (): Promise<string> => {
     const filename = `global-analytics-${timestamp}.csv`;
     
     const file = new File(Paths.document, filename);
-
-    let csv = '# Global Trail Analytics Export\n';
-    csv += `# Export Date: ${data.exportDate}\n\n`;
-    csv += '# SUMMARY\n';
-    csv += 'Metric,Value\n';
-    csv += `Total Users,${data.summary.totalUsers}\n`;
-    csv += `Total Rides,${data.summary.totalRides}\n`;
-    csv += `Total Distance (km),${data.summary.totalDistanceKm.toFixed(2)}\n`;
-    csv += `Total Duration (hours),${data.summary.totalDurationHours.toFixed(2)}\n`;
-    csv += `Total Elevation (m),${data.summary.totalElevationM.toFixed(0)}\n`;
-    csv += `Total Trails,${data.summary.totalTrails}\n`;
-    csv += `Average Ride Distance (km),${data.summary.averageRideDistanceKm.toFixed(2)}\n`;
-    csv += `Average Ride Duration (minutes),${data.summary.averageRideDurationMinutes.toFixed(1)}\n\n`;
-
-    csv += '# USER STATISTICS\n';
-    csv += 'Rank,User ID,User Name,Ride Count,Total Distance (km),Total Duration (hours),Average Distance (km)\n';
-    data.userStats.forEach((user, index) => {
-      const userName = user.userName || `Rider ${user.userId.slice(0, 8)}`;
-      csv += `${index + 1},${user.userId},"${userName}",${user.rideCount},`;
-      csv += `${(user.totalDistance / 1000).toFixed(2)},`;
-      csv += `${(user.totalDuration / (1000 * 60 * 60)).toFixed(2)},`;
-      csv += `${(user.averageDistance / 1000).toFixed(2)}\n`;
-    });
-
-    csv += '\n# TRAIL USAGE STATISTICS\n';
-    csv += 'Rank,Trail ID,Trail Name,Total Distance (km),Ride Count,Unique Users,Average Distance (km)\n';
-    data.trailUsage.forEach((trail, index) => {
-      csv += `${index + 1},${trail.trailId},"${trail.trailName}",`;
-      csv += `${(trail.totalDistance / 1000).toFixed(2)},${trail.rideCount},${trail.uniqueUsers},`;
-      csv += `${(trail.averageDistance / 1000).toFixed(2)}\n`;
-    });
-
+    const csv = buildGlobalAnalyticsCsv(data);
     file.write(csv);
 
     console.log('[AnalyticsDownload] CSV file created:', file.uri);
