@@ -59,7 +59,7 @@ export async function saveHorse(horse: Omit<Horse, 'id' | 'createdAt' | 'userId'
       await setDoc(ref, dto as any, { merge: false });
     }
   } catch (e) {
-    console.warn('Failed to save horse to Firestore:', e);
+    console.warn('Failed to save horse to Firestore');
   }
   return newHorseObj;
 }
@@ -88,7 +88,7 @@ export async function getHorses() {
           converter: Converters?.horse as any,
         });
       } catch (e) {
-        console.warn('Failed to read legacy horses:', e);
+        console.warn('Failed to read legacy horses');
       }
       for (const h of legacy) {
         if (nestedIds.has(h.id)) continue;
@@ -97,7 +97,7 @@ export async function getHorses() {
           const ref = doc(collection(db, COLLECTIONS.users, uid, 'horses'), h.id).withConverter(Converters?.horse as any);
           await setDoc(ref, h as any, { merge: false });
         } catch (e) {
-          console.warn('Failed to copy legacy horse, will retry on next load:', h.id, e);
+          console.warn('Failed to copy legacy horse, will retry on next load');
         }
       }
 
@@ -127,7 +127,7 @@ export async function getHorses() {
 
       return horses.sort((a, b) => b.createdAt - a.createdAt);
     } catch (e) {
-      console.warn('Failed to load horses from Firestore, falling back to local:', e);
+      console.warn('Failed to load horses from Firestore, falling back to local');
     }
   }
   const key = storageKey(uid);
@@ -170,7 +170,7 @@ export async function deleteHorse(horseId: string) {
     const filtered = list.filter(h => h.id !== horseId);
     await AsyncStorage.setItem(key, JSON.stringify(filtered));
   } catch (e) {
-    console.warn('Failed to delete horse locally:', e);
+    console.warn('Failed to delete horse locally');
   }
 
   // Firestore deletion
@@ -189,7 +189,7 @@ export async function deleteHorse(horseId: string) {
       } catch {}
     }
   } catch (e) {
-    console.warn('Failed to delete horse from Firestore:', e);
+    console.warn('Failed to delete horse from Firestore');
   }
 
   // Clear active horse if this was active
