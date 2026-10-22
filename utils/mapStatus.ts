@@ -51,6 +51,7 @@ export const hasNoSize = (size: MapSize | null): boolean =>
 export function mapStatusReducer(state: MapStatusState, action: MapStatusAction): MapStatusState {
   switch (action.type) {
     case 'layout':
+      if (state.size && state.size.width === action.width && state.size.height === action.height) return state;
       return { ...state, size: { width: action.width, height: action.height } };
     case 'ready':
       // A late onMapReady still counts: drop a not-ready/no-size failure and wait for tiles

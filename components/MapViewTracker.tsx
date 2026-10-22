@@ -15,6 +15,8 @@ import ProfilePictureService from '../services/ProfilePictureService';
 import useOnlineUsers from '../hooks/useOnlineUsers';
 import { auth } from '../services/firebase';
 import { getDeviceId } from '../services/OnlineUserService';
+import { useMapStatus } from '../hooks/useMapStatus';
+import MapStatusFrame from './MapStatusFrame';
 
 const applyOpacity = (hexColor: string, opacity: number) => {
   const hex = hexColor.replace('#', '').trim();
@@ -51,6 +53,8 @@ type Props = {
   };
   followUserDisplayName?: string | undefined;
   followUserUid?: string | undefined;
+  /** Distance of the map loading pill from the top, to clear banners drawn over the map. */
+  statusPillTop?: number;
 };
 
 // Fallback large region so the map renders immediately while we resolve a more precise region.
@@ -61,7 +65,8 @@ const WORLD_REGION: Region = {
   longitudeDelta: 60,
 };
 
-export default function MapViewTracker({ path, mapType = 'standard', nearestTrail, snappedCoordinate, snapRadius, obstacleFilters, followUserDisplayName, followUserUid }: Props) {
+export default function MapViewTracker({ path, mapType = 'standard', nearestTrail, snappedCoordinate, snapRadius, obstacleFilters, followUserDisplayName, followUserUid, statusPillTop }: Props) {
+  const mapStatus = useMapStatus('tracker');
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
   const [region, setRegion] = useState<Region | null>(null);
@@ -205,13 +210,13 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
     (async () => {
       if (!region) return;
       try {
-        console.log('[MapViewTracker] Loading obstacles for region:', region);
+        if (__DEV__) console.log('[MapViewTracker] Loading obstacles for the current region');
         const nearbyObstacles = await getObstaclesInArea(
           { latitude: region.latitude, longitude: region.longitude },
           10, // 10km radius
           { status: 'active' }
         );
-        console.log('[MapViewTracker] Loaded obstacles:', nearbyObstacles.length);
+        if (__DEV__) console.log('[MapViewTracker] Loaded obstacles:', nearbyObstacles.length);
         if (!cancelled) {
           setObstacles(nearbyObstacles);
         }
@@ -307,168 +312,171 @@ export default function MapViewTracker({ path, mapType = 'standard', nearestTrai
   };
 
   return (
-    <MapView
-      style={{ flex: 1 }}
-      provider={PROVIDER_DEFAULT}
+    <MapStatusFrame status={mapStatus} pillTop={statusPillTop}>
+      <MapView
+        {...mapStatus.mapProps}
+        style={{ flex: 1 }}
+        provider={PROVIDER_DEFAULT}
 
-      // Map type from prop (standard, satellite, hybrid, terrain)
-      mapType={mapType}
-      initialRegion={region || WORLD_REGION}
-      region={region || undefined}
-      showsUserLocation={false}
-      showsMyLocationButton
-      showsCompass
-      followsUserLocation
+        // Map type from prop (standard, satellite, hybrid, terrain)
+        mapType={mapType}
+        initialRegion={region || WORLD_REGION}
+        region={region || undefined}
+        showsUserLocation={false}
+        showsMyLocationButton
+        showsCompass
+        followsUserLocation
       
-      // Disabled 3D features to prevent glitches - using standard 2D map
-      showsBuildings={false}
-      showsIndoors={false}
-      showsPointsOfInterests
-      ref={mapRef}
-    >
-      {/* Static preview routes (A-C) */}
-      {primaryPreviewRoutes.map((route) => {
-        const baseColor = route.color || palette.textOnDark;
-        const { strokeWidth, strokeColor } = getTrailStrokeStyle(route.id, baseColor);
-        return (
-          <Polyline
-            key={route.id}
-            coordinates={route.routeWaypoints.map((p) => ({ latitude: p.latitude, longitude: p.longitude }))}
-            strokeWidth={strokeWidth}
-            strokeColor={strokeColor}
+        // Disabled 3D features to prevent glitches - using standard 2D map
+        showsBuildings={false}
+        showsIndoors={false}
+        showsPointsOfInterests
+        ref={mapRef}
+      >
+        {/* Static preview routes (A-C) */}
+        {primaryPreviewRoutes.map((route) => {
+          const baseColor = route.color || palette.textOnDark;
+          const { strokeWidth, strokeColor } = getTrailStrokeStyle(route.id, baseColor);
+          return (
+            <Polyline
+              key={route.id}
+              coordinates={route.routeWaypoints.map((p) => ({ latitude: p.latitude, longitude: p.longitude }))}
+              strokeWidth={strokeWidth}
+              strokeColor={strokeColor}
+            />
+          );
+        })}
+        {path && path.length > 0 && (
+          <>
+            <Polyline
+              coordinates={path.map((p) => ({ latitude: p.latitude, longitude: p.longitude }))}
+              strokeWidth={4}
+              strokeColor={palette.brandPrimary}
+            />
+            {start && <Marker coordinate={{ latitude: start.latitude, longitude: start.longitude }} title="Start" />}
+            {end && <Marker coordinate={{ latitude: end.latitude, longitude: end.longitude }} title="Current" />}
+          </>
+        )}
+        {snappedCoordinate && !!snapRadius && (
+          <Circle
+            center={snappedCoordinate}
+            radius={snapRadius}
+            strokeColor={applyOpacity(palette.brandPrimary, 0.9)}
+            fillColor={applyOpacity(palette.brandPrimary, 0.15)}
+            strokeWidth={2}
           />
-        );
-      })}
-      {path && path.length > 0 && (
-        <>
-          <Polyline
-            coordinates={path.map((p) => ({ latitude: p.latitude, longitude: p.longitude }))}
-            strokeWidth={4}
-            strokeColor={palette.brandPrimary}
-          />
-          {start && <Marker coordinate={{ latitude: start.latitude, longitude: start.longitude }} title="Start" />}
-          {end && <Marker coordinate={{ latitude: end.latitude, longitude: end.longitude }} title="Current" />}
-        </>
-      )}
-      {snappedCoordinate && !!snapRadius && (
-        <Circle
-          center={snappedCoordinate}
-          radius={snapRadius}
-          strokeColor={applyOpacity(palette.brandPrimary, 0.9)}
-          fillColor={applyOpacity(palette.brandPrimary, 0.15)}
-          strokeWidth={2}
-        />
-      )}
-      {/* Current user avatar marker */}
-      {(region || end) && (
-        <Marker
-          coordinate={{ latitude: (end?.latitude ?? region!.latitude), longitude: (end?.longitude ?? region!.longitude) }}
-          anchor={{ x: 0.5, y: 0.5 }}
-        >
-          <View>
-            {avatarUri ? (
-              <View style={styles.avatarShadow}> 
-                <Image source={{ uri: avatarUri }} style={styles.avatar} />
-              </View>
-            ) : (
-              <View style={[styles.avatar, { backgroundColor: palette.brandPrimary }]} />
-            )}
-            <View style={[styles.userBadge, { backgroundColor: palette.brandPrimary }]}> 
-              <Feather name="user" size={10} color="#FFFFFF" />
-            </View>
-          </View>
-        </Marker>
-      )}
-      {/* Other online users with their avatars */}
-      {users
-        .filter(u => {
-          const currentUid = auth?.currentUser?.uid;
-          if (!currentUid) return true;
-          // hide stale entries older than 5 minutes
-          if (Date.now() - (u.lastSeen || 0) > 5 * 60 * 1000) return false;
-          // always hide entries from my uid to avoid duplicates/confusion
-          return u.uid !== currentUid;
-        })
-        .map(u => (
+        )}
+        {/* Current user avatar marker */}
+        {(region || end) && (
           <Marker
-            key={`${u.uid}_${u.deviceId || 'unknown'}`}
-            coordinate={u.location}
-            title={u.displayName || 'Rider'}
-            description={u.isRiding ? 'Riding' : undefined}
+            coordinate={{ latitude: (end?.latitude ?? region!.latitude), longitude: (end?.longitude ?? region!.longitude) }}
             anchor={{ x: 0.5, y: 0.5 }}
           >
             <View>
-              {u.photoURL ? (
-                <View style={styles.avatarShadow}>
-                  <Image source={{ uri: u.photoURL }} style={styles.avatar} />
+              {avatarUri ? (
+                <View style={styles.avatarShadow}> 
+                  <Image source={{ uri: avatarUri }} style={styles.avatar} />
                 </View>
               ) : (
                 <View style={[styles.avatar, { backgroundColor: palette.brandPrimary }]} />
               )}
-              <View style={[styles.userBadge, { backgroundColor: u.isRiding ? '#10b981' : palette.brandPrimary }]}> 
+              <View style={[styles.userBadge, { backgroundColor: palette.brandPrimary }]}> 
                 <Feather name="user" size={10} color="#FFFFFF" />
               </View>
             </View>
           </Marker>
-        ))}
-      {observations.map((obs) => {
-        const sightingLocation = obs.sighting?.location;
-        const reportLocation = obs.report?.location;
-        return (
-          <React.Fragment key={obs.id}>
-            {sightingLocation && (
-              <Marker
-                coordinate={{ latitude: sightingLocation.latitude, longitude: sightingLocation.longitude }}
-                title={obs.sighting?.wildlifeType || 'Wildlife Sighting'}
-                description={obs.sighting?.notes}
-                pinColor="#10B981"
-              />
-            )}
-            {reportLocation && (
-              <Marker
-                coordinate={{ latitude: reportLocation.latitude, longitude: reportLocation.longitude }}
-                title={obs.report?.issueType || 'Trail Report'}
-                description={obs.report?.notes}
-                pinColor="#F97316"
-              />
-            )}
-          </React.Fragment>
-        );
-      })}
-      {nearestTrail && (
-        <Marker
-          coordinate={nearestTrail.coordinate}
-          anchor={{ x: 0.5, y: 1 }}
-        >
-          <View
-            style={{
-              backgroundColor: palette.cardElevated || '#1F2937',
-              borderRadius: 18,
-              paddingVertical: 6,
-              paddingHorizontal: 10,
-              borderWidth: 2,
-              borderColor: '#FFFFFF',
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-            }}
+        )}
+        {/* Other online users with their avatars */}
+        {users
+          .filter(u => {
+            const currentUid = auth?.currentUser?.uid;
+            if (!currentUid) return true;
+            // hide stale entries older than 5 minutes
+            if (Date.now() - (u.lastSeen || 0) > 5 * 60 * 1000) return false;
+            // always hide entries from my uid to avoid duplicates/confusion
+            return u.uid !== currentUid;
+          })
+          .map(u => (
+            <Marker
+              key={`${u.uid}_${u.deviceId || 'unknown'}`}
+              coordinate={u.location}
+              title={u.displayName || 'Rider'}
+              description={u.isRiding ? 'Riding' : undefined}
+              anchor={{ x: 0.5, y: 0.5 }}
+            >
+              <View>
+                {u.photoURL ? (
+                  <View style={styles.avatarShadow}>
+                    <Image source={{ uri: u.photoURL }} style={styles.avatar} />
+                  </View>
+                ) : (
+                  <View style={[styles.avatar, { backgroundColor: palette.brandPrimary }]} />
+                )}
+                <View style={[styles.userBadge, { backgroundColor: u.isRiding ? '#10b981' : palette.brandPrimary }]}> 
+                  <Feather name="user" size={10} color="#FFFFFF" />
+                </View>
+              </View>
+            </Marker>
+          ))}
+        {observations.map((obs) => {
+          const sightingLocation = obs.sighting?.location;
+          const reportLocation = obs.report?.location;
+          return (
+            <React.Fragment key={obs.id}>
+              {sightingLocation && (
+                <Marker
+                  coordinate={{ latitude: sightingLocation.latitude, longitude: sightingLocation.longitude }}
+                  title={obs.sighting?.wildlifeType || 'Wildlife Sighting'}
+                  description={obs.sighting?.notes}
+                  pinColor="#10B981"
+                />
+              )}
+              {reportLocation && (
+                <Marker
+                  coordinate={{ latitude: reportLocation.latitude, longitude: reportLocation.longitude }}
+                  title={obs.report?.issueType || 'Trail Report'}
+                  description={obs.report?.notes}
+                  pinColor="#F97316"
+                />
+              )}
+            </React.Fragment>
+          );
+        })}
+        {nearestTrail && (
+          <Marker
+            coordinate={nearestTrail.coordinate}
+            anchor={{ x: 0.5, y: 1 }}
           >
-            <Feather name="flag" size={16} color={palette.brandPrimary} />
-            <View>
-              <Text style={{ color: palette.text, fontWeight: '700', fontSize: 12 }}>{nearestTrail.name}</Text>
-              <Text style={{ color: palette.placeholder || '#D1D5DB', fontSize: 11 }}>{`${nearestTrail.distance.toFixed(0)} m away`}</Text>
+            <View
+              style={{
+                backgroundColor: palette.cardElevated || '#1F2937',
+                borderRadius: 18,
+                paddingVertical: 6,
+                paddingHorizontal: 10,
+                borderWidth: 2,
+                borderColor: '#FFFFFF',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+              }}
+            >
+              <Feather name="flag" size={16} color={palette.brandPrimary} />
+              <View>
+                <Text style={{ color: palette.text, fontWeight: '700', fontSize: 12 }}>{nearestTrail.name}</Text>
+                <Text style={{ color: palette.placeholder || '#D1D5DB', fontSize: 11 }}>{`${nearestTrail.distance.toFixed(0)} m away`}</Text>
+              </View>
             </View>
-          </View>
-        </Marker>
-      )}
-      {/* Render obstacle markers */}
-      <ObstacleView 
-        obstacles={filteredObstacles} 
-        onVerify={handleVerifyObstacle}
-        onObstaclePress={handleObstaclePress}
-      />
-    </MapView>
+          </Marker>
+        )}
+        {/* Render obstacle markers */}
+        <ObstacleView 
+          obstacles={filteredObstacles} 
+          onVerify={handleVerifyObstacle}
+          onObstaclePress={handleObstaclePress}
+        />
+      </MapView>
+    </MapStatusFrame>
   );
 }
 

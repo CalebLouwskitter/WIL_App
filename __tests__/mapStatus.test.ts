@@ -36,6 +36,11 @@ describe('mapStatusReducer', () => {
     expect(run(zero, { type: 'ready' }, { type: 'timeout' }).failure).toBe('no-size');
   });
 
+  it('repeating the same layout size is a no-op, so logs stay quiet', () => {
+    const laidOut = run(sized);
+    expect(mapStatusReducer(laidOut, sized)).toBe(laidOut);
+  });
+
   it('a timeout after tiles loaded changes nothing', () => {
     const loaded = run(sized, { type: 'ready' }, { type: 'loaded' });
     expect(mapStatusReducer(loaded, { type: 'timeout' })).toBe(loaded);
