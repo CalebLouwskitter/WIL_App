@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
-import { Colors } from '@/constants/colors';
+import { View, Text, StyleSheet } from 'react-native';
+import { useAppTheme } from '@/hooks/useAppTheme';
 
 export default function RideStatsCard({
   distance,
@@ -17,8 +17,7 @@ export default function RideStatsCard({
   speedKmh?: number;
   isMetric?: boolean;
 }) {
-  const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { palette } = useAppTheme();
   const styles = useMemo(() => createStyles(palette), [palette]);
   const distanceValue = isMetric ? distance / 1000 : distance / 1609.34;
   const distanceUnit = isMetric ? 'km' : 'mi';
@@ -29,24 +28,24 @@ export default function RideStatsCard({
 
   return (
     <View style={styles.card}>
-      {title ? <Text style={[styles.title, { color: palette.onSurface }]}>{title}</Text> : null}
+      {title ? <Text style={[styles.title, { color: palette.textPrimary }]}>{title}</Text> : null}
       <View style={styles.row}>
         {hasSpeed && (
           <View style={styles.metric}>
-            <Text style={[styles.value, { color: palette.onSurface }]}>{speedValue.toFixed(1)}</Text>
+            <Text style={[styles.value, { color: palette.textPrimary }]}>{speedValue.toFixed(1)}</Text>
             <Text style={styles.label}>{speedUnit}</Text>
           </View>
         )}
         <View style={styles.metric}>
-          <Text style={[styles.value, { color: palette.onSurface }]}>{distanceValue.toFixed(2)}</Text>
+          <Text style={[styles.value, { color: palette.textPrimary }]}>{distanceValue.toFixed(2)}</Text>
           <Text style={styles.label}>{distanceUnit}</Text>
         </View>
         <View style={styles.metric}>
-          <Text style={[styles.value, { color: palette.onSurface }]}>{elevation.toFixed(0)}</Text>
+          <Text style={[styles.value, { color: palette.textPrimary }]}>{elevation.toFixed(0)}</Text>
           <Text style={styles.label}>m gain</Text>
         </View>
         <View style={styles.metric}>
-          <Text style={[styles.value, { color: palette.onSurface }]}>{mins.toFixed(1)}</Text>
+          <Text style={[styles.value, { color: palette.textPrimary }]}>{mins.toFixed(1)}</Text>
           <Text style={styles.label}>min</Text>
         </View>
       </View>
@@ -54,12 +53,12 @@ export default function RideStatsCard({
   );
 }
 
-const createStyles = (palette: typeof Colors.light) =>
+const createStyles = (palette: any) =>
   StyleSheet.create({
     card: { backgroundColor: palette.cardElevated, borderRadius: 12, padding: 12, marginVertical: 8 },
     title: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
     row: { flexDirection: 'row', justifyContent: 'space-between' },
     metric: { alignItems: 'center', flex: 1 },
     value: { fontSize: 18, fontWeight: '700' },
-    label: { fontSize: 12, color: palette.onSurfaceVariant },
+    label: { fontSize: 12, color: palette.textSecondary },
   });

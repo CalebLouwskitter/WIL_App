@@ -6,7 +6,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { getRides } from '../../services/RideStorage';
 import { shareRideAsGpx } from '../../services/GpxExportService';
 import type { RideData } from '../../hooks/useRideTracker';
-import { resolvePalette } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { primaryPreviewRoutes } from '../../constants/trails';
 import { usePreferences } from '../../contexts/PreferencesContext';
@@ -24,8 +24,7 @@ const RideViewMoreScreen = () => {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const mapRef = useRef<MapView | null>(null);
-  const colorScheme = useColorScheme();
-  const theme = resolvePalette(colorScheme);
+  const { palette, isDark } = useAppTheme();
   const { preferences } = usePreferences();
 
   useEffect(() => {
@@ -48,23 +47,23 @@ const RideViewMoreScreen = () => {
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
-        <View style={[styles.header, { backgroundColor: theme.surface }]}>
+      <View style={[styles.container, { backgroundColor: palette.background }]}>
+        <View style={[styles.header, { backgroundColor: palette.card }]}>
           <TouchableOpacity 
             onPress={() => nav.goBack()} 
             style={styles.headerBackBtn}
             activeOpacity={0.7}
           >
-            <Feather name="arrow-left" size={24} color={theme.onSurface} />
+            <Feather name="arrow-left" size={24} color={palette.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
-            <Text style={[styles.headerTitle, { color: theme.onSurface }]}>Ride Details</Text>
+            <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>Ride Details</Text>
           </View>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.brandPrimary} />
-          <Text style={[styles.loadingText, { color: theme.onSurfaceVariant }]}>
+          <ActivityIndicator size="large" color={palette.brandPrimary} />
+          <Text style={[styles.loadingText, { color: palette.textSecondary }]}>
             Loading ride...
           </Text>
         </View>
@@ -74,14 +73,16 @@ const RideViewMoreScreen = () => {
 
   if (!ride) {
     return (
-      <View style={[styles.center, { backgroundColor: theme.backgroundLight }]}>
-        <Feather name="map-pin" size={48} color={theme.onSurfaceVariant} />
-        <Text style={[styles.notFoundText, { color: theme.onSurface }]}>Ride not found</Text>
+      <View style={[styles.center, { backgroundColor: palette.background }]}>
+        <Feather name="map-pin" size={48} color={palette.textSecondary} />
+        <Text style={[styles.notFoundText, { color: palette.textPrimary }]}>Ride not found</Text>
         <TouchableOpacity 
           onPress={() => nav.goBack()}
-          style={[styles.backButton, { backgroundColor: theme.brandPrimary }]}
+          style={[styles.backButton, { backgroundColor: palette.brandPrimary }]}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
         >
-          <Text style={styles.backButtonText}>Go Back</Text>
+          <Text style={[styles.backButtonText, { color: palette.onPrimary }]}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -140,19 +141,21 @@ const RideViewMoreScreen = () => {
     .filter((line): line is NonNullable<typeof line> => line !== null);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.surface }]}>
+      <View style={[styles.header, { backgroundColor: palette.card }]}>
         <TouchableOpacity 
           onPress={() => nav.goBack()} 
           style={styles.headerBackBtn}
           activeOpacity={0.7}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
         >
-          <Feather name="arrow-left" size={24} color={theme.onSurface} />
+          <Feather name="arrow-left" size={24} color={palette.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={[styles.headerTitle, { color: theme.onSurface }]}>Ride Details</Text>
-          <Text style={[styles.headerSubtitle, { color: theme.onSurfaceVariant }]}>
+          <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>Ride Details</Text>
+          <Text style={[styles.headerSubtitle, { color: palette.textSecondary }]}>
             {formatDate(ride.startTime)}
           </Text>
         </View>
@@ -165,9 +168,9 @@ const RideViewMoreScreen = () => {
           accessibilityRole="button"
         >
           {exporting ? (
-            <ActivityIndicator size="small" color={theme.onSurface} />
+            <ActivityIndicator size="small" color={palette.textPrimary} />
           ) : (
-            <Feather name="share" size={22} color={theme.onSurface} />
+            <Feather name="share" size={22} color={palette.textPrimary} />
           )}
         </TouchableOpacity>
       </View>
@@ -177,25 +180,25 @@ const RideViewMoreScreen = () => {
         contentContainerStyle={styles.scrollContent}
       >
         {/* Ride Info Card */}
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}>
+        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.divider }]}>
           <View style={styles.rideHeader}>
-            <View style={[styles.rideIconCircle, { backgroundColor: theme.brandPrimary + '15' }]}>
-              <Feather name="activity" size={28} color={theme.brandPrimary} />
+            <View style={[styles.rideIconCircle, { backgroundColor: palette.brandPrimary + '15' }]}>
+              <Feather name="activity" size={28} color={palette.brandPrimary} />
             </View>
             <View style={styles.rideInfo}>
-              <Text style={[styles.rideName, { color: theme.onSurface }]}>
+              <Text style={[styles.rideName, { color: palette.textPrimary }]}>
                 {ride.horseName || 'Unnamed Ride'}
               </Text>
               <View style={styles.timeRow}>
-                <Feather name="clock" size={14} color={theme.onSurfaceVariant} />
-                <Text style={[styles.timeText, { color: theme.onSurfaceVariant }]}>
+                <Feather name="clock" size={14} color={palette.textSecondary} />
+                <Text style={[styles.timeText, { color: palette.textSecondary }]}>
                   Started at {formatTime(ride.startTime)}
                 </Text>
               </View>
               {(ride as any).endTime && (
                 <View style={styles.timeRow}>
-                  <Feather name="flag" size={14} color={theme.onSurfaceVariant} />
-                  <Text style={[styles.timeText, { color: theme.onSurfaceVariant }]}>
+                  <Feather name="flag" size={14} color={palette.textSecondary} />
+                  <Text style={[styles.timeText, { color: palette.textSecondary }]}>
                     Ended at {formatTime((ride as any).endTime)}
                   </Text>
                 </View>
@@ -206,10 +209,10 @@ const RideViewMoreScreen = () => {
 
         {/* Map Card */}
         {coords.length > 1 && (
-          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}>
+          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.divider }]}>
             <View style={styles.sectionHeader}>
-              <Feather name="map" size={20} color={theme.brandPrimary} />
-              <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>Route Map</Text>
+              <Feather name="map" size={20} color={palette.brandPrimary} />
+              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Route Map</Text>
             </View>
             <View style={styles.mapContainer}>
               <MapView
@@ -234,17 +237,17 @@ const RideViewMoreScreen = () => {
                 <Polyline 
                   coordinates={coords} 
                   strokeWidth={4} 
-                  strokeColor={theme.brandPrimary}
+                  strokeColor={palette.brandPrimary}
                   lineCap="round"
                   lineJoin="round"
                 />
                 <Marker coordinate={coords[0]} anchor={{ x: 0.5, y: 0.5 }}>
-                  <View style={[styles.markerContainer, { backgroundColor: theme.success }]}>
+                  <View style={[styles.markerContainer, { backgroundColor: palette.success }]}>
                     <Feather name="play" size={14} color="#FFFFFF" />
                   </View>
                 </Marker>
                 <Marker coordinate={coords[coords.length - 1]} anchor={{ x: 0.5, y: 0.5 }}>
-                  <View style={[styles.markerContainer, { backgroundColor: theme.danger }]}>
+                  <View style={[styles.markerContainer, { backgroundColor: palette.danger }]}>
                     <Feather name="flag" size={14} color="#FFFFFF" />
                   </View>
                 </Marker>
@@ -254,97 +257,97 @@ const RideViewMoreScreen = () => {
         )}
 
         {/* Primary Stats */}
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}>
+        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.divider }]}>
           <View style={styles.sectionHeader}>
-            <Feather name="bar-chart-2" size={20} color={theme.brandPrimary} />
-            <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>Statistics</Text>
+            <Feather name="bar-chart-2" size={20} color={palette.brandPrimary} />
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Statistics</Text>
           </View>
           <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { backgroundColor: theme.surfaceVariant }]}>
-              <View style={[styles.statIconCircle, { backgroundColor: theme.brandPrimary + '20' }]}>
-                <Feather name="navigation" size={22} color={theme.brandPrimary} />
+            <View style={[styles.statCard, { backgroundColor: palette.cardElevated }]}>
+              <View style={[styles.statIconCircle, { backgroundColor: palette.brandPrimary + '20' }]}>
+                <Feather name="navigation" size={22} color={palette.brandPrimary} />
               </View>
-              <Text style={[styles.statValue, { color: theme.onSurface }]}>{formattedDistance.value}</Text>
-              <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>Distance ({formattedDistance.unit})</Text>
+              <Text style={[styles.statValue, { color: palette.textPrimary }]}>{formattedDistance.value}</Text>
+              <Text style={[styles.statLabel, { color: palette.textSecondary }]}>Distance ({formattedDistance.unit})</Text>
             </View>
 
-            <View style={[styles.statCard, { backgroundColor: theme.surfaceVariant }]}>
-              <View style={[styles.statIconCircle, { backgroundColor: theme.brandSecondary + '20' }]}>
-                <Feather name="clock" size={22} color={theme.brandSecondary} />
+            <View style={[styles.statCard, { backgroundColor: palette.cardElevated }]}>
+              <View style={[styles.statIconCircle, { backgroundColor: palette.caution + '20' }]}>
+                <Feather name="clock" size={22} color={palette.caution} />
               </View>
-              <Text style={[styles.statValue, { color: theme.onSurface }]}>{durationText}</Text>
-              <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>Duration</Text>
+              <Text style={[styles.statValue, { color: palette.textPrimary }]}>{durationText}</Text>
+              <Text style={[styles.statLabel, { color: palette.textSecondary }]}>Duration</Text>
             </View>
 
-            <View style={[styles.statCard, { backgroundColor: theme.surfaceVariant }]}>
-              <View style={[styles.statIconCircle, { backgroundColor: theme.success + '20' }]}>
-                <Feather name="trending-up" size={22} color={theme.success} />
+            <View style={[styles.statCard, { backgroundColor: palette.cardElevated }]}>
+              <View style={[styles.statIconCircle, { backgroundColor: palette.success + '20' }]}>
+                <Feather name="trending-up" size={22} color={palette.success} />
               </View>
-              <Text style={[styles.statValue, { color: theme.onSurface }]}>{ride.elevationGain.toFixed(0)}</Text>
-              <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>Elevation (m)</Text>
+              <Text style={[styles.statValue, { color: palette.textPrimary }]}>{ride.elevationGain.toFixed(0)}</Text>
+              <Text style={[styles.statLabel, { color: palette.textSecondary }]}>Elevation (m)</Text>
             </View>
 
-            <View style={[styles.statCard, { backgroundColor: theme.surfaceVariant }]}>
-              <View style={[styles.statIconCircle, { backgroundColor: theme.caution + '20' }]}>
-                <Feather name="zap" size={22} color={theme.caution} />
+            <View style={[styles.statCard, { backgroundColor: palette.cardElevated }]}>
+              <View style={[styles.statIconCircle, { backgroundColor: palette.caution + '20' }]}>
+                <Feather name="zap" size={22} color={palette.caution} />
               </View>
-              <Text style={[styles.statValue, { color: theme.onSurface }]}>{formattedAvgSpeed.value}</Text>
-              <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>Avg Speed ({formattedAvgSpeed.unit})</Text>
+              <Text style={[styles.statValue, { color: palette.textPrimary }]}>{formattedAvgSpeed.value}</Text>
+              <Text style={[styles.statLabel, { color: palette.textSecondary }]}>Avg Speed ({formattedAvgSpeed.unit})</Text>
             </View>
           </View>
         </View>
 
         {/* Additional Details */}
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}>
+        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.divider }]}>
           <View style={styles.sectionHeader}>
-            <Feather name="info" size={20} color={theme.brandPrimary} />
-            <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>Additional Details</Text>
+            <Feather name="info" size={20} color={palette.brandPrimary} />
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Additional Details</Text>
           </View>
           <View style={styles.detailsList}>
             <View style={styles.detailRow}>
               <View style={styles.detailLeft}>
-                <Feather name="trending-up" size={18} color={theme.onSurfaceVariant} />
-                <Text style={[styles.detailLabel, { color: theme.onSurfaceVariant }]}>Max Speed</Text>
+                <Feather name="trending-up" size={18} color={palette.textSecondary} />
+                <Text style={[styles.detailLabel, { color: palette.textSecondary }]}>Max Speed</Text>
               </View>
-              <Text style={[styles.detailValue, { color: theme.onSurface }]}>{formattedMaxSpeed ? `${formattedMaxSpeed.value} ${formattedMaxSpeed.unit}` : 'N/A'}</Text>
+              <Text style={[styles.detailValue, { color: palette.textPrimary }]}>{formattedMaxSpeed ? `${formattedMaxSpeed.value} ${formattedMaxSpeed.unit}` : 'N/A'}</Text>
             </View>
-            <View style={[styles.detailDivider, { backgroundColor: theme.borderMuted }]} />
+            <View style={[styles.detailDivider, { backgroundColor: palette.divider }]} />
             
             <View style={styles.detailRow}>
               <View style={styles.detailLeft}>
-                <Feather name="activity" size={18} color={theme.onSurfaceVariant} />
-                <Text style={[styles.detailLabel, { color: theme.onSurfaceVariant }]}>Est. Calories</Text>
+                <Feather name="activity" size={18} color={palette.textSecondary} />
+                <Text style={[styles.detailLabel, { color: palette.textSecondary }]}>Est. Calories</Text>
               </View>
-              <Text style={[styles.detailValue, { color: theme.onSurface }]}>{calories} kcal</Text>
+              <Text style={[styles.detailValue, { color: palette.textPrimary }]}>{calories} kcal</Text>
             </View>
-            <View style={[styles.detailDivider, { backgroundColor: theme.borderMuted }]} />
+            <View style={[styles.detailDivider, { backgroundColor: palette.divider }]} />
             
             <View style={styles.detailRow}>
               <View style={styles.detailLeft}>
-                <Feather name="map-pin" size={18} color={theme.onSurfaceVariant} />
-                <Text style={[styles.detailLabel, { color: theme.onSurfaceVariant }]}>GPS Points</Text>
+                <Feather name="map-pin" size={18} color={palette.textSecondary} />
+                <Text style={[styles.detailLabel, { color: palette.textSecondary }]}>GPS Points</Text>
               </View>
-              <Text style={[styles.detailValue, { color: theme.onSurface }]}>{ride.path?.length || 0}</Text>
+              <Text style={[styles.detailValue, { color: palette.textPrimary }]}>{ride.path?.length || 0}</Text>
             </View>
           </View>
         </View>
 
         {/* Routes/Trails */}
         {routeLines.length > 0 && (
-          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}>
+          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.divider }]}>
             <View style={styles.sectionHeader}>
-              <Feather name="map-pin" size={20} color={theme.brandPrimary} />
-              <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>Routes Covered</Text>
+              <Feather name="map-pin" size={20} color={palette.brandPrimary} />
+              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Routes Covered</Text>
             </View>
             <View style={styles.routesList}>
               {routeLines.map((line, idx) => (
                 <View key={idx} style={styles.routeItem}>
-                  <View style={[styles.routeBadge, { backgroundColor: theme.brandPrimary + '15' }]}>
-                    <Feather name="trending-up" size={16} color={theme.brandPrimary} />
+                  <View style={[styles.routeBadge, { backgroundColor: palette.brandPrimary + '15' }]}>
+                    <Feather name="trending-up" size={16} color={palette.brandPrimary} />
                   </View>
                   <View style={styles.routeInfo}>
-                    <Text style={[styles.routeName, { color: theme.onSurface }]}>{line.name}</Text>
-                    <Text style={[styles.routeDistance, { color: theme.onSurfaceVariant }]}>
+                    <Text style={[styles.routeName, { color: palette.textPrimary }]}>{line.name}</Text>
+                    <Text style={[styles.routeDistance, { color: palette.textSecondary }]}>
                       {line.distanceFormatted.value} {line.distanceFormatted.unit} covered
                     </Text>
                   </View>
