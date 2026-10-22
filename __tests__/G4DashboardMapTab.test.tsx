@@ -1,6 +1,8 @@
 import React from 'react';
-import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
+import * as ReactNative from 'react-native';
+import { Text, TouchableOpacity, View, StyleSheet, SafeAreaView } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
+import { Colors } from '../constants/colors';
 
 // Navigation mock
 const mockNavigate = jest.fn();
@@ -293,6 +295,27 @@ describe('G4 Dashboard — Task 3: map preview uses stored map type', () => {
     const mapViews = renderer.root.findAllByProps({ testID: 'map-view' });
     expect(mapViews.length).toBeGreaterThan(0);
     expect(mapViews[0].props.mapType).toBe('satellite');
+    renderer.unmount();
+  });
+
+  it('renders Dashboard with dark theme tokens in dark mode', async () => {
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<DashboardScreen />);
+    });
+
+    const safeAreas = renderer.root.findAllByType(SafeAreaView);
+    const containerStyle = StyleSheet.flatten(safeAreas[0].props.style);
+    expect(containerStyle.backgroundColor).toBe(Colors.dark.background);
+
+    const texts = renderer.root.findAllByType(Text);
+    const startRideText = texts.find((t) => [t.props.children].flat().join('') === 'Start Ride');
+    expect(startRideText).toBeDefined();
+    const textStyle = StyleSheet.flatten(startRideText!.props.style);
+    expect(textStyle.color).toBe(Colors.dark.textPrimary);
+
     renderer.unmount();
   });
 });
