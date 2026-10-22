@@ -103,6 +103,9 @@ export interface UserProfile {
 	totalDistanceM: number; // meters
 	totalDurationMs: number;
 	points: number;         // gamified points (rides*10 + km, etc.)
+	// Id of the ride that last changed the totals. The rules accept a totals
+	// change only together with the creation of this ride (firestore.rules).
+	lastRideId?: string;
 }
 
 // ---------- Ride / Tracking ---------- //
@@ -404,6 +407,7 @@ export const userProfileConverter: FirestoreDataConverter<UserProfile> = {
 			totalDistanceM: data.totalDistanceM || 0,
 			totalDurationMs: data.totalDurationMs || 0,
 			points: data.points || 0,
+			lastRideId: data.lastRideId,
 		};
 	},
 };
@@ -662,6 +666,8 @@ export async function saveRideAndUpdateAggregates(ride: RideDTO) {
 	const db = getFirestore(app);
 	const rideRef = doc(collection(db, COLLECTIONS.rides), ride.id).withConverter(rideConverter);
 	const profRef = doc(collection(db, COLLECTIONS.users), ride.userId).withConverter(userProfileConverter);
+	// Untyped ref so an existing profile gets only the aggregate fields written.
+	const profAggRef = doc(collection(db, COLLECTIONS.users), ride.userId);
 	const achievementsToAward: { id: string; meta?: Record<string, any> }[] = [];
 	// The ride and the profile totals are written in one transaction, and a ride
 	// that already exists is skipped, so the offline sync queue can safely retry.
@@ -669,22 +675,31 @@ export async function saveRideAndUpdateAggregates(ride: RideDTO) {
 		const rideSnap = await tx.get(rideRef);
 		if (rideSnap.exists()) return true;
 		const profSnap = await tx.get(profRef);
-		let profile = profSnap.exists() ? profSnap.data() : newUserProfile({ uid: ride.userId });
+		const profile = profSnap.exists() ? profSnap.data() : newUserProfile({ uid: ride.userId });
 		const prevTotalRides = profile.totalRides;
 		const prevTotalDistanceM = profile.totalDistanceM;
-		profile.totalRides += 1;
-		profile.totalDistanceM += ride.totalDistance;
-		profile.totalDurationMs += ride.duration;
-		profile.points = profile.totalRides * 10 + Math.round(profile.totalDistanceM / 1000);
-		profile.updatedAt = Date.now();
+		const totalRides = prevTotalRides + 1;
+		const totalDistanceM = prevTotalDistanceM + ride.totalDistance;
+		const aggregates = {
+			totalRides,
+			totalDistanceM,
+			totalDurationMs: profile.totalDurationMs + ride.duration,
+			points: totalRides * 10 + Math.round(totalDistanceM / 1000),
+			lastRideId: ride.id,
+			updatedAt: Date.now(),
+		};
 		tx.set(rideRef, ride, { merge: false });
-		tx.set(profRef, profile, { merge: true });
-		if (prevTotalRides === 0 && profile.totalRides >= 1) {
+		if (profSnap.exists()) {
+			tx.update(profAggRef, aggregates);
+		} else {
+			tx.set(profRef, { ...profile, ...aggregates });
+		}
+		if (prevTotalRides === 0 && totalRides >= 1) {
 			achievementsToAward.push({ id: 'first-ride', meta: { rideId: ride.id, startTime: ride.startTime } });
 		}
 		const hundredKm = 100_000;
-		if (prevTotalDistanceM < hundredKm && profile.totalDistanceM >= hundredKm) {
-			achievementsToAward.push({ id: 'distance-100', meta: { totalDistanceM: profile.totalDistanceM } });
+		if (prevTotalDistanceM < hundredKm && totalDistanceM >= hundredKm) {
+			achievementsToAward.push({ id: 'distance-100', meta: { totalDistanceM } });
 		}
 		return false;
 	});
