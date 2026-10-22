@@ -8,14 +8,13 @@ import {
   TextInput,
   Switch,
   Alert,
-  useColorScheme,
   Linking,
 } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { Colors } from '../../constants/colors';
 import { Typography, Spacing, BorderRadius, ComponentStyles } from '../../constants/styleguide';
 import { FIREBASE_ENABLED, auth } from '../../services/firebase';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import {
   usePreferences,
   getLocationPermissionStatus,
@@ -27,13 +26,10 @@ import ScreenHeader from '../../components/ScreenHeader';
 // Version from package.json - will be updated dynamically
 const APP_VERSION = '1.0.0';
 
-// Firebase auth types and functions - using any to bypass type issues with custom declarations
-const firebaseAuthModule = async () => import('firebase/auth');
-
 const SettingsScreen: React.FC = () => {
   const navigation = useNavigation();
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { palette, isDark } = useAppTheme();
+  const colors = palette;
   const { preferences, setUnits, setMapType, setNotificationsWanted, saveError } = usePreferences();
   const isMetric = preferences.units === 'metric';
   const toggleUnits = () => setUnits(isMetric ? 'imperial' : 'metric');
@@ -73,8 +69,6 @@ const SettingsScreen: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-
-
   const handleSaveProfile = async () => {
     if (!FIREBASE_ENABLED || !auth?.currentUser) {
       Alert.alert('Error', 'Authentication not available');
@@ -100,19 +94,19 @@ const SettingsScreen: React.FC = () => {
       // Update original values on success
       setOriginalDisplayName(displayName);
       setOriginalEmail(email);
-      Alert.alert('Success', 'Profile updated successfully');
       setIsEditingProfile(false);
+      Alert.alert('Success', 'Profile updated successfully');
     } catch (error: any) {
+      console.error('Error updating profile:', error);
       Alert.alert('Error', error.message || 'Failed to update profile');
-      // Reset form to original values on error
+      // Reset form on error
       setDisplayName(originalDisplayName);
       setEmail(originalEmail);
-      setIsEditingProfile(false);
     }
   };
 
   const handleChangePassword = async () => {
-    if (!FIREBASE_ENABLED || !auth?.currentUser) {
+    if (!FIREBASE_ENABLED || !auth?.currentUser || !auth?.currentUser?.email) {
       Alert.alert('Error', 'Authentication not available');
       return;
     }
@@ -128,25 +122,26 @@ const SettingsScreen: React.FC = () => {
     }
 
     try {
-      // Re-authenticate user before changing password
-      const userEmail = auth.currentUser.email;
-      if (!userEmail) {
-        Alert.alert('Error', 'No email associated with account');
-        return;
-      }
-
       // Dynamic import of Firebase auth functions
       const firebaseAuth: any = await import('firebase/auth');
-      const credential = firebaseAuth.EmailAuthProvider.credential(userEmail, currentPassword);
+      
+      // Re-authenticate user first
+      const credential = firebaseAuth.EmailAuthProvider.credential(
+        auth.currentUser.email,
+        currentPassword
+      );
+      
       await firebaseAuth.reauthenticateWithCredential(auth.currentUser, credential);
       await firebaseAuth.updatePassword(auth.currentUser, newPassword);
 
-      Alert.alert('Success', 'Password changed successfully');
-      setIsChangingPassword(false);
+      // Reset form on success
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      setIsChangingPassword(false);
+      Alert.alert('Success', 'Password changed successfully');
     } catch (error: any) {
+      console.error('Error changing password:', error);
       Alert.alert('Error', error.message || 'Failed to change password');
     }
   };
@@ -154,7 +149,7 @@ const SettingsScreen: React.FC = () => {
   const renderSectionHeader = (title: string, icon: string) => (
     <View style={styles.sectionHeader}>
       <Icon name={icon as any} size={20} color={colors.brandPrimary} />
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
+      <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{title}</Text>
     </View>
   );
 
@@ -164,15 +159,15 @@ const SettingsScreen: React.FC = () => {
     onValueChange: (val: boolean) => void,
     icon: string
   ) => (
-    <View style={[styles.settingRow, { backgroundColor: colors.surface }]}>
+    <View style={[styles.settingRow, { backgroundColor: colors.card }]}>
       <View style={styles.settingLeft}>
         <Icon name={icon as any} size={20} color={colors.icon} />
-        <Text style={[styles.settingLabel, { color: colors.text }]}>{label}</Text>
+        <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>{label}</Text>
       </View>
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: colors.border, true: colors.brandPrimary }}
+        trackColor={{ false: colors.divider, true: colors.brandPrimary }}
         thumbColor={value ? colors.onPrimary : colors.surfaceVariant}
       />
     </View>
@@ -180,47 +175,52 @@ const SettingsScreen: React.FC = () => {
 
   return (
     <ErrorBoundary>
-      <View style={[styles.container, { backgroundColor: colors.backgroundLight }]}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScreenHeader title="Settings" onBack={() => navigation.goBack()} />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {saveError ? (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerText}>{saveError}</Text>
+          <View
+            style={[
+              styles.errorBanner,
+              { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2' },
+            ]}
+          >
+            <Text style={[styles.errorBannerText, { color: colors.danger }]}>{saveError}</Text>
           </View>
         ) : null}
         {/* Profile Section */}
         {renderSectionHeader('Profile', 'user')}
-        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
           {isEditingProfile ? (
             <>
               <View style={styles.inputContainer}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Display Name</Text>
+                <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Display Name</Text>
                 <TextInput
                   style={[styles.input, { 
-                    backgroundColor: colors.backgroundLight, 
-                    color: colors.text,
-                    borderColor: colors.border 
+                    backgroundColor: isDark ? colors.surfaceVariant : colors.background, 
+                    color: colors.textPrimary,
+                    borderColor: colors.divider 
                   }]}
                   value={displayName}
                   onChangeText={setDisplayName}
                   placeholder="Enter your name"
-                  placeholderTextColor={colors.placeholder}
+                  placeholderTextColor={colors.textMuted}
                 />
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Email</Text>
+                <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Email</Text>
                 <TextInput
                   style={[styles.input, { 
-                    backgroundColor: colors.backgroundLight, 
-                    color: colors.text,
-                    borderColor: colors.border 
+                    backgroundColor: isDark ? colors.surfaceVariant : colors.background, 
+                    color: colors.textPrimary,
+                    borderColor: colors.divider 
                   }]}
                   value={email}
                   onChangeText={setEmail}
                   placeholder="Enter your email"
-                  placeholderTextColor={colors.placeholder}
+                  placeholderTextColor={colors.textMuted}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
@@ -228,14 +228,14 @@ const SettingsScreen: React.FC = () => {
 
               <View style={styles.buttonRow}>
                 <TouchableOpacity
-                  style={[styles.button, styles.cancelButton, { borderColor: colors.border }]}
+                  style={[styles.button, styles.cancelButton, { borderColor: colors.divider }]}
                   onPress={() => {
                     setIsEditingProfile(false);
                     setDisplayName(originalDisplayName);
                     setEmail(originalEmail);
                   }}
                 >
-                  <Text style={[styles.buttonText, { color: colors.text }]}>Cancel</Text>
+                  <Text style={[styles.buttonText, { color: colors.textPrimary }]}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.button, styles.saveButton, { backgroundColor: colors.brandPrimary }]}
@@ -247,24 +247,27 @@ const SettingsScreen: React.FC = () => {
             </>
           ) : (
             <>
-              <View style={styles.profileRow}>
+              <View style={[styles.profileRow, { borderBottomColor: colors.divider }]}>
                 <View>
-                  <Text style={[styles.profileLabel, { color: colors.onSurfaceVariant }]}>Name</Text>
-                  <Text style={[styles.profileValue, { color: colors.text }]}>
+                  <Text style={[styles.profileLabel, { color: colors.textSecondary }]}>Name</Text>
+                  <Text style={[styles.profileValue, { color: colors.textPrimary }]}>
                     {displayName || 'Not set'}
                   </Text>
                 </View>
               </View>
-              <View style={styles.profileRow}>
+              <View style={[styles.profileRow, { borderBottomColor: colors.divider }]}>
                 <View>
-                  <Text style={[styles.profileLabel, { color: colors.onSurfaceVariant }]}>Email</Text>
-                  <Text style={[styles.profileValue, { color: colors.text }]}>
+                  <Text style={[styles.profileLabel, { color: colors.textSecondary }]}>Email</Text>
+                  <Text style={[styles.profileValue, { color: colors.textPrimary }]}>
                     {email || 'Not set'}
                   </Text>
                 </View>
               </View>
               <TouchableOpacity
-                style={[styles.editButton, { backgroundColor: colors.backgroundLight }]}
+                style={[
+                  styles.editButton,
+                  { backgroundColor: isDark ? colors.surfaceVariant : colors.background },
+                ]}
                 onPress={() => setIsEditingProfile(true)}
               >
                 <Icon name="edit-2" size={16} color={colors.brandPrimary} />
@@ -278,60 +281,60 @@ const SettingsScreen: React.FC = () => {
         {FIREBASE_ENABLED && (
           <>
             {renderSectionHeader('Security', 'lock')}
-            <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <View style={[styles.card, { backgroundColor: colors.card }]}>
               {isChangingPassword ? (
                 <>
                   <View style={styles.inputContainer}>
-                    <Text style={[styles.inputLabel, { color: colors.text }]}>Current Password</Text>
+                    <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Current Password</Text>
                     <TextInput
                       style={[styles.input, { 
-                        backgroundColor: colors.backgroundLight, 
-                        color: colors.text,
-                        borderColor: colors.border 
+                        backgroundColor: isDark ? colors.surfaceVariant : colors.background, 
+                        color: colors.textPrimary,
+                        borderColor: colors.divider 
                       }]}
                       value={currentPassword}
                       onChangeText={setCurrentPassword}
                       placeholder="Enter current password"
-                      placeholderTextColor={colors.placeholder}
+                      placeholderTextColor={colors.textMuted}
                       secureTextEntry
                     />
                   </View>
 
                   <View style={styles.inputContainer}>
-                    <Text style={[styles.inputLabel, { color: colors.text }]}>New Password</Text>
+                    <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>New Password</Text>
                     <TextInput
                       style={[styles.input, { 
-                        backgroundColor: colors.backgroundLight, 
-                        color: colors.text,
-                        borderColor: colors.border 
+                        backgroundColor: isDark ? colors.surfaceVariant : colors.background, 
+                        color: colors.textPrimary,
+                        borderColor: colors.divider 
                       }]}
                       value={newPassword}
                       onChangeText={setNewPassword}
                       placeholder="Enter new password"
-                      placeholderTextColor={colors.placeholder}
+                      placeholderTextColor={colors.textMuted}
                       secureTextEntry
                     />
                   </View>
 
                   <View style={styles.inputContainer}>
-                    <Text style={[styles.inputLabel, { color: colors.text }]}>Confirm Password</Text>
+                    <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Confirm Password</Text>
                     <TextInput
                       style={[styles.input, { 
-                        backgroundColor: colors.backgroundLight, 
-                        color: colors.text,
-                        borderColor: colors.border 
+                        backgroundColor: isDark ? colors.surfaceVariant : colors.background, 
+                        color: colors.textPrimary,
+                        borderColor: colors.divider 
                       }]}
                       value={confirmPassword}
                       onChangeText={setConfirmPassword}
                       placeholder="Confirm new password"
-                      placeholderTextColor={colors.placeholder}
+                      placeholderTextColor={colors.textMuted}
                       secureTextEntry
                     />
                   </View>
 
                   <View style={styles.buttonRow}>
                     <TouchableOpacity
-                      style={[styles.button, styles.cancelButton, { borderColor: colors.border }]}
+                      style={[styles.button, styles.cancelButton, { borderColor: colors.divider }]}
                       onPress={() => {
                         setIsChangingPassword(false);
                         setCurrentPassword('');
@@ -339,7 +342,7 @@ const SettingsScreen: React.FC = () => {
                         setConfirmPassword('');
                       }}
                     >
-                      <Text style={[styles.buttonText, { color: colors.text }]}>Cancel</Text>
+                      <Text style={[styles.buttonText, { color: colors.textPrimary }]}>Cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.button, styles.saveButton, { backgroundColor: colors.brandPrimary }]}
@@ -351,7 +354,10 @@ const SettingsScreen: React.FC = () => {
                 </>
               ) : (
                 <TouchableOpacity
-                  style={[styles.editButton, { backgroundColor: colors.backgroundLight }]}
+                  style={[
+                    styles.editButton,
+                    { backgroundColor: isDark ? colors.surfaceVariant : colors.background },
+                  ]}
                   onPress={() => setIsChangingPassword(true)}
                 >
                   <Icon name="key" size={16} color={colors.brandPrimary} />
@@ -364,7 +370,7 @@ const SettingsScreen: React.FC = () => {
 
         {/* Units & Measurements */}
         {renderSectionHeader('Units & Measurements', 'sliders')}
-        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
           {renderSettingRow(
             isMetric ? 'Metric (km, km/h)' : 'Imperial (mi, mph)',
             isMetric,
@@ -375,40 +381,46 @@ const SettingsScreen: React.FC = () => {
 
         {/* App Settings */}
         {renderSectionHeader('App Settings', 'settings')}
-        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
           {renderSettingRow(
             'Notifications',
             preferences.notificationsWanted,
             (val) => setNotificationsWanted(val),
             'bell'
           )}
-          <Text style={[styles.helperCaption, { color: colors.onSurfaceVariant }]}>
+          <Text style={[styles.helperCaption, { color: colors.textSecondary }]}>
             Ride alerts aren't being delivered yet — this saves your choice for when they are.
           </Text>
-          <View style={[styles.settingRow, { backgroundColor: colors.surface, marginTop: 4 }]}>
+          <View style={[styles.settingRow, { backgroundColor: colors.card, marginTop: 4 }]}>
             <View style={styles.settingLeft}>
               <Icon name="map-pin" size={20} color={colors.icon} />
               <View style={{ marginLeft: 12 }}>
-                <Text style={[styles.settingLabel, { color: colors.text }]}>Location permission</Text>
-                <Text style={[styles.permissionStatusText, { color: locationPermission === 'Not allowed' ? colors.danger : colors.onSurfaceVariant }]}>
+                <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Location permission</Text>
+                <Text style={[styles.permissionStatusText, { color: locationPermission === 'Not allowed' ? colors.danger : colors.textSecondary }]}>
                   {locationPermission}
                 </Text>
               </View>
             </View>
             <TouchableOpacity
-              style={[styles.smallSettingsButton, { borderColor: colors.border, backgroundColor: colors.backgroundLight }]}
+              style={[
+                styles.smallSettingsButton,
+                {
+                  borderColor: colors.divider,
+                  backgroundColor: isDark ? colors.surfaceVariant : colors.background,
+                },
+              ]}
               onPress={() => Linking.openSettings()}
             >
-              <Text style={[styles.smallSettingsButtonText, { color: colors.text }]}>Open phone settings</Text>
+              <Text style={[styles.smallSettingsButtonText, { color: colors.textPrimary }]}>Open phone settings</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Map Settings */}
         {renderSectionHeader('Map Settings', 'map')}
-        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
           <View style={styles.mapTypeContainer}>
-            <Text style={[styles.settingLabel, { color: colors.text }]}>Map Type</Text>
+            <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Map Type</Text>
             <View style={styles.mapTypeButtons}>
               {(['standard', 'satellite', 'hybrid'] as const).map((type) => (
                 <TouchableOpacity
@@ -416,14 +428,21 @@ const SettingsScreen: React.FC = () => {
                   style={[
                     styles.mapTypeButton,
                     preferences.mapType === type && styles.mapTypeButtonActive,
-                    { backgroundColor: preferences.mapType === type ? colors.brandPrimary : colors.backgroundLight }
+                    {
+                      backgroundColor:
+                        preferences.mapType === type
+                          ? colors.brandPrimary
+                          : isDark
+                          ? colors.surfaceVariant
+                          : colors.background,
+                    },
                   ]}
                   onPress={() => setMapType(type)}
                 >
                   <Text style={[
                     styles.mapTypeButtonText,
                     preferences.mapType === type && styles.mapTypeButtonTextActive,
-                    { color: preferences.mapType === type ? colors.onPrimary : colors.text }
+                    { color: preferences.mapType === type ? colors.onPrimary : colors.textPrimary }
                   ]}>
                     {type.charAt(0).toUpperCase() + type.slice(1)}
                   </Text>
@@ -435,16 +454,16 @@ const SettingsScreen: React.FC = () => {
 
         {/* About Section */}
         {renderSectionHeader('About', 'info')}
-        <View style={[styles.card, { backgroundColor: colors.surface }]}>
-          <View style={styles.aboutRow}>
-            <Text style={[styles.aboutLabel, { color: colors.onSurfaceVariant }]}>Version</Text>
-            <Text style={[styles.aboutValue, { color: colors.text }]}>{APP_VERSION}</Text>
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <View style={[styles.aboutRow, { borderBottomColor: colors.divider }]}>
+            <Text style={[styles.aboutLabel, { color: colors.textSecondary }]}>Version</Text>
+            <Text style={[styles.aboutValue, { color: colors.textPrimary }]}>{APP_VERSION}</Text>
           </View>
-          <TouchableOpacity style={styles.aboutRow}>
+          <TouchableOpacity style={[styles.aboutRow, { borderBottomColor: colors.divider }]}>
             <Text style={[styles.aboutLabel, { color: colors.brandPrimary }]}>Terms of Service</Text>
             <Icon name="external-link" size={16} color={colors.brandPrimary} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.aboutRow}>
+          <TouchableOpacity style={[styles.aboutRow, { borderBottomColor: colors.divider }]}>
             <Text style={[styles.aboutLabel, { color: colors.brandPrimary }]}>Privacy Policy</Text>
             <Icon name="external-link" size={16} color={colors.brandPrimary} />
           </TouchableOpacity>
@@ -485,13 +504,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.lg,
+    padding: Spacing.md,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -512,7 +529,6 @@ const styles = StyleSheet.create({
   profileRow: {
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   profileLabel: {
     fontSize: 12,
@@ -614,7 +630,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   aboutLabel: {
     fontSize: Typography.body.fontSize,
@@ -658,14 +673,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   errorBanner: {
-    backgroundColor: '#FEE2E2',
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     marginBottom: Spacing.md,
   },
   errorBannerText: {
-    color: '#DC2626',
     fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',

@@ -40,6 +40,31 @@ jest.mock('@/services/ObservationStorage', () => ({
   deleteObservation: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../services/RideStorage', () => ({
+  getRides: jest.fn().mockResolvedValue([]),
+}));
+
+jest.mock('../services/ProfilePictureService', () => ({
+  getProfilePicture: jest.fn().mockResolvedValue(null),
+  showPickerOptions: jest.fn().mockResolvedValue(null),
+  removeProfilePicture: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../services/firebase', () => ({
+  FIREBASE_ENABLED: true,
+  auth: { currentUser: { displayName: 'John Rider', email: 'rider@example.com' } },
+}));
+
+jest.mock('../hooks/useCurrentUser', () => ({
+  useCurrentUser: () => ({
+    profile: { uid: 'u1', role: 'member', status: 'approved' },
+    loading: false,
+  }),
+}));
+
+jest.mock('../components/Modals/SettingsModal', () => () => null);
+jest.mock('../components/Modals/NotificationsModal', () => () => null);
+
 const mockStatuses = [
   {
     id: 'first-ride',
@@ -71,10 +96,23 @@ jest.mock('../hooks/useAchievementProgress', () => ({
   }),
 }));
 
+jest.mock('../contexts/PreferencesContext', () => ({
+  usePreferences: () => ({
+    preferences: { units: 'metric', mapType: 'standard', notificationsWanted: true },
+    setUnits: jest.fn(),
+    setMapType: jest.fn(),
+    setNotificationsWanted: jest.fn(),
+    saveError: null,
+  }),
+  getLocationPermissionStatus: jest.fn().mockResolvedValue('Allowed in foreground'),
+}));
+
 import ObservationsScreen from '../screens/Profile/ObservationsScreen';
 import AchievementsScreen from '../screens/Profile/AchievementsScreen';
 import NotificationItem from '../components/Notifications/NotificationItem';
 import NotificationBadge from '../components/Notifications/NotificationBadge';
+import SettingsScreen from '../screens/Profile/SettingsScreen';
+import ProfileScreen from '../screens/Profile/ProfileScreen';
 import { Notification } from '../types/Notification';
 
 afterEach(() => {
@@ -212,5 +250,48 @@ describe('G1 Notifications Theming', () => {
     const badgeStyle = StyleSheet.flatten(view.props.style);
     expect(badgeStyle.backgroundColor).toBe(Colors.dark.danger);
     expect(badgeStyle.borderColor).toBe(Colors.dark.card);
+  });
+});
+
+describe('G1 SettingsScreen Theming', () => {
+  it('renders section title and labels in textPrimary in dark mode', async () => {
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<SettingsScreen />);
+    });
+
+    const textNodes = renderer.root.findAllByType(Text);
+    const profileSectionTitle = textNodes.find((t) => [t.props.children].flat().join('') === 'Profile');
+    expect(profileSectionTitle).toBeDefined();
+    expect(StyleSheet.flatten(profileSectionTitle!.props.style).color).toBe(Colors.dark.textPrimary);
+
+    const settingLabel = textNodes.find((t) => [t.props.children].flat().join('').includes('Metric'));
+    expect(settingLabel).toBeDefined();
+    expect(StyleSheet.flatten(settingLabel!.props.style).color).toBe(Colors.dark.textPrimary);
+  });
+});
+
+describe('G1 ProfileScreen Theming', () => {
+  it('renders section title in textPrimary and uses profileStat tokens for stat box background in dark mode', async () => {
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<ProfileScreen />);
+    });
+
+    const textNodes = renderer.root.findAllByType(Text);
+    const statsTitle = textNodes.find((t) => [t.props.children].flat().join('') === 'Your Stats');
+    expect(statsTitle).toBeDefined();
+    expect(StyleSheet.flatten(statsTitle!.props.style).color).toBe(Colors.dark.textPrimary);
+
+    // Stat boxes use dark-adapted profileStat tokens
+    const statCards = renderer.root.findAllByType(View).filter((v) => {
+      const style = StyleSheet.flatten(v.props.style);
+      return style && style.backgroundColor === Colors.dark.profileStatRidesBox;
+    });
+    expect(statCards.length).toBeGreaterThan(0);
   });
 });
