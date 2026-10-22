@@ -13,7 +13,7 @@ import ObservationsScreen from '../screens/Profile/ObservationsScreen';
 import AdminNotificationManagement from '../screens/Profile/AdminNotificationManagement';
 import AdminObstacleManagement from '../screens/Profile/AdminObstacleManagement';
 import AdminSosManagement from '../screens/Profile/AdminSosManagement';
-import RideStatsScreen from '../screens/Analytics/RideStatsScreen';
+
 import RideViewMoreScreen from '../screens/Analytics/RideViewMoreScreen';
 import HistoryScreen from '../screens/Profile/HistoryScreen';
 import UserNotificationsScreen from '../screens/Profile/UserNotificationsScreen';

@@ -1,7 +1,7 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import UserStatsScreen from '../screens/Analytics/UserStatsScreen';
-import PersonalStatsScreen from '../screens/Analytics/PersonalStatsScreen';
+
 import RideStatsScreen from '../screens/Analytics/RideStatsScreen';
 import RideViewMoreScreen from '../screens/Analytics/RideViewMoreScreen';
 import TrailStatsScreen from '../screens/Analytics/TrailStatsScreen';
