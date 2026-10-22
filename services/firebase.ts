@@ -111,8 +111,8 @@ try {
     }
     
   } else if (__DEV__) {
-    // Only spam in dev
-    console.warn('[Firebase] Missing Firebase config -> Firebase disabled. Missing:', missingKeys.join(', '));
+    // Demo mode is deliberate: say so once in dev as info, not as a LogBox warning.
+    console.info('[Firebase] Missing Firebase config -> Firebase disabled (demo mode). Missing:', missingKeys.join(', '));
   }
 } catch (e) {
   console.warn('[Firebase] Initialization failed, Firebase disabled.', e);

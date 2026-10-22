@@ -21,6 +21,8 @@ import * as Location from 'expo-location';
 import * as Linking from 'expo-linking';
 import { getRides } from '@/services/RideStorage';
 import { weeklyDistanceKm, totalKm, type DayDistance } from '@/utils/weeklyDistance';
+import { useMapStatus } from '@/hooks/useMapStatus';
+import MapStatusFrame from '@/components/MapStatusFrame';
 
 type RootNavigationProp = StackNavigationProp<any>;
 const screenWidth = Dimensions.get('window').width;
@@ -42,6 +44,7 @@ const DashboardScreen = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const [weekly, setWeekly] = useState<DayDistance[] | null>(null);
+  const previewMapStatus = useMapStatus('dashboard-preview');
 
   // Chart data comes from the rides stored for this user; null until the first read finishes
   useFocusEffect(
@@ -196,20 +199,24 @@ const DashboardScreen = () => {
             activeOpacity={0.8}
             onPress={() => navigateToScreen('MappingTab')}
           >
-            <MapView
-              style={styles.mapWidgetMap}
-              initialRegion={{
-                latitude: -33.9648,
-                longitude: 25.5701,
-                latitudeDelta: 0.2,
-                longitudeDelta: 0.2,
-              }}
-              scrollEnabled={false}
-              zoomEnabled={false}
-              rotateEnabled={false}
-              pitchEnabled={false}
-            />
-            <View style={styles.mapWidgetOverlay} />
+            <MapStatusFrame status={previewMapStatus} style={styles.mapWidgetMap} compact>
+              <MapView
+                {...previewMapStatus.mapProps}
+                style={styles.mapWidgetMap}
+                initialRegion={{
+                  latitude: -33.9648,
+                  longitude: 25.5701,
+                  latitudeDelta: 0.2,
+                  longitudeDelta: 0.2,
+                }}
+                scrollEnabled={false}
+                zoomEnabled={false}
+                rotateEnabled={false}
+                pitchEnabled={false}
+              />
+              {/* Inside the frame so the Retry button stays above it and tappable */}
+              <View style={styles.mapWidgetOverlay} />
+            </MapStatusFrame>
           </TouchableOpacity>
 
           {/* Start Ride wide widget */}

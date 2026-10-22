@@ -77,6 +77,7 @@ beforeEach(() => {
   mockFirebase.FIREBASE_ENABLED = true;
   mockFirebase.app = {};
   jest.spyOn(console, 'warn').mockImplementation(() => {});
+  jest.spyOn(console, 'error').mockImplementation(() => {});
   jest.spyOn(console, 'log').mockImplementation(() => {});
 });
 afterEach(() => jest.restoreAllMocks());
@@ -99,6 +100,23 @@ describe('subscribeToObstacles status mapping', () => {
     expect(statuses).toEqual(['unavailable']);
     expect(mockOnSnapshot).not.toHaveBeenCalled();
     expect(callback).not.toHaveBeenCalled();
+  });
+
+  it('does not log a warning or error for the expected Firebase-off disconnection', () => {
+    mockFirebase.FIREBASE_ENABLED = false;
+    mockFirebase.app = undefined;
+    subscribeToObstacles(jest.fn(), undefined, jest.fn());
+    expect(console.warn).not.toHaveBeenCalled();
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it('still warns, with the original error, when a configured listener fails', async () => {
+    mockGetDocs.mockResolvedValue({ docs: [] });
+    const { onError } = run();
+    const failure = new Error('permission-denied');
+    onError(failure);
+    await new Promise((r) => setImmediate(r));
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('subscription error'), failure);
   });
 
   it('starts as connecting and is not live until a server snapshot arrives', () => {

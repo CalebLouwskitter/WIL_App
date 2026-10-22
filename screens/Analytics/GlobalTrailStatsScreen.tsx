@@ -18,6 +18,8 @@ import { auth } from '../../services/firebase';
 import SettingsModal from '../../components/Modals/SettingsModal';
 import NotificationsModal from '../../components/Modals/NotificationsModal';
 import { AnalyticsDownloadButton } from '../../components/AnalyticsDownloadButton';
+import { AnalyticsUnavailableNotice } from '../../components/AnalyticsUnavailableNotice';
+import { analyticsError, firstProblem, type AnalyticsResult } from '../../services/analyticsResult';
 
 const { width: screenWidth } = Dimensions.get('window');
 const CHART_WIDTH = screenWidth - 64;
@@ -27,6 +29,7 @@ const GlobalTrailStatsScreen = () => {
   const [userStats, setUserStats] = useState<UserRideStats[]>([]);
   const [trailUsage, setTrailUsage] = useState<GlobalTrailUsage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [problem, setProblem] = useState<AnalyticsResult<unknown> | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
@@ -44,11 +47,13 @@ const GlobalTrailStatsScreen = () => {
         getGlobalTrailUsage(),
       ]);
       
-      setGlobalStats(stats);
-      setUserStats(users);
-      setTrailUsage(trails);
+      setProblem(firstProblem([stats, users, trails]));
+      setGlobalStats(stats.data);
+      setUserStats(users.data);
+      setTrailUsage(trails.data);
     } catch (error) {
       console.error('Failed to load global analytics:', error);
+      setProblem(analyticsError(error, null));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -149,6 +154,36 @@ const GlobalTrailStatsScreen = () => {
           <ActivityIndicator size="large" color={theme.brandPrimary} />
           <Text style={[styles.loadingText, { color: theme.onSurfaceVariant }]}>Loading global data...</Text>
         </View>
+        <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} onRequestFullSettings={() => {}} />
+        <NotificationsModal visible={notificationsVisible} onClose={() => setNotificationsVisible(false)} />
+      </SafeAreaView>
+    );
+  }
+
+  if (problem) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brandPrimary} />
+          }
+        >
+          <View style={styles.topIcons}>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)}>
+              <Feather name="settings" size={27} color={theme.icon} />
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)}>
+              <Feather name="bell" size={27} color={theme.icon} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.contentInner}>
+            <AnalyticsUnavailableNotice result={problem} onRetry={() => loadData()} />
+            <View style={styles.downloadSection}>
+              <AnalyticsDownloadButton disabled disabledReason="Export is unavailable until analytics load." />
+            </View>
+          </View>
+        </ScrollView>
         <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} onRequestFullSettings={() => {}} />
         <NotificationsModal visible={notificationsVisible} onClose={() => setNotificationsVisible(false)} />
       </SafeAreaView>

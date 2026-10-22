@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions, Image, ActivityIndicator, SafeAreaView, Animated } from 'react-native';
 import { Feather as Icon } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,18 +11,14 @@ import { useColorScheme } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { FIREBASE_ENABLED, auth } from '../../services/firebase';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
+import { useAchievementProgress } from '../../hooks/useAchievementProgress';
+import { achievementDataNote, buildAchievementPreview, type AchievementPreviewItem } from '../../utils/achievements';
 import ProfilePictureService from '../../services/ProfilePictureService';
 import SettingsModal from '../../components/Modals/SettingsModal';
 import NotificationsModal from '../../components/Modals/NotificationsModal';
 import ErrorBoundary from '../../components/ErrorBoundary';
 
 type ProfileScreenNavigationProp = StackNavigationProp<ProfileStackParamList, 'ProfileMain'>;
-
-const achievementsData = [
-  { color: ['#FF6B9D', '#FF8E53'] as const, title: 'First Ride', desc: 'Completed your first ride', icon: 'award' as const },
-  { color: ['#4ECDC4', '#44A08D'] as const, title: '100km Club', desc: 'Rode over 100 km', icon: 'target' as const },
-  { color: ['#FFD93D', '#F6A623'] as const, title: 'Early Bird', desc: 'Morning ride before 6 am', icon: 'sunrise' as const },
-];
 
 type IconName = 'activity' | 'map' | 'clock' | 'star';
 type StatItem = { label: string; value: string; boxColor: string; circleColor: string; icon: IconName };
@@ -53,6 +49,9 @@ const ProfileScreen: React.FC = () => {
     : 'Rider';
   const email = FIREBASE_ENABLED && auth?.currentUser?.email ? auth?.currentUser?.email : '—';
   const { profile } = useCurrentUser();
+  const { awardsSource, statuses } = useAchievementProgress();
+  const achievementPreview = useMemo(() => buildAchievementPreview(statuses), [statuses]);
+  const dataNote = achievementDataNote(awardsSource);
 
   const loadProfilePicture = useCallback(async () => {
     try {
@@ -149,21 +148,29 @@ const ProfileScreen: React.FC = () => {
     [navDisabled, navigation]
   );
 
-  const renderAchievement = ({ item }: { item: typeof achievementsData[0] }) => (
-    <LinearGradient
-      colors={item.color}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.achievementCard}
-    >
-      <View style={styles.achievementIconOuter}>
-        <Icon name={item.icon} size={32} color="#1E293B" />
-      </View>
-      <Text style={styles.achievementTitle}>{item.title}</Text>
-      <Text style={styles.achievementDesc}>{item.desc}</Text>
-      <View style={styles.achievementShine} />
-    </LinearGradient>
-  );
+  const renderAchievement = ({ item }: { item: AchievementPreviewItem }) => {
+    const statusText = item.earned
+      ? 'Earned'
+      : item.progressLabel
+      ? `Progress ${item.progressLabel}`
+      : "Progress isn't tracked yet";
+    return (
+      <LinearGradient
+        colors={item.gradientColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.achievementCard, !item.earned && styles.achievementCardLocked]}
+      >
+        <View style={styles.achievementIconOuter}>
+          <Icon name={(item.earned ? item.icon : 'lock') as any} size={32} color="#1E293B" />
+        </View>
+        <Text style={styles.achievementTitle}>{item.title}</Text>
+        <Text style={styles.achievementDesc}>{item.description}</Text>
+        <Text style={styles.achievementStatus}>{statusText}</Text>
+        <View style={styles.achievementShine} />
+      </LinearGradient>
+    );
+  };
 
   return (
     <ErrorBoundary>
@@ -359,14 +366,23 @@ const ProfileScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
-          <FlatList
-            data={achievementsData}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.achievementsList}
-            keyExtractor={(_, i) => i.toString()}
-            renderItem={renderAchievement}
-          />
+          {awardsSource === 'loading' ? (
+            <View style={styles.achievementsLoading}>
+              <ActivityIndicator size="small" color="#3B82F6" />
+              <Text style={styles.achievementsLoadingText}>Checking your achievements…</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={achievementPreview}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.achievementsList}
+              keyExtractor={(item) => item.id}
+              renderItem={renderAchievement}
+            />
+          )}
+
+          {dataNote ? <Text style={styles.achievementsNote}>{dataNote}</Text> : null}
         </View>
 
         {/* Action Buttons */}
@@ -775,6 +791,27 @@ const styles = StyleSheet.create({
   achievementsList: {
     paddingHorizontal: 20,
   },
+  achievementsLoading: {
+    height: 240,
+    marginHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  achievementsLoadingText: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  achievementsNote: {
+    fontSize: 13,
+    color: '#92400E',
+    backgroundColor: '#FEF3C7',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 12,
+    marginHorizontal: 20,
+  },
   achievementCard: {
     width: 190,
     height: 240,
@@ -789,6 +826,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 16,
     elevation: 8,
+  },
+  achievementCardLocked: {
+    opacity: 0.8,
+  },
+  achievementStatus: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 10,
+    textAlign: 'center',
   },
   achievementIconOuter: {
     width: 72,

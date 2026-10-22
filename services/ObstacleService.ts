@@ -398,7 +398,7 @@ export function subscribeToObstacles(
   onStatus?: (status: ObstacleFeedStatus) => void
 ): () => void {
   if (!FIREBASE_ENABLED || !app) {
-    console.warn('Real-time subscriptions require Firebase');
+    // Firebase being off is an expected state, reported through onStatus rather than logged.
     onStatus?.('unavailable');
     return () => {}; // Return empty unsubscribe function
   }

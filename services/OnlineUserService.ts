@@ -45,8 +45,8 @@ type StartLocationBroadcastOptions = {
 };
 
 export async function startLocationBroadcast({ isRiding = false }: StartLocationBroadcastOptions = {}) {
+  // Firebase off (demo mode) or signed out is expected: nobody to broadcast to, so stay quiet.
   if (!FIREBASE_ENABLED || !auth?.currentUser) {
-    console.warn('Firebase not enabled or user not authenticated');
     return;
   }
 

@@ -15,12 +15,17 @@ import { downloadAndShareGlobalAnalytics } from '../services/AnalyticsDownloadSe
 import { resolvePalette } from '../constants/colors';
 
 interface AnalyticsDownloadButtonProps {
+  /** Disables the button; `disabledReason` is shown under it so the user knows why. */
+  disabled?: boolean;
+  disabledReason?: string;
   onDownloadStart?: () => void;
   onDownloadComplete?: () => void;
   onDownloadError?: (error: Error) => void;
 }
 
 export const AnalyticsDownloadButton: React.FC<AnalyticsDownloadButtonProps> = ({
+  disabled = false,
+  disabledReason,
   onDownloadStart,
   onDownloadComplete,
   onDownloadError,
@@ -67,8 +72,9 @@ export const AnalyticsDownloadButton: React.FC<AnalyticsDownloadButtonProps> = (
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={showDownloadOptions}
-        disabled={loading}
-        style={styles.buttonContainer}
+        disabled={loading || disabled}
+        accessibilityState={{ disabled: loading || disabled }}
+        style={[styles.buttonContainer, disabled && styles.buttonDisabled]}
       >
         <LinearGradient
           colors={[theme.brandPrimary, theme.brandPrimaryAlt]}
@@ -86,6 +92,9 @@ export const AnalyticsDownloadButton: React.FC<AnalyticsDownloadButtonProps> = (
           )}
         </LinearGradient>
       </TouchableOpacity>
+      {disabled && disabledReason ? (
+        <Text style={[styles.disabledReason, { color: theme.onSurfaceVariant }]}>{disabledReason}</Text>
+      ) : null}
 
       <Modal
         visible={modalVisible}
@@ -180,6 +189,14 @@ export const AnalyticsDownloadButton: React.FC<AnalyticsDownloadButtonProps> = (
 };
 
 const styles = StyleSheet.create({
+  buttonDisabled: {
+    opacity: 0.45,
+  },
+  disabledReason: {
+    marginTop: 6,
+    fontSize: 12,
+    textAlign: 'center',
+  },
   buttonContainer: {
     borderRadius: 12,
     overflow: 'hidden',

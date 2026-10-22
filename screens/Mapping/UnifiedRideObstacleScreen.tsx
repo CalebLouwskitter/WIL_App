@@ -50,6 +50,7 @@ import { Feather } from '@expo/vector-icons';
 import { fetchObstacles, subscribeToObstacles, type Obstacle, type ObstacleFeedStatus } from '../../services/ObstacleService';
 import { useForegroundLocation } from '../../hooks/useForegroundLocation';
 import { locationStatusMessage } from '../../utils/locationStatus';
+import { MapWithStatus } from '../../components/MapStatusFrame';
 import { describeObstacleFeed } from '../../utils/obstacleFeed';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -1053,68 +1054,73 @@ export default function UnifiedRideObstacleScreen({
                   {reportLocationLabel ? `Report location: ${reportLocationLabel}` : 'Report location: not set. Tap the map to choose where the issue is.'}
                 </Text>
                 <View style={styles.mapWrapper}>
-                  <MapView
-                    ref={mapRef}
-                    style={styles.map}
-                    initialRegion={{
-                      latitude: currentLocation?.latitude || -26.2041, // Johannesburg fallback
-                      longitude: currentLocation?.longitude || 28.0473,
-                      latitudeDelta: 0.008,
-                      longitudeDelta: 0.008,
-                    }}
-                    showsUserLocation={true}
-                    showsMyLocationButton={false}
-                    showsPointsOfInterests={false}
-                    showsBuildings={false}
-                    showsIndoors={false}
-                    showsTraffic={false}
-                    showsIndoorLevelPicker={false}
-                    loadingEnabled={true}
-                    loadingIndicatorColor="#2C5530"
-                    loadingBackgroundColor="#FAF9F7"
-                    onPress={onMapPress}
-                  >
-                    {/* Show ride path if available */}
-                    {rideData?.path && rideData.path.length > 1 && (
-                      <Polyline
-                        coordinates={rideData.path}
-                        strokeColor="#2C5530"
-                        strokeWidth={3}
-                      />
-                    )}
-
-                    {/* Show existing obstacles */}
-                    {obstacles.map(renderObstacleMarker)}
-
-                    {/* Show new report location */}
-                    {reportLocation && (
-                      <Marker
-                        coordinate={{
-                          latitude: reportLocation?.latitude || 0,
-                          longitude: reportLocation?.longitude || 0,
+                  <MapWithStatus label="report">
+                    {(mapProps) => (
+                      <MapView
+                        {...mapProps}
+                        ref={mapRef}
+                        style={styles.map}
+                        initialRegion={{
+                          latitude: currentLocation?.latitude || -26.2041, // Johannesburg fallback
+                          longitude: currentLocation?.longitude || 28.0473,
+                          latitudeDelta: 0.008,
+                          longitudeDelta: 0.008,
                         }}
-                        pinColor="#C73E1D"
+                        showsUserLocation={true}
+                        showsMyLocationButton={false}
+                        showsPointsOfInterests={false}
+                        showsBuildings={false}
+                        showsIndoors={false}
+                        showsTraffic={false}
+                        showsIndoorLevelPicker={false}
+                        loadingEnabled={true}
+                        loadingIndicatorColor="#2C5530"
+                        loadingBackgroundColor="#FAF9F7"
+                        onPress={onMapPress}
                       >
-                        <View style={styles.customMarker}>
-                          <Text style={styles.markerEmoji}>📍</Text>
-                        </View>
-                      </Marker>
-                    )}
+                        {/* Show ride path if available */}
+                        {rideData?.path && rideData.path.length > 1 && (
+                          <Polyline
+                            coordinates={rideData.path}
+                            strokeColor="#2C5530"
+                            strokeWidth={3}
+                          />
+                        )}
 
-                    {/* Current location */}
-                    {currentLocation && (
-                      <Marker
-                        coordinate={{
-                          latitude: currentLocation?.latitude || 0,
-                          longitude: currentLocation?.longitude || 0,
-                        }}
-                      >
-                        <View style={styles.currentLocationMarker}>
-                          <View style={styles.currentLocationDot} />
-                        </View>
-                      </Marker>
+                        {/* Show existing obstacles */}
+                        {obstacles.map(renderObstacleMarker)}
+
+                        {/* Show new report location */}
+                        {reportLocation && (
+                          <Marker
+                            coordinate={{
+                              latitude: reportLocation?.latitude || 0,
+                              longitude: reportLocation?.longitude || 0,
+                            }}
+                            pinColor="#C73E1D"
+                          >
+                            <View style={styles.customMarker}>
+                              <Text style={styles.markerEmoji}>📍</Text>
+                            </View>
+                          </Marker>
+                        )}
+
+                        {/* Current location */}
+                        {currentLocation && (
+                          <Marker
+                            coordinate={{
+                              latitude: currentLocation?.latitude || 0,
+                              longitude: currentLocation?.longitude || 0,
+                            }}
+                          >
+                            <View style={styles.currentLocationMarker}>
+                              <View style={styles.currentLocationDot} />
+                            </View>
+                          </Marker>
+                        )}
+                      </MapView>
                     )}
-                  </MapView>
+                  </MapWithStatus>
                   <TouchableOpacity
                     style={[styles.currentLocationButton, !currentLocation && { opacity: 0.4 }]}
                     disabled={!currentLocation}

@@ -11,6 +11,7 @@ import SettingsModal from '../../components/Modals/SettingsModal';
 import NotificationsModal from '../../components/Modals/NotificationsModal';
 import { useRideRecovery } from '../../contexts/RideRecoveryContext';
 import { isWithinAuthorizedArea } from '../../utils/geofencing';
+import { SHEET_TAP_SLOP, SHEET_TRAVEL, sheetDragValue, sheetExpandedAfterRelease } from '../../utils/bottomSheet';
 
 import Feather from 'react-native-vector-icons/Feather';
 import { FontAwesome5 as FAIcon } from '@expo/vector-icons';
@@ -65,53 +66,49 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const confirmSlideAnim = useState(new Animated.Value(100))[0];
   const confirmFadeAnim = useState(new Animated.Value(0))[0];
 
-  // Pan responder for bottom sheet drag
+  // The pan responder is created once, so it must read the sheet state through
+  // this ref; a captured bottomSheetExpanded would stay false forever.
+  const bottomSheetExpandedRef = useRef(false);
+
+  const snapBottomSheet = (expanded: boolean) => {
+    Animated.spring(bottomSheetAnim, {
+      toValue: expanded ? SHEET_TRAVEL : 0,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  // Pan responder for bottom sheet drag (and tap on the handle)
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dy) > 5;
+        return Math.abs(gestureState.dy) > SHEET_TAP_SLOP;
       },
       onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0 && bottomSheetExpanded) {
-          // Dragging down when expanded
-          bottomSheetAnim.setValue(-gestureState.dy);
-        } else if (gestureState.dy < 0 && !bottomSheetExpanded) {
-          // Dragging up when collapsed
-          bottomSheetAnim.setValue(gestureState.dy);
-        }
+        const value = sheetDragValue(bottomSheetExpandedRef.current, gestureState.dy);
+        if (value !== null) bottomSheetAnim.setValue(value);
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (Math.abs(gestureState.dy) > 50) {
-          // Threshold for toggle
-          if (gestureState.dy > 0 && bottomSheetExpanded) {
-            // Swiped down - collapse
-            toggleBottomSheet(false);
-          } else if (gestureState.dy < 0 && !bottomSheetExpanded) {
-            // Swiped up - expand
-            toggleBottomSheet(true);
-          } else {
-            // Return to current state
-            Animated.spring(bottomSheetAnim, {
-              toValue: bottomSheetExpanded ? 300 : 0,
-              useNativeDriver: false,
-            }).start();
-          }
+        const expanded = bottomSheetExpandedRef.current;
+        const next = sheetExpandedAfterRelease(expanded, gestureState.dx, gestureState.dy);
+        if (next !== expanded) {
+          toggleBottomSheet(next);
         } else {
           // Return to current state
-          Animated.spring(bottomSheetAnim, {
-            toValue: bottomSheetExpanded ? 300 : 0,
-            useNativeDriver: false,
-          }).start();
+          snapBottomSheet(expanded);
         }
+      },
+      onPanResponderTerminate: () => {
+        snapBottomSheet(bottomSheetExpandedRef.current);
       },
     })
   ).current;
 
   const toggleBottomSheet = (expand: boolean) => {
+    bottomSheetExpandedRef.current = expand;
     setBottomSheetExpanded(expand);
     Animated.spring(bottomSheetAnim, {
-      toValue: expand ? 300 : 0,
+      toValue: expand ? SHEET_TRAVEL : 0,
       tension: 50,
       friction: 8,
       useNativeDriver: false,
@@ -425,6 +422,8 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             snapRadius={rideData?.snapRadius ?? null}
             followUserDisplayName={followSosDisplayName}
             followUserUid={followSosUid}
+            // Below the warning banner and the settings/bell icons drawn over the map
+            statusPillTop={insets.top + 120}
           />
         </View>
 
@@ -577,7 +576,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                 styles.bottomSheet,
                 {
                   bottom: bottomSheetAnim.interpolate({
-                    inputRange: [0, 300],
+                    inputRange: [0, SHEET_TRAVEL],
                     outputRange: [-250, 0],
                   }),
                 },
@@ -589,7 +588,16 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                   style={styles.bottomSheetGradient}
                 >
                   {/* Drag Handle */}
-                  <View {...panResponder.panHandlers} style={styles.dragHandleContainer}>
+                  <View
+                    {...panResponder.panHandlers}
+                    style={styles.dragHandleContainer}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={bottomSheetExpanded ? 'Hide ride controls' : 'Show ride controls'}
+                    accessibilityState={{ expanded: bottomSheetExpanded }}
+                    accessibilityActions={[{ name: 'activate' }]}
+                    onAccessibilityAction={() => toggleBottomSheet(!bottomSheetExpandedRef.current)}
+                  >
                     <View style={styles.dragHandle} />
                   </View>
 
@@ -1333,11 +1341,15 @@ const styles = StyleSheet.create({
   },
   bottomSheetGradient: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
+  // The handle area takes the sheet's top padding too, so the whole strip that
+  // shows while collapsed (about 50dp) is draggable/tappable, not just 28dp of it.
   dragHandleContainer: {
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingTop: 32,
+    paddingBottom: 12,
     marginBottom: 8,
   },
   dragHandle: {
