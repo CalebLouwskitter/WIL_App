@@ -53,6 +53,7 @@ import { locationStatusMessage } from '../../utils/locationStatus';
 import { MapWithStatus } from '../../components/MapStatusFrame';
 import { describeObstacleFeed } from '../../utils/obstacleFeed';
 import { usePreferences } from '../../contexts/PreferencesContext';
+import { useAppTheme, type AppPalette } from '../../hooks/useAppTheme';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -147,6 +148,8 @@ export default function UnifiedRideObstacleScreen({
   // Safe area insets
   const insets = useSafeAreaInsets();
   const { preferences } = usePreferences();
+  const { palette, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(palette), [palette]);
 
   // State management
   const [activeTab, setActiveTab] = useState<'sighting' | 'report' | 'obstacles'>(
@@ -1184,14 +1187,15 @@ export default function UnifiedRideObstacleScreen({
 );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (palette: AppPalette) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: palette.background,
   },
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: palette.background,
   },
   innerContainer: {
     flex: 1,
@@ -1217,8 +1221,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 16,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
+    backgroundColor: palette.card,
+    shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -1230,35 +1234,35 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1F2937',
+    color: palette.textPrimary,
     letterSpacing: -0.3,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#6B7280',
+    color: palette.textSecondary,
     marginTop: 4,
   },
   closeButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: palette.surfaceVariant,
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeButtonText: {
     fontSize: 24,
-    color: '#6B7280',
+    color: palette.textSecondary,
     fontWeight: '400',
   },
 
   // Stats Card
   statsCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: palette.card,
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -1273,18 +1277,20 @@ const styles = StyleSheet.create({
   statsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: palette.textPrimary,
   },
   successBadge: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: palette.surfaceVariant,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: palette.success,
   },
   successBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#4CAF50',
+    color: palette.success,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -1297,28 +1303,28 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#3B82F6',
+    color: palette.brandPrimary,
   },
   statUnit: {
     fontSize: 14,
     fontWeight: '400',
-    color: '#8A8A8A',
+    color: palette.textMuted,
   },
   statLabel: {
     fontSize: 12,
-    color: '#8A8A8A',
+    color: palette.textSecondary,
     marginTop: 4,
   },
   statDivider: {
     width: 1,
     height: 40,
-    backgroundColor: '#E5E5E5',
+    backgroundColor: palette.divider,
   },
 
   // Tabs
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: palette.surfaceVariant,
     borderRadius: 12,
     padding: 4,
     marginBottom: 16,
@@ -1330,25 +1336,25 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   activeTab: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: palette.brandPrimary,
   },
   tabText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6B7280',
+    color: palette.textSecondary,
   },
   activeTabText: {
-    color: '#FFFFFF',
+    color: palette.onPrimary,
     fontWeight: '700',
   },
 
   // Section styles
   section: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: palette.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -1363,12 +1369,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: palette.textPrimary,
     letterSpacing: -0.2,
   },
   sectionDescription: {
     fontSize: 14,
-    color: '#6B7280',
+    color: palette.textSecondary,
     lineHeight: 20,
     marginBottom: 16,
   },
