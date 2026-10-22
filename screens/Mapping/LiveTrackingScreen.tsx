@@ -20,6 +20,8 @@ import { useFocusEffect, useNavigation, CommonActions, useRoute } from '@react-n
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { startLocationBroadcast, stopLocationBroadcast } from '../../services/OnlineUserService';
 import { Alert, Linking } from 'react-native';
+import { usePreferences } from '../../contexts/PreferencesContext';
+import { formatDistance, formatSpeedKmh } from '../../utils/units';
 
 const { width } = Dimensions.get('window');
 
@@ -38,6 +40,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const [isConfirmingStart, setIsConfirmingStart] = useState(false);
 
   const [activeHorseName, setActiveHorseName] = useState<string | null>(null);
+  const { preferences } = usePreferences();
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [showResumeBanner, setShowResumeBanner] = useState(false);
@@ -416,6 +419,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
 
         <View style={StyleSheet.absoluteFill}>
           <MapViewTracker
+            mapType={preferences.mapType}
             path={rideData?.snappedPath ?? rideData?.path}
             nearestTrail={rideData?.nearestTrail}
             snappedCoordinate={rideData?.snappedCoordinate ?? null}
@@ -480,16 +484,30 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                   {rideData && (
                     <View style={styles.statsGrid}>
                       <View style={styles.statItem}>
-                        <Text style={[styles.statValue, styles.statValueEmerald]}>
-                          {(rideData.totalDistance / 1000).toFixed(2)}
-                        </Text>
-                        <Text style={styles.statLabel}>kilometers</Text>
+                        {(() => {
+                          const dist = formatDistance(rideData.totalDistance, preferences.units, 2);
+                          return (
+                            <>
+                              <Text style={[styles.statValue, styles.statValueEmerald]}>
+                                {dist.value}
+                              </Text>
+                              <Text style={styles.statLabel}>{dist.unit === 'mi' ? 'miles' : 'kilometers'}</Text>
+                            </>
+                          );
+                        })()}
                       </View>
                       <View style={[styles.statItem, styles.statItemBorder]}>
-                        <Text style={[styles.statValue, styles.statValueOrange]}>
-                          {currentSpeed.toFixed(1)}
-                        </Text>
-                        <Text style={styles.statLabel}>km/h</Text>
+                        {(() => {
+                          const spd = formatSpeedKmh(currentSpeed, preferences.units, 1);
+                          return (
+                            <>
+                              <Text style={[styles.statValue, styles.statValueOrange]}>
+                                {spd.value}
+                              </Text>
+                              <Text style={styles.statLabel}>{spd.unit}</Text>
+                            </>
+                          );
+                        })()}
                       </View>
                       <View style={[styles.statItem, styles.statItemBorder]}>
                         <Text style={[styles.statValue, styles.statValueBlue]}>

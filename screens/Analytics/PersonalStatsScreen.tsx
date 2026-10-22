@@ -6,6 +6,8 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { getCurrentUserRides, getUserRidesByTimePeriod } from '../../services/UserAnalyticsService';
 import type { RideData } from '../../hooks/useRideTracker';
 import { ReportDownload } from '../../services/AnalyticsService';
+import { usePreferences } from '../../contexts/PreferencesContext';
+import { formatDistance, formatSpeedKmh } from '../../utils/units';
 import { trailData } from '../../constants/trails';
 import { resolvePalette } from '../../constants/colors';
 import { AnalyticsUnavailableNotice } from '../../components/AnalyticsUnavailableNotice';
@@ -40,6 +42,7 @@ function PersonalStatsScreen() {
   const route = useRoute<any>();
   const colorScheme = useColorScheme();
   const theme = resolvePalette(colorScheme);
+  const { preferences } = usePreferences();
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('month');
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -422,9 +425,17 @@ function PersonalStatsScreen() {
               <View style={styles.heroPattern} />
               <View style={styles.heroContent}>
                 <View style={styles.heroMain}>
-                  <Text style={styles.heroLabel}>Total Distance</Text>
-                  <Text style={styles.heroValue}>{userStats.totalDistance}</Text>
-                  <Text style={styles.heroUnit}>kilometers</Text>
+                  {(() => {
+                    const totalDistanceMeters = rides.reduce((a, r) => a + (r.totalDistance || 0), 0);
+                    const displayDistance = formatDistance(totalDistanceMeters, preferences.units, 1);
+                    return (
+                      <>
+                        <Text style={styles.heroLabel}>Total Distance</Text>
+                        <Text style={styles.heroValue}>{displayDistance.value}</Text>
+                        <Text style={styles.heroUnit}>{displayDistance.unit === 'mi' ? 'miles' : 'kilometers'}</Text>
+                      </>
+                    );
+                  })()}
                 </View>
                 <View style={styles.heroDivider} />
                 <View style={styles.heroStats}>
@@ -440,8 +451,15 @@ function PersonalStatsScreen() {
                   </View>
                   <View style={styles.heroStatItem}>
                     <Feather name="zap" size={16} color="rgba(255,255,255,0.8)" />
-                    <Text style={styles.heroStatValue}>{userStats.avgSpeed}</Text>
-                    <Text style={styles.heroStatLabel}>km/h</Text>
+                    {(() => {
+                      const displaySpeed = formatSpeedKmh(userStats.avgSpeed, preferences.units, 1);
+                      return (
+                        <>
+                          <Text style={styles.heroStatValue}>{displaySpeed.value}</Text>
+                          <Text style={styles.heroStatLabel}>{displaySpeed.unit}</Text>
+                        </>
+                      );
+                    })()}
                   </View>
                 </View>
               </View>
@@ -496,11 +514,18 @@ function PersonalStatsScreen() {
                   <Feather name="target" size={20} color="#065F46" />
                 </LinearGradient>
               </View>
-              <Text style={styles.quickStatValue}>{userStats.avgSpeed}</Text>
-              <Text style={styles.quickStatLabel}>Average Speed</Text>
-              <View style={[styles.quickStatBadge, { backgroundColor: '#D1FAE5' }]}>
-                <Text style={[styles.quickStatBadgeText, { color: '#065F46' }]}>km/h</Text>
-              </View>
+              {(() => {
+                const displaySpeed = formatSpeedKmh(userStats.avgSpeed, preferences.units, 1);
+                return (
+                  <>
+                    <Text style={styles.quickStatValue}>{displaySpeed.value}</Text>
+                    <Text style={styles.quickStatLabel}>Average Speed</Text>
+                    <View style={[styles.quickStatBadge, { backgroundColor: '#D1FAE5' }]}>
+                      <Text style={[styles.quickStatBadgeText, { color: '#065F46' }]}>{displaySpeed.unit}</Text>
+                    </View>
+                  </>
+                );
+              })()}
             </View>
           </View>
 

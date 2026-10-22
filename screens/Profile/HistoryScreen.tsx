@@ -6,6 +6,8 @@ import { getRides } from '../../services/RideStorage';
 import type { RideData } from '../../hooks/useRideTracker';
 import { useCallback, useState } from 'react';
 import { Colors } from '../../constants/colors';
+import { usePreferences } from '../../contexts/PreferencesContext';
+import { formatDistance } from '../../utils/units';
 import { BorderRadius, Shadows, Spacing, Typography } from '../../constants/styleguide';
 
 type RouteParams = {
@@ -19,6 +21,7 @@ const HistoryScreen: React.FC = () => {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { preferences } = usePreferences();
   const [rides, setRides] = useState<RideData[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -105,8 +108,15 @@ const HistoryScreen: React.FC = () => {
                   </View>
                 </View>
                 <View style={styles.itemRight}>
-                  <Text style={styles.itemDistValue}>{(item.totalDistance / 1000).toFixed(1)}</Text>
-                  <Text style={styles.itemDistUnit}>km</Text>
+                  {(() => {
+                    const dist = formatDistance(item.totalDistance, preferences.units, 1);
+                    return (
+                      <>
+                        <Text style={styles.itemDistValue}>{dist.value}</Text>
+                        <Text style={styles.itemDistUnit}>{dist.unit}</Text>
+                      </>
+                    );
+                  })()}
                 </View>
               </TouchableOpacity>
             )}
