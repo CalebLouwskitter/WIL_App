@@ -7,10 +7,8 @@ import {
   TouchableOpacity,
   StatusBar,
   Animated,
-  Linking,
   Alert,
 } from 'react-native';
-import * as Location from 'expo-location';
 import { PanGestureHandler, State, HandlerStateChangeEvent, PanGestureHandlerEventPayload } from 'react-native-gesture-handler';
 import { useSos } from '../../contexts/SosContext';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
@@ -44,7 +42,6 @@ const SosAlertScreen = () => {
   const activatedRef = useRef(false);
   const activatedThisSessionRef = useRef(false);
   const activationFinalizedRef = useRef(false);
-  const whatsappSentRef = useRef(false);
   const submitStatusRef = useRef<SubmitStatus>('idle');
 
   const updateSubmitStatus = (status: SubmitStatus, partial = false) => {
@@ -59,7 +56,6 @@ const SosAlertScreen = () => {
     setActivated(false);
     setHelpSent(false);
     setCountdown(COUNTDOWN_START);
-    whatsappSentRef.current = false;
     activationFinalizedRef.current = false;
     translateY.setValue(0);
     translateYJS.setValue(0);
@@ -194,40 +190,7 @@ const SosAlertScreen = () => {
     }
   };
 
-  // Send location to WhatsApp
-  const sendLocationToWhatsApp = async () => {
-    if (whatsappSentRef.current) return;
-    whatsappSentRef.current = true;
-
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required to send your location.');
-        return;
-      }
-
-      const location = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = location.coords;
-      const mapsUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
-      const message = `🚨 SOS ALERT 🚨\nPlease help!\nMy live location:\n${mapsUrl}\n\nTap the link to navigate via Google Maps.`;
-
-      const encodedMessage = encodeURIComponent(message);
-      const fullUrl = `whatsapp://send?text=${encodedMessage}`;
-
-      const supported = await Linking.canOpenURL(fullUrl);
-      if (supported) {
-        await Linking.openURL(fullUrl);
-      } else {
-        const webUrl = `https://wa.me/?text=${encodedMessage}`;
-        await Linking.openURL(webUrl);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to share SOS location.');
-      console.error('Error sending WhatsApp message:', error);
-    }
-  };
-
-  // Countdown effect - triggers WhatsApp immediately when countdown reaches 0
+  // Countdown effect - submits the SBHRA alert when the countdown reaches 0. Nothing else opens by itself.
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | null = null;
     if (activated && !helpSent) {
@@ -236,8 +199,6 @@ const SosAlertScreen = () => {
           if (prev <= 1) {
             if (timer) clearInterval(timer);
             finalizeSosActivation();
-            // Immediately send WhatsApp message
-            sendLocationToWhatsApp();
             setHelpSent(true);
             return 0;
           }
