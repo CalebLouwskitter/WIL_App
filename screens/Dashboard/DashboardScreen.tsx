@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import MapView from 'react-native-maps';
 import Feather from 'react-native-vector-icons/Feather';
-import { useNavigation, CommonActions } from '@react-navigation/native';
+import { useNavigation, CommonActions, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import SettingsModal from '../../components/Modals/SettingsModal';
 import NotificationsModal from '../../components/Modals/NotificationsModal';
@@ -19,6 +19,8 @@ import { firestore } from '@/services/firebase';
 import { onSnapshot, collection } from 'firebase/firestore';
 import * as Location from 'expo-location';
 import * as Linking from 'expo-linking';
+import { getRides } from '@/services/RideStorage';
+import { weeklyDistanceKm, totalKm, type DayDistance } from '@/utils/weeklyDistance';
 
 type RootNavigationProp = StackNavigationProp<any>;
 const screenWidth = Dimensions.get('window').width;
@@ -39,6 +41,24 @@ const DashboardScreen = () => {
   const [sosList, setSosList] = useState<any[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
+  const [weekly, setWeekly] = useState<DayDistance[] | null>(null);
+
+  // Chart data comes from the rides stored for this user; null until the first read finishes
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getRides()
+        .then((rides) => {
+          if (!cancelled) setWeekly(weeklyDistanceKm(rides));
+        })
+        .catch(() => {
+          if (!cancelled) setWeekly(weeklyDistanceKm([]));
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [])
+  );
 
   // Fetch active SOS alerts from Firebase
   useEffect(() => {
@@ -228,16 +248,36 @@ const DashboardScreen = () => {
           >
             <View style={styles.chartHeader}>
               <Text style={styles.chartTitle}>Analytics & Data</Text>
-              <View style={styles.chartTrendBox}>
-                <Feather name="arrow-up" size={12} color="#16a34a" />
-                <Text style={styles.chartTrend}>6%</Text>
-              </View>
+              {weekly && totalKm(weekly) > 0 ? (
+                <Text style={styles.chartPeriod}>{totalKm(weekly).toFixed(1)} km</Text>
+              ) : null}
             </View>
-            <View style={styles.chartBars}>
-              {[70, 90, 75, 100, 75, 50, 60].map((height, index) => (
-                <View key={index} style={[styles.chartBar, { height: height * 0.7 }]} />
-              ))}
-            </View>
+            <Text style={styles.chartSubtitle}>Distance ridden per day, last 7 days (km)</Text>
+            {weekly && totalKm(weekly) > 0 ? (
+              <>
+                <View style={styles.chartBars}>
+                  {weekly.map((day) => {
+                    const max = Math.max(...weekly.map((d) => d.km));
+                    return (
+                      <View key={day.dayStart} style={styles.chartBarSlot}>
+                        <View
+                          style={[styles.chartBar, { height: day.km > 0 ? Math.max(4, (day.km / max) * 56) : 2, opacity: day.km > 0 ? 1 : 0.3 }]}
+                        />
+                      </View>
+                    );
+                  })}
+                </View>
+                <View style={styles.chartLabels}>
+                  {weekly.map((day) => (
+                    <Text key={day.dayStart} style={styles.chartLabel}>{day.label}</Text>
+                  ))}
+                </View>
+              </>
+            ) : (
+              <Text style={styles.chartEmpty}>
+                {weekly ? 'No rides recorded in the last 7 days.' : 'Loading rides…'}
+              </Text>
+            )}
           </TouchableOpacity>
 
           <View style={{ height: 30 }} />
@@ -308,10 +348,14 @@ const styles = StyleSheet.create({
   chartContainer: { backgroundColor: 'white', marginHorizontal: PADDING_HORIZONTAL, marginVertical: 4, padding: 16, borderRadius: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 1, elevation: 2 },
   chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   chartTitle: { fontSize: 16, fontWeight: '600', color: '#374151' },
-  chartTrendBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#d1fae5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  chartTrend: { fontSize: 12, color: '#16a34a', fontWeight: '600' },
-  chartBars: { flexDirection: 'row', alignItems: 'flex-end', height: 80, marginBottom: 8 },
-  chartBar: { flex: 1, backgroundColor: '#3b82f6', borderRadius: 2, marginHorizontal: 3 },
+  chartPeriod: { fontSize: 12, color: '#374151', fontWeight: '600' },
+  chartSubtitle: { fontSize: 12, color: '#6b7280', marginBottom: 12 },
+  chartBars: { flexDirection: 'row', alignItems: 'flex-end', height: 60, marginBottom: 4 },
+  chartBarSlot: { flex: 1, justifyContent: 'flex-end', marginHorizontal: 3 },
+  chartBar: { backgroundColor: '#3b82f6', borderRadius: 2 },
+  chartLabels: { flexDirection: 'row', marginBottom: 4 },
+  chartLabel: { flex: 1, textAlign: 'center', fontSize: 10, color: '#6b7280' },
+  chartEmpty: { fontSize: 13, color: '#6b7280', paddingVertical: 16, textAlign: 'center' },
   startRideContainer: { backgroundColor: 'white', marginHorizontal: PADDING_HORIZONTAL, marginBottom: 12, padding: 16, borderRadius: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
   startRideHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   startRideTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginLeft: 10 },
