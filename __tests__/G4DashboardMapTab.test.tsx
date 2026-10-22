@@ -177,6 +177,7 @@ jest.mock('firebase/firestore', () => ({
 import LiveTrackingScreen from '../screens/Mapping/LiveTrackingScreen';
 import OnlineUsersScreen from '../screens/Mapping/OnlineUsers';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen';
+import ErrorBoundary from '../components/ErrorBoundary';
 import { getRides } from '../services/RideStorage';
 
 describe('G4 Dashboard & Map Tab — Task 1: Riders Online & OnlineUsers ScreenHeader', () => {
@@ -315,6 +316,42 @@ describe('G4 Dashboard — Task 3: map preview uses stored map type', () => {
     expect(startRideText).toBeDefined();
     const textStyle = StyleSheet.flatten(startRideText!.props.style);
     expect(textStyle.color).toBe(Colors.dark.textPrimary);
+
+    renderer.unmount();
+  });
+});
+
+describe('G4 ErrorBoundary — Theme support', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('renders themed error UI in dark mode when an error is caught', () => {
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const Thrower = () => {
+      throw new Error('Test crash');
+    };
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = TestRenderer.create(
+        <ErrorBoundary>
+          <Thrower />
+        </ErrorBoundary>
+      );
+    });
+
+    const rootViews = renderer.root.findAllByType(View);
+    const containerStyle = StyleSheet.flatten(rootViews[0].props.style);
+    expect(containerStyle.backgroundColor).toBe(Colors.dark.background);
+
+    const texts = renderer.root.findAllByType(Text);
+    const titleText = texts.find((t) => [t.props.children].flat().join('') === 'Something went wrong');
+    expect(titleText).toBeDefined();
+    const titleStyle = StyleSheet.flatten(titleText!.props.style);
+    expect(titleStyle.color).toBe(Colors.dark.textPrimary);
 
     renderer.unmount();
   });
