@@ -17,6 +17,7 @@ import { Typography, Spacing, BorderRadius, ComponentStyles } from '../../consta
 import { FIREBASE_ENABLED, auth } from '../../services/firebase';
 import { useUnits } from '../../hooks/useUnits';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import ScreenHeader from '../../components/ScreenHeader';
 
 // Version from package.json - will be updated dynamically
 const APP_VERSION = '1.0.0';
@@ -198,14 +199,7 @@ const SettingsScreen: React.FC = () => {
   return (
     <ErrorBoundary>
       <View style={[styles.container, { backgroundColor: colors.backgroundLight }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="arrow-left" size={24} color={colors.icon} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Settings</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ScreenHeader title="Settings" onBack={() => navigation.goBack()} />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Profile Section */}
@@ -480,25 +474,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingTop: 50,
-    paddingBottom: Spacing.md,
-    borderBottomWidth: 1,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: Typography.title.fontSize,
-    fontWeight: Typography.title.fontWeight,
-  },
+
   scrollView: {
     flex: 1,
   },
