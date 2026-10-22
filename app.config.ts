@@ -29,7 +29,7 @@ const config: ExpoConfig = {
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/icons/icon.png',
-  userInterfaceStyle: 'light',
+  userInterfaceStyle: 'automatic',
   scheme: 'sbhraapp',
   owner: 'caleblouwskiter', // Expo account owner
   ios: {
