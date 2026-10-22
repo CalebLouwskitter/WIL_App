@@ -211,6 +211,7 @@ const DashboardScreen = () => {
             <MapStatusFrame status={previewMapStatus} style={styles.mapWidgetMap} compact>
               <MapView
                 {...previewMapStatus.mapProps}
+                mapType={preferences.mapType}
                 style={styles.mapWidgetMap}
                 initialRegion={{
                   latitude: -33.9648,

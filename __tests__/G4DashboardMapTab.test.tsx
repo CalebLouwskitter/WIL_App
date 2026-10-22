@@ -276,3 +276,23 @@ describe('G4 Dashboard — Task 2: 7-day chart follows km/mi', () => {
     renderer.unmount();
   });
 });
+
+describe('G4 Dashboard — Task 3: map preview uses stored map type', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('passes preferences.mapType to the preview MapView', async () => {
+    mockPreferences.mapType = 'satellite';
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<DashboardScreen />);
+    });
+
+    const mapViews = renderer.root.findAllByProps({ testID: 'map-view' });
+    expect(mapViews.length).toBeGreaterThan(0);
+    expect(mapViews[0].props.mapType).toBe('satellite');
+    renderer.unmount();
+  });
+});
