@@ -721,7 +721,7 @@ export default function UnifiedRideObstacleScreen({
                 <View style={[styles.badge, { backgroundColor: color }]}>
                   <Text style={styles.badgeText}>{obstacle.severity}</Text>
                 </View>
-                <View style={[styles.badge, { backgroundColor: '#6B7280' }]}>
+                <View style={[styles.badge, { backgroundColor: palette.textSecondary }]}>
                   <Text style={styles.badgeText}>{obstacle.type}</Text>
                 </View>
               </View>
@@ -913,7 +913,7 @@ export default function UnifiedRideObstacleScreen({
                       onPress={() => setSelectedWildlife(isSelected ? null : animal.id)}
                       style={[
                         styles.wildlifeCard,
-                        { backgroundColor: animal.color },
+                        { backgroundColor: isDark ? palette.card : animal.color },
                         isSelected && styles.wildlifeCardSelected,
                       ]}
                     >
@@ -932,7 +932,7 @@ export default function UnifiedRideObstacleScreen({
                   value={sightingNotes}
                   onChangeText={setSightingNotes}
                   placeholder="Describe location, behavior, or other details..."
-                  placeholderTextColor={BRAND_COLORS.text.light}
+                  placeholderTextColor={palette.textMuted}
                   style={styles.textInput}
                   multiline
                   numberOfLines={3}
@@ -1000,7 +1000,7 @@ export default function UnifiedRideObstacleScreen({
                       onPress={() => setSelectedIssue(isSelected ? null : issue.id)}
                       style={[
                         styles.issueCard,
-                        { backgroundColor: issue.color },
+                        { backgroundColor: isDark ? palette.card : issue.color },
                         isSelected && styles.issueCardSelected,
                       ]}
                     >
@@ -1019,7 +1019,7 @@ export default function UnifiedRideObstacleScreen({
                   value={reportNotes}
                   onChangeText={setReportNotes}
                   placeholder="Describe the issue..."
-                  placeholderTextColor={BRAND_COLORS.text.light}
+                  placeholderTextColor={palette.textMuted}
                   style={styles.textInput}
                   multiline
                   numberOfLines={3}
@@ -1080,15 +1080,15 @@ export default function UnifiedRideObstacleScreen({
                         showsTraffic={false}
                         showsIndoorLevelPicker={false}
                         loadingEnabled={true}
-                        loadingIndicatorColor="#2C5530"
-                        loadingBackgroundColor="#FAF9F7"
+                        loadingIndicatorColor={palette.brandPrimary}
+                        loadingBackgroundColor={palette.background}
                         onPress={onMapPress}
                       >
                         {/* Show ride path if available */}
                         {rideData?.path && rideData.path.length > 1 && (
                           <Polyline
                             coordinates={rideData.path}
-                            strokeColor="#2C5530"
+                            strokeColor={palette.brandPrimary}
                             strokeWidth={3}
                           />
                         )}
@@ -1103,7 +1103,7 @@ export default function UnifiedRideObstacleScreen({
                               latitude: reportLocation?.latitude || 0,
                               longitude: reportLocation?.longitude || 0,
                             }}
-                            pinColor="#C73E1D"
+                            pinColor={palette.danger}
                           >
                             <View style={styles.customMarker}>
                               <Text style={styles.markerEmoji}>📍</Text>
@@ -1429,14 +1429,18 @@ const createStyles = (palette: AppPalette) =>
     gap: 8,
   },
   locationBannerOk: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: palette.surfaceVariant,
+    borderWidth: 1,
+    borderColor: palette.success,
   },
   locationBannerWarn: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: palette.surfaceVariant,
+    borderWidth: 1,
+    borderColor: palette.caution,
   },
   locationBannerText: {
     fontSize: 13,
-    color: '#1F2937',
+    color: palette.textPrimary,
     lineHeight: 18,
   },
   locationActions: {
@@ -1448,18 +1452,18 @@ const createStyles = (palette: AppPalette) =>
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: palette.card,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: palette.divider,
   },
   locationActionText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1F2937',
+    color: palette.textPrimary,
   },
   reportLocationLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: palette.textSecondary,
     marginBottom: 8,
   },
 
@@ -1572,11 +1576,11 @@ const createStyles = (palette: AppPalette) =>
   },
   wildlifeCard: {
     width: '48%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: palette.card,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -1585,9 +1589,9 @@ const createStyles = (palette: AppPalette) =>
     borderColor: 'transparent',
   },
   wildlifeCardSelected: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#3B82F6',
-    shadowColor: '#3B82F6',
+    backgroundColor: palette.brandSoft,
+    borderColor: palette.brandPrimary,
+    shadowColor: palette.brandPrimary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1600,11 +1604,11 @@ const createStyles = (palette: AppPalette) =>
   wildlifeLabel: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#374151',
+    color: palette.textPrimary,
     textAlign: 'center',
   },
   wildlifeLabelSelected: {
-    color: '#3B82F6',
+    color: palette.brandPrimary,
     fontWeight: '700',
   },
 
@@ -1617,11 +1621,11 @@ const createStyles = (palette: AppPalette) =>
   },
   issueCard: {
     width: '48%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: palette.card,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -1630,9 +1634,9 @@ const createStyles = (palette: AppPalette) =>
     borderColor: 'transparent',
   },
   issueCardSelected: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#F59E0B',
-    shadowColor: '#F59E0B',
+    backgroundColor: palette.brandSoft,
+    borderColor: palette.brandPrimary,
+    shadowColor: palette.brandPrimary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1645,11 +1649,11 @@ const createStyles = (palette: AppPalette) =>
   issueLabel: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#374151',
+    color: palette.textPrimary,
     textAlign: 'center',
   },
   issueLabelSelected: {
-    color: '#F59E0B',
+    color: palette.brandPrimary,
     fontWeight: '700',
   },
 
@@ -1660,17 +1664,17 @@ const createStyles = (palette: AppPalette) =>
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: palette.textPrimary,
     marginBottom: 8,
   },
   textInput: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: palette.card,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: palette.divider,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: '#1F2937',
+    color: palette.textPrimary,
     minHeight: 80,
   },
 
@@ -1681,7 +1685,7 @@ const createStyles = (palette: AppPalette) =>
   quickNotesLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: palette.textPrimary,
     marginBottom: 8,
   },
   quickNotesRow: {
@@ -1689,7 +1693,7 @@ const createStyles = (palette: AppPalette) =>
     gap: 8,
   },
   quickNote: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: palette.surfaceVariant,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -1702,15 +1706,15 @@ const createStyles = (palette: AppPalette) =>
   },
   quickNoteText: {
     fontSize: 13,
-    color: '#4B5563',
+    color: palette.textSecondary,
     fontWeight: '500',
   },
 
   // Photo styles
   photoButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: palette.card,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: palette.divider,
     borderStyle: 'dashed',
     borderRadius: 12,
     padding: 24,
@@ -1723,7 +1727,7 @@ const createStyles = (palette: AppPalette) =>
   photoButtonText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#6B7280',
+    color: palette.textSecondary,
   },
   photoPreviewContainer: {
     position: 'relative',
@@ -1747,7 +1751,7 @@ const createStyles = (palette: AppPalette) =>
     justifyContent: 'center',
   },
   removePhotoText: {
-    color: 'white',
+    color: palette.onPrimary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1755,13 +1759,13 @@ const createStyles = (palette: AppPalette) =>
     position: 'absolute',
     bottom: 12,
     right: 12,
-    backgroundColor: '#2C5530',
+    backgroundColor: palette.brandPrimary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   retakePhotoText: {
-    color: 'white',
+    color: palette.onPrimary,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -1773,7 +1777,7 @@ const createStyles = (palette: AppPalette) =>
   mapLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: palette.textPrimary,
     marginBottom: 12,
   },
   mapWrapper: {
@@ -1785,12 +1789,12 @@ const createStyles = (palette: AppPalette) =>
     flex: 1,
   },
   customMarker: {
-    backgroundColor: 'white',
+    backgroundColor: palette.card,
     borderRadius: 20,
     borderWidth: 3,
-    borderColor: '#C73E1D',
+    borderColor: palette.danger,
     padding: 6,
-    shadowColor: '#000',
+    shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -1803,9 +1807,9 @@ const createStyles = (palette: AppPalette) =>
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: 'rgba(44, 85, 48, 0.3)',
+    backgroundColor: palette.brandSoft,
     borderWidth: 3,
-    borderColor: '#2C5530',
+    borderColor: palette.brandPrimary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1813,17 +1817,17 @@ const createStyles = (palette: AppPalette) =>
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#2C5530',
+    backgroundColor: palette.brandPrimary,
   },
   currentLocationButton: {
     position: 'absolute',
     bottom: 16,
     right: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: palette.card,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    shadowColor: '#000',
+    shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -1832,28 +1836,28 @@ const createStyles = (palette: AppPalette) =>
   currentLocationButtonText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#2C5530',
+    color: palette.brandPrimary,
   },
 
   // Obstacle marker styles (from ObstacleView)
   markerContainer: {
-    backgroundColor: 'white',
+    backgroundColor: palette.card,
     borderRadius: 20,
     borderWidth: 3,
     padding: 6,
-    shadowColor: '#000',
+    shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
   },
   calloutContainer: {
-    backgroundColor: 'white',
+    backgroundColor: palette.card,
     borderRadius: 12,
     padding: 12,
     minWidth: 200,
     maxWidth: 250,
-    shadowColor: '#000',
+    shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
@@ -1869,7 +1873,7 @@ const createStyles = (palette: AppPalette) =>
     fontWeight: 'bold',
     marginLeft: 8,
     flex: 1,
-    color: '#1F2937',
+    color: palette.textPrimary,
   },
   calloutBody: {
     gap: 8,
@@ -1884,14 +1888,14 @@ const createStyles = (palette: AppPalette) =>
     borderRadius: 6,
   },
   badgeText: {
-    color: 'white',
+    color: palette.onPrimary,
     fontSize: 11,
     fontWeight: '600',
     textTransform: 'capitalize',
   },
   description: {
     fontSize: 13,
-    color: '#6B7280',
+    color: palette.textSecondary,
     lineHeight: 18,
   },
   footer: {
@@ -1902,12 +1906,12 @@ const createStyles = (palette: AppPalette) =>
   },
   verifiedText: {
     fontSize: 12,
-    color: '#10B981',
+    color: palette.success,
     fontWeight: '500',
   },
   reportedBy: {
     fontSize: 12,
-    color: '#6B7280',
+    color: palette.textSecondary,
     fontWeight: '500',
   },
 
@@ -1918,18 +1922,18 @@ const createStyles = (palette: AppPalette) =>
     gap: 12,
   },
   submitButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: palette.brandPrimary,
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
-    shadowColor: '#3B82F6',
+    shadowColor: palette.brandPrimary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
   },
   submitButtonDisabled: {
-    backgroundColor: '#D1D5DB',
+    backgroundColor: palette.surfaceVariant,
     shadowOpacity: 0,
     elevation: 0,
   },
@@ -1937,20 +1941,20 @@ const createStyles = (palette: AppPalette) =>
     opacity: 0.7,
   },
   submitButtonText: {
-    color: '#FFFFFF',
+    color: palette.onPrimary,
     fontSize: 16,
     fontWeight: '700',
   },
   skipButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: palette.card,
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: palette.divider,
   },
   skipButtonText: {
-    color: '#6B7280',
+    color: palette.textSecondary,
     fontSize: 16,
     fontWeight: '600',
   },
