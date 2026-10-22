@@ -156,7 +156,7 @@ const DashboardScreen = () => {
   ) => (
     <TouchableOpacity
       key={title}
-      style={[styles.navWidgetContainer, { backgroundColor: palette.card }]}
+      style={[styles.navWidgetContainer, { backgroundColor: palette.card, shadowColor: palette.shadow }]}
       activeOpacity={0.8}
       onPress={() => navigateToScreen(targetScreen)}
     >
@@ -241,7 +241,7 @@ const DashboardScreen = () => {
 
           {/* Start Ride wide widget */}
           <TouchableOpacity
-            style={[styles.startRideContainer, { backgroundColor: palette.card }]}
+            style={[styles.startRideContainer, { backgroundColor: palette.card, shadowColor: palette.shadow }]}
             activeOpacity={0.9}
             onPress={() =>
               navigation.navigate('Mapping', {
@@ -269,7 +269,7 @@ const DashboardScreen = () => {
           </View>
 
           <TouchableOpacity
-            style={[styles.chartContainer, { backgroundColor: palette.card }]}
+            style={[styles.chartContainer, { backgroundColor: palette.card, shadowColor: palette.shadow }]}
             activeOpacity={0.8}
             onPress={() => navigateToScreen('AnalyticsPage')}
           >
@@ -377,11 +377,11 @@ const styles = StyleSheet.create({
   mapWidgetMap: { ...StyleSheet.absoluteFill },
   mapWidgetOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'transparent' },
   widgetGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', marginHorizontal: PADDING_HORIZONTAL, marginLeft: PADDING_HORIZONTAL - GAP_SIZE / 2, marginRight: PADDING_HORIZONTAL - GAP_SIZE / 2, marginBottom: 0 },
-  navWidgetContainer: { width: WIDGET_WIDTH, padding: 15, borderRadius: 12, marginBottom: GAP_SIZE, marginHorizontal: GAP_SIZE / 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 3, elevation: 2 },
+  navWidgetContainer: { width: WIDGET_WIDTH, padding: 15, borderRadius: 12, marginBottom: GAP_SIZE, marginHorizontal: GAP_SIZE / 2, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 3, elevation: 2 },
   iconCircle: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
   navWidgetTitle: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
   navWidgetSubtitle: { fontSize: 10, fontWeight: '500', lineHeight: 14 },
-  chartContainer: { marginHorizontal: PADDING_HORIZONTAL, marginVertical: 4, padding: 16, borderRadius: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 1, elevation: 2 },
+  chartContainer: { marginHorizontal: PADDING_HORIZONTAL, marginVertical: 4, padding: 16, borderRadius: 10, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 1, elevation: 2 },
   chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   chartTitle: { fontSize: 16, fontWeight: '600' },
   chartPeriod: { fontSize: 12, fontWeight: '600' },
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
   chartLabels: { flexDirection: 'row', marginBottom: 4 },
   chartLabel: { flex: 1, textAlign: 'center', fontSize: 10 },
   chartEmpty: { fontSize: 13, paddingVertical: 16, textAlign: 'center' },
-  startRideContainer: { marginHorizontal: PADDING_HORIZONTAL, marginBottom: 12, padding: 16, borderRadius: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
+  startRideContainer: { marginHorizontal: PADDING_HORIZONTAL, marginBottom: 12, padding: 16, borderRadius: 10, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
   startRideHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   startRideTitle: { fontSize: 16, fontWeight: '700', marginLeft: 10 },
   startRideSubtitle: { fontSize: 12, marginLeft: 58 - 48 },
