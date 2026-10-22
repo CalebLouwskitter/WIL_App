@@ -1,12 +1,13 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import * as ReactNative from 'react-native';
 import { Colors } from '../constants/colors';
 
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (cb: () => void) => cb(),
-  useNavigation: () => ({ goBack: jest.fn(), navigate: jest.fn() }),
+  useNavigation: () => ({ goBack: jest.fn(), navigate: jest.fn(), getParent: () => ({ navigate: jest.fn() }) }),
+  useRoute: () => ({ params: {} }),
 }));
 
 jest.mock('react-native-safe-area-context', () => {
@@ -37,7 +38,39 @@ jest.mock('@/services/ObservationStorage', () => ({
   deleteObservation: jest.fn().mockResolvedValue(undefined),
 }));
 
+const mockStatuses = [
+  {
+    id: 'first-ride',
+    title: 'First Ride',
+    description: 'Complete your first ride',
+    icon: 'award',
+    target: 1,
+    gradientColors: ['#FF6B9D', '#FF8E53'] as const,
+    unlocked: true,
+    progress: 1,
+  },
+  {
+    id: 'distance-100',
+    title: '100km Club',
+    description: 'Ride 100 km in total',
+    icon: 'map',
+    target: 100,
+    unit: 'km',
+    gradientColors: ['#A8E6CF', '#7FD8BE'] as const,
+    unlocked: false,
+    progress: 25,
+  },
+];
+
+jest.mock('../hooks/useAchievementProgress', () => ({
+  useAchievementProgress: () => ({
+    awardsSource: 'cache',
+    statuses: mockStatuses,
+  }),
+}));
+
 import ObservationsScreen from '../screens/Profile/ObservationsScreen';
+import AchievementsScreen from '../screens/Profile/AchievementsScreen';
 
 afterEach(() => {
   jest.restoreAllMocks();
@@ -90,5 +123,32 @@ describe('G1 ObservationsScreen Theming', () => {
     expect(sightingsTabStyle.backgroundColor).toBe(Colors.dark.card);
     const sightingsTabText = sightingsTab.findByType(Text);
     expect(StyleSheet.flatten(sightingsTabText.props.style).color).toBe(Colors.dark.textSecondary);
+  });
+});
+
+describe('G1 AchievementsScreen Theming', () => {
+  it('renders transparent ScreenHeader and themed section titles and cards in dark mode', async () => {
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<AchievementsScreen />);
+    });
+
+    // Check section title "Unlocked" uses textPrimary
+    const texts = renderer.root.findAllByType(Text);
+    const unlockedTitle = texts.find((t) => [t.props.children].flat().join('') === 'Unlocked');
+    expect(unlockedTitle).toBeDefined();
+    expect(StyleSheet.flatten(unlockedTitle!.props.style).color).toBe(Colors.dark.textPrimary);
+
+    // Check achievement card title uses textPrimary
+    const cardTitle = texts.find((t) => [t.props.children].flat().join('') === 'First Ride');
+    expect(cardTitle).toBeDefined();
+    expect(StyleSheet.flatten(cardTitle!.props.style).color).toBe(Colors.dark.textPrimary);
+
+    // Check achievement card description uses textSecondary
+    const cardDesc = texts.find((t) => [t.props.children].flat().join('') === 'Complete your first ride');
+    expect(cardDesc).toBeDefined();
+    expect(StyleSheet.flatten(cardDesc!.props.style).color).toBe(Colors.dark.textSecondary);
   });
 });

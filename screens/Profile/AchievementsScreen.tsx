@@ -1,8 +1,16 @@
 import React, { useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, useColorScheme, Animated } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Dimensions,
+  Animated,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather as Icon } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { useAchievementProgress } from '../../hooks/useAchievementProgress';
 import { achievementDataNote, type AchievementStatus } from '../../utils/achievements';
 import ScreenHeader from '../../components/ScreenHeader';
@@ -13,6 +21,7 @@ const CARD_WIDTH = (screenWidth - 52) / 2;
 export default function AchievementsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const { palette, isDark } = useAppTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -66,59 +75,102 @@ export default function AchievementsScreen() {
           },
         ]}
       >
-        <View>
-          <LinearGradient
-            colors={achievement.gradientColors}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.achievementCard}
+        <View
+          style={[
+            styles.achievementCard,
+            {
+              backgroundColor: palette.card,
+              borderColor: isUnlocked
+                ? (isDark ? 'rgba(96, 165, 250, 0.3)' : '#DBEAFE')
+                : palette.divider,
+              shadowColor: palette.shadow,
+            },
+            !isUnlocked && styles.achievementCardLocked,
+          ]}
+        >
+          {/* Decorative shine */}
+          <View
+            style={[
+              styles.cardShine,
+              { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.2)' },
+            ]}
+          />
+
+          {/* Icon */}
+          <View
+            style={[
+              styles.cardIconContainer,
+              {
+                backgroundColor: isUnlocked
+                  ? (isDark ? 'rgba(34, 197, 94, 0.2)' : '#E8F5E9')
+                  : (isDark ? palette.surfaceVariant : '#F1F5F9'),
+                shadowColor: palette.shadow,
+              },
+            ]}
           >
-            {/* Decorative shine */}
-            <View style={styles.cardShine} />
+            <Icon
+              name={achievement.icon as any}
+              size={28}
+              color={isUnlocked ? palette.success : palette.textMuted}
+            />
+          </View>
 
-            {/* Icon */}
-            <View style={[styles.cardIconContainer, isUnlocked && styles.cardIconUnlocked]}>
-              <Icon 
-                name={achievement.icon as any} 
-                size={28} 
-                color={isUnlocked ? '#10B981' : '#64748B'} 
-              />
-            </View>
+          {/* Content */}
+          <View style={styles.cardContent}>
+            <Text style={[styles.cardTitle, { color: palette.textPrimary }]}>
+              {achievement.title}
+            </Text>
+            <Text style={[styles.cardDescription, { color: palette.textSecondary }]}>
+              {achievement.description}
+            </Text>
 
-            {/* Content */}
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{achievement.title}</Text>
-              <Text style={styles.cardDescription}>{achievement.description}</Text>
-
-              {isUnlocked ? (
-                <View style={styles.unlockedBadge}>
-                  <Icon name="check-circle" size={14} color="#10B981" />
-                  <Text style={styles.unlockedText}>Unlocked</Text>
+            {isUnlocked ? (
+              <View
+                style={[
+                  styles.unlockedBadge,
+                  {
+                    backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#E8F5E9',
+                    shadowColor: palette.shadow,
+                  },
+                ]}
+              >
+                <Icon name="check-circle" size={14} color={palette.success} />
+                <Text style={[styles.unlockedText, { color: palette.success }]}>Unlocked</Text>
+              </View>
+            ) : achievement.progress === null ? (
+              <Text style={[styles.progressText, { color: palette.textMuted }]}>
+                Progress isn't tracked yet
+              </Text>
+            ) : (
+              <View style={styles.progressSection}>
+                <View style={styles.progressHeader}>
+                  <Text style={[styles.progressText, { color: palette.textPrimary }]}>
+                    {progressLabel}
+                  </Text>
+                  <Text style={[styles.progressPercent, { color: palette.textSecondary }]}>
+                    {percent}%
+                  </Text>
                 </View>
-              ) : achievement.progress === null ? (
-                <Text style={styles.progressText}>Progress isn't tracked yet</Text>
-              ) : (
-                <View style={styles.progressSection}>
-                  <View style={styles.progressHeader}>
-                    <Text style={styles.progressText}>{progressLabel}</Text>
-                    <Text style={styles.progressPercent}>{percent}%</Text>
-                  </View>
-                  <View style={styles.progressBarContainer}>
-                    <View style={[styles.progressBarFill, { width: `${percent}%` }]} />
-                  </View>
+                <View style={[styles.progressBarContainer, { backgroundColor: palette.divider }]}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      { width: `${percent}%`, backgroundColor: palette.brandPrimary },
+                    ]}
+                  />
                 </View>
-              )}
-            </View>
-          </LinearGradient>
+              </View>
+            )}
+          </View>
         </View>
       </Animated.View>
     );
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
       <LinearGradient
-        colors={['#F8FAFC', '#F1F5F9'] as const}
+        colors={[palette.background, palette.card] as const}
         style={styles.gradient}
       >
         <ScrollView
@@ -127,6 +179,7 @@ export default function AchievementsScreen() {
         >
           <ScreenHeader
             title="Achievements"
+            backgroundColor="transparent"
             onBack={() => {
               if (route?.params?.fromDashboard) {
                 navigation.getParent()?.navigate('Dashboard');
@@ -137,17 +190,21 @@ export default function AchievementsScreen() {
           />
 
           {/* Progress Summary */}
-          <Animated.View 
+          <Animated.View
             style={[
               styles.summaryCard,
-              { 
+              {
                 opacity: fadeAnim,
-                transform: [{ scale: fadeAnim }]
-              }
+                transform: [{ scale: fadeAnim }],
+              },
             ]}
           >
             <LinearGradient
-              colors={['#3B82F6', '#2563EB'] as const}
+              colors={
+                isDark
+                  ? ([palette.gradientPrimaryStart, palette.gradientPrimaryEnd] as const)
+                  : (['#3B82F6', '#2563EB'] as const)
+              }
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.summaryGradient}
@@ -160,11 +217,11 @@ export default function AchievementsScreen() {
                     : `${totalProgress.completed} of ${totalProgress.total} tracked achievements unlocked`}
                 </Text>
                 <View style={styles.summaryProgressBar}>
-                  <View 
+                  <View
                     style={[
-                      styles.summaryProgressFill, 
-                      { width: `${totalProgress.percentage}%` }
-                    ]} 
+                      styles.summaryProgressFill,
+                      { width: `${totalProgress.percentage}%` },
+                    ]}
                   />
                 </View>
               </View>
@@ -177,19 +234,43 @@ export default function AchievementsScreen() {
             </LinearGradient>
           </Animated.View>
 
-          {dataNote ? <Text style={styles.dataNote}>{dataNote}</Text> : null}
+          {dataNote ? (
+            <Text
+              style={[
+                styles.dataNote,
+                {
+                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+                  color: isDark ? '#FDE68A' : '#92400E',
+                },
+              ]}
+            >
+              {dataNote}
+            </Text>
+          ) : null}
 
           {/* Unlocked Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
-                <View style={styles.sectionIconCircle}>
+                <View
+                  style={[
+                    styles.sectionIconCircle,
+                    { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7' },
+                  ]}
+                >
                   <Icon name="star" size={16} color="#F59E0B" />
                 </View>
-                <Text style={styles.sectionTitle}>Unlocked</Text>
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Unlocked</Text>
               </View>
-              <View style={styles.countBadge}>
-                <Text style={styles.countText}>{unlocked.length}</Text>
+              <View
+                style={[
+                  styles.countBadge,
+                  { backgroundColor: palette.card, borderColor: palette.divider, borderWidth: 1 },
+                ]}
+              >
+                <Text style={[styles.countText, { color: palette.textPrimary }]}>
+                  {unlocked.length}
+                </Text>
               </View>
             </View>
 
@@ -197,12 +278,25 @@ export default function AchievementsScreen() {
               {unlocked.length > 0 ? (
                 unlocked.map((item, idx) => renderCard(item, true, idx))
               ) : (
-                <View style={styles.emptyState}>
-                  <View style={styles.emptyIconCircle}>
-                    <Icon name="lock" size={40} color="#94A3B8" />
+                <View
+                  style={[
+                    styles.emptyState,
+                    {
+                      backgroundColor: palette.card,
+                      borderColor: palette.divider,
+                      shadowColor: palette.shadow,
+                    },
+                  ]}
+                >
+                  <View style={[styles.emptyIconCircle, { backgroundColor: palette.background }]}>
+                    <Icon name="lock" size={40} color={palette.textMuted} />
                   </View>
-                  <Text style={styles.emptyTitle}>No achievements unlocked yet</Text>
-                  <Text style={styles.emptySubtitle}>Complete a ride to earn your first one.</Text>
+                  <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>
+                    No achievements unlocked yet
+                  </Text>
+                  <Text style={[styles.emptySubtitle, { color: palette.textSecondary }]}>
+                    Complete a ride to earn your first one.
+                  </Text>
                 </View>
               )}
             </View>
@@ -212,13 +306,27 @@ export default function AchievementsScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
-                <View style={[styles.sectionIconCircle, { backgroundColor: '#DBEAFE' }]}>
-                  <Icon name="target" size={16} color="#3B82F6" />
+                <View
+                  style={[
+                    styles.sectionIconCircle,
+                    { backgroundColor: palette.brandSoft },
+                  ]}
+                >
+                  <Icon name="target" size={16} color={palette.brandPrimary} />
                 </View>
-                <Text style={styles.sectionTitle}>In Progress</Text>
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                  In Progress
+                </Text>
               </View>
-              <View style={styles.countBadge}>
-                <Text style={styles.countText}>{inProgress.length}</Text>
+              <View
+                style={[
+                  styles.countBadge,
+                  { backgroundColor: palette.card, borderColor: palette.divider, borderWidth: 1 },
+                ]}
+              >
+                <Text style={[styles.countText, { color: palette.textPrimary }]}>
+                  {inProgress.length}
+                </Text>
               </View>
             </View>
 
@@ -226,12 +334,25 @@ export default function AchievementsScreen() {
               {inProgress.length > 0 ? (
                 inProgress.map((item, idx) => renderCard(item, false, idx))
               ) : (
-                <View style={styles.emptyState}>
-                  <View style={styles.emptyIconCircle}>
-                    <Icon name="award" size={40} color="#94A3B8" />
+                <View
+                  style={[
+                    styles.emptyState,
+                    {
+                      backgroundColor: palette.card,
+                      borderColor: palette.divider,
+                      shadowColor: palette.shadow,
+                    },
+                  ]}
+                >
+                  <View style={[styles.emptyIconCircle, { backgroundColor: palette.background }]}>
+                    <Icon name="award" size={40} color={palette.textMuted} />
                   </View>
-                  <Text style={styles.emptyTitle}>Nothing in progress</Text>
-                  <Text style={styles.emptySubtitle}>Every achievement we can track is unlocked.</Text>
+                  <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>
+                    Nothing in progress
+                  </Text>
+                  <Text style={[styles.emptySubtitle, { color: palette.textSecondary }]}>
+                    Every achievement we can track is unlocked.
+                  </Text>
                 </View>
               )}
             </View>
@@ -241,10 +362,17 @@ export default function AchievementsScreen() {
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <View style={styles.sectionTitleRow}>
-                  <View style={[styles.sectionIconCircle, { backgroundColor: '#E2E8F0' }]}>
-                    <Icon name="help-circle" size={16} color="#64748B" />
+                  <View
+                    style={[
+                      styles.sectionIconCircle,
+                      { backgroundColor: palette.divider },
+                    ]}
+                  >
+                    <Icon name="help-circle" size={16} color={palette.textSecondary} />
                   </View>
-                  <Text style={styles.sectionTitle}>Not tracked yet</Text>
+                  <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                    Not tracked yet
+                  </Text>
                 </View>
               </View>
               <View style={styles.cardsGrid}>
@@ -263,21 +391,16 @@ export default function AchievementsScreen() {
 const styles = StyleSheet.create({
   dataNote: {
     fontSize: 13,
-    color: '#92400E',
-    backgroundColor: '#FEF3C7',
     borderRadius: 10,
     padding: 12,
     marginBottom: 16,
   },
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
   },
   gradient: {
     flex: 1,
   },
-  
-
 
   // Summary Card
   summaryCard: {
@@ -285,7 +408,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderRadius: 24,
     overflow: 'hidden',
-    shadowColor: '#3B82F6',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25,
     shadowRadius: 16,
@@ -370,18 +492,15 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FEF3C7',
     alignItems: 'center',
     justifyContent: 'center',
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#0F172A',
     letterSpacing: -0.3,
   },
   countBadge: {
-    backgroundColor: '#F1F5F9',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -389,7 +508,6 @@ const styles = StyleSheet.create({
   countText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
   },
 
   // Cards Grid
@@ -403,15 +521,18 @@ const styles = StyleSheet.create({
   },
   achievementCard: {
     borderRadius: 24,
+    borderWidth: 1,
     padding: 20,
     minHeight: 220,
     position: 'relative',
     overflow: 'hidden',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 6,
+  },
+  achievementCardLocked: {
+    opacity: 0.75,
   },
   cardShine: {
     position: 'absolute',
@@ -420,24 +541,18 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   cardIconContainer: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
-  },
-  cardIconUnlocked: {
-    backgroundColor: '#fff',
   },
   cardContent: {
     flex: 1,
@@ -445,13 +560,11 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#0F172A',
     marginBottom: 6,
     letterSpacing: -0.2,
   },
   cardDescription: {
     fontSize: 13,
-    color: '#334155',
     lineHeight: 18,
     marginBottom: 16,
     fontWeight: '500',
@@ -461,13 +574,11 @@ const styles = StyleSheet.create({
   unlockedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
     alignSelf: 'flex-start',
     gap: 6,
-    shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -476,7 +587,6 @@ const styles = StyleSheet.create({
   unlockedText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#10B981',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -494,33 +604,28 @@ const styles = StyleSheet.create({
   progressText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
   },
   progressPercent: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#64748B',
   },
   progressBarContainer: {
     height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
     borderRadius: 4,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#0F172A',
     borderRadius: 4,
   },
 
   // Empty State
   emptyState: {
     width: '100%',
-    backgroundColor: '#fff',
     borderRadius: 24,
+    borderWidth: 1,
     padding: 48,
     alignItems: 'center',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 12,
@@ -530,7 +635,6 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 45,
-    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
@@ -538,14 +642,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
     marginBottom: 8,
     textAlign: 'center',
     letterSpacing: -0.2,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#64748B',
     textAlign: 'center',
     lineHeight: 20,
     fontWeight: '500',
