@@ -1,3 +1,5 @@
+import React from 'react';
+import TestRenderer, { act } from 'react-test-renderer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   PRESENCE_WINDOW_MS,
@@ -65,6 +67,7 @@ import {
   subscribeToOnlineUsers,
   type OnlineUser,
 } from '../services/OnlineUserService';
+import useOnlineUsers, { type UseOnlineUsersResult } from '../hooks/useOnlineUsers';
 
 describe('utils/presence', () => {
   const baseNow = Date.UTC(2026, 9, 22, 12, 0, 0); // 12:00:00 UTC
@@ -190,7 +193,6 @@ describe('OnlineUserService presence read and subscribe', () => {
     mockOnSnapshot.mockReset();
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'warn').mockImplementation(() => {});
-    jest.spyOn(Date, 'now').mockReturnValue(baseNow);
   });
 
   afterEach(() => {
@@ -213,14 +215,14 @@ describe('OnlineUserService presence read and subscribe', () => {
           deviceId: 'd1',
           displayName: 'Fresh Rider',
           location: { latitude: -34.0, longitude: 25.0 },
-          lastSeen: baseNow - 10 * 60 * 1000, // 10 min ago (fresh)
+          lastSeen: Date.now() - 10 * 60 * 1000, // 10 min ago (fresh)
         },
         {
           uid: 'u_stale',
           deviceId: 'd1',
           displayName: 'Stale Rider',
           location: { latitude: -34.0, longitude: 25.0 },
-          lastSeen: baseNow - 40 * 60 * 1000, // 40 min ago (expired)
+          lastSeen: Date.now() - 40 * 60 * 1000, // 40 min ago (expired)
         },
       ];
       await AsyncStorage.setItem('ONLINE_USERS_LOCAL', JSON.stringify(cachedUsers));
@@ -240,6 +242,7 @@ describe('OnlineUserService presence read and subscribe', () => {
       mockFirebase.app = {};
       mockFirebase.auth = { currentUser: { uid: 'u_me' } };
 
+      const now = Date.now();
       const docs = [
         {
           data: () => ({
@@ -247,7 +250,7 @@ describe('OnlineUserService presence read and subscribe', () => {
             deviceId: 'd1',
             displayName: 'Remote Rider 1',
             location: { latitude: -34.1, longitude: 25.1 },
-            lastSeen: baseNow - 5 * 60 * 1000,
+            lastSeen: now - 5 * 60 * 1000,
             isRiding: true,
           }),
         },
@@ -257,7 +260,7 @@ describe('OnlineUserService presence read and subscribe', () => {
             deviceId: 'd1',
             displayName: 'Remote Rider 2 (Old)',
             location: { latitude: -34.2, longitude: 25.2 },
-            lastSeen: baseNow - 35 * 60 * 1000, // past threshold
+            lastSeen: now - 35 * 60 * 1000, // past threshold
             isRiding: false,
           }),
         },
@@ -291,7 +294,7 @@ describe('OnlineUserService presence read and subscribe', () => {
           deviceId: 'd1',
           displayName: 'Fallback Rider',
           location: { latitude: -34.0, longitude: 25.0 },
-          lastSeen: baseNow - 8 * 60 * 1000,
+          lastSeen: Date.now() - 8 * 60 * 1000,
         },
       ];
       await AsyncStorage.setItem('ONLINE_USERS_LOCAL', JSON.stringify(cachedUsers));
@@ -345,19 +348,20 @@ describe('OnlineUserService presence read and subscribe', () => {
       expect(mockOnSnapshot).toHaveBeenCalled();
 
       // Trigger snapshot
+      const now = Date.now();
       const docs = [
         {
           data: () => ({
             uid: 'r1',
             deviceId: 'd1',
-            lastSeen: baseNow - 2 * 60 * 1000,
+            lastSeen: now - 2 * 60 * 1000,
           }),
         },
         {
           data: () => ({
             uid: 'r2',
             deviceId: 'd1',
-            lastSeen: baseNow - 32 * 60 * 1000, // expired
+            lastSeen: now - 32 * 60 * 1000, // expired
           }),
         },
       ];
@@ -377,5 +381,178 @@ describe('OnlineUserService presence read and subscribe', () => {
       errorCallback!(testError);
       expect(onError).toHaveBeenCalledWith(testError);
     });
+  });
+});
+
+describe('useOnlineUsers hook', () => {
+  let probeResult: UseOnlineUsersResult;
+  function HookProbe() {
+    probeResult = useOnlineUsers();
+    return null;
+  }
+
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    mockFirebase.FIREBASE_ENABLED = false;
+    mockFirebase.app = undefined;
+    mockFirebase.auth = undefined;
+    mockGetDocs.mockReset();
+    mockOnSnapshot.mockReset();
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('ages out a rider after 31 minutes without any new snapshot', async () => {
+    jest.useFakeTimers();
+    const startTime = 1_000_000_000_000;
+    jest.setSystemTime(startTime);
+
+    mockFirebase.FIREBASE_ENABLED = true;
+    mockFirebase.app = {};
+
+    const initialUser: OnlineUser = {
+      uid: 'u_aging',
+      deviceId: 'd1',
+      displayName: 'Aging Rider',
+      location: { latitude: -34.0, longitude: 25.0 },
+      lastSeen: startTime,
+    };
+
+    const docs = [{ data: () => initialUser }];
+    mockGetDocs.mockResolvedValueOnce({
+      size: docs.length,
+      forEach: (cb: any) => docs.forEach(cb),
+    });
+
+    mockOnSnapshot.mockReturnValue(() => {});
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(HookProbe));
+    });
+
+    expect(probeResult.loading).toBe(false);
+    expect(probeResult.source).toBe('live');
+    expect(probeResult.users).toHaveLength(1);
+    expect(probeResult.users[0].uid).toBe('u_aging');
+
+    // Advance 25 minutes: rider still present
+    jest.setSystemTime(startTime + 25 * 60 * 1000);
+    await act(async () => {
+      jest.advanceTimersByTime(60 * 1000);
+    });
+    expect(probeResult.users).toHaveLength(1);
+
+    // Advance to 31 minutes: rider passes 30 minutes and ages out on next 60s tick
+    jest.setSystemTime(startTime + 31 * 60 * 1000);
+    await act(async () => {
+      jest.advanceTimersByTime(60 * 1000);
+    });
+    expect(probeResult.users).toHaveLength(0);
+
+    act(() => { renderer.unmount(); });
+    jest.useRealTimers();
+  });
+
+  it('resumes polling after realtime listener errors', async () => {
+    jest.useFakeTimers();
+    const startTime = 1_000_000_000_000;
+    jest.setSystemTime(startTime);
+
+    mockFirebase.FIREBASE_ENABLED = true;
+    mockFirebase.app = {};
+
+    let errorCallback: ((err: any) => void) | undefined;
+    mockOnSnapshot.mockImplementation((_q: any, _onSnap: any, onErr: any) => {
+      errorCallback = onErr;
+      return () => {};
+    });
+
+    mockGetDocs.mockResolvedValue({
+      size: 0,
+      forEach: () => {},
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(HookProbe));
+    });
+
+    expect(mockGetDocs).toHaveBeenCalledTimes(1); // initial fetch
+
+    // Trigger listener error
+    await act(async () => {
+      errorCallback!(new Error('Realtime listener failed'));
+    });
+
+    // Advance 30s: polling timer should run getOnlineUsersWithSource
+    await act(async () => {
+      jest.advanceTimersByTime(30 * 1000);
+    });
+
+    expect(mockGetDocs).toHaveBeenCalledTimes(2);
+
+    act(() => { renderer.unmount(); });
+    jest.useRealTimers();
+  });
+
+  it('leaves no timers running if unmounted during async init', async () => {
+    jest.useFakeTimers();
+
+    mockFirebase.FIREBASE_ENABLED = false;
+    mockFirebase.app = undefined;
+
+    let resolveGetItem: (val: string | null) => void;
+    const pendingGetItem = new Promise<string | null>((res) => {
+      resolveGetItem = res;
+    });
+
+    jest.spyOn(AsyncStorage, 'getItem').mockReturnValueOnce(pendingGetItem as any);
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = TestRenderer.create(React.createElement(HookProbe));
+    });
+
+    // Unmount before getItem resolves
+    act(() => { renderer.unmount(); });
+
+    // Now let getItem resolve
+    await act(async () => {
+      resolveGetItem!(null);
+    });
+
+    act(() => { jest.advanceTimersByTime(0); });
+    expect(jest.getTimerCount()).toBe(0);
+
+    jest.useRealTimers();
+  });
+
+  it('cleans up all timers and listeners on unmount', async () => {
+    jest.useFakeTimers();
+    const unsubMock = jest.fn();
+    mockOnSnapshot.mockReturnValue(unsubMock);
+    mockFirebase.FIREBASE_ENABLED = true;
+    mockFirebase.app = {};
+    mockGetDocs.mockResolvedValueOnce({ size: 0, forEach: () => {} });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(HookProbe));
+    });
+
+    expect(jest.getTimerCount()).toBeGreaterThan(0);
+
+    act(() => { renderer.unmount(); });
+    act(() => { jest.advanceTimersByTime(0); });
+
+    expect(jest.getTimerCount()).toBe(0);
+    expect(unsubMock).toHaveBeenCalled();
+
+    jest.useRealTimers();
   });
 });
