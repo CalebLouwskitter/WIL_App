@@ -224,7 +224,7 @@ export class RideStateManager {
    * ended draft unchanged, so the end time and reason are frozen by the first.
    * Throws if the ended draft could not be persisted.
    */
-  static async endRide(reason: RideEndReason = 'user', endedAt?: number): Promise<PersistedRideState | null> {
+  static async endRide(reason: RideEndReason, endedAt?: number): Promise<PersistedRideState | null> {
     return this.withWriteLock(async () => {
       const state = await this.loadState();
 
@@ -257,10 +257,10 @@ export class RideStateManager {
    * Clear the draft, but only if it is still the ride the caller archived or
    * chose to discard. Returns false when a different (or no) draft is stored.
    */
-  static async clearRideState(expectedRideId?: string): Promise<boolean> {
+  static async clearRideState(expectedRideId: string): Promise<boolean> {
     return this.withWriteLock(async () => {
       const state = await this.loadState();
-      if (!state || (expectedRideId !== undefined && state.rideId !== expectedRideId)) {
+      if (!state || state.rideId !== expectedRideId) {
         return false;
       }
       await AsyncStorage.removeItem(RIDE_STATE_KEY);
