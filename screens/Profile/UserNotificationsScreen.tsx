@@ -17,6 +17,7 @@ import { useCurrentUser } from '../../hooks/useCurrentUser';
 import { FIREBASE_ENABLED } from '../../services/firebase';
 import { Notification } from '../../types/Notification';
 import { NotificationList, NotificationItem } from '../../components/Notifications';
+import ScreenHeader from '../../components/ScreenHeader';
 
 export default function UserNotificationsScreen() {
   const navigation = useNavigation();
@@ -127,19 +128,10 @@ export default function UserNotificationsScreen() {
 
   const renderListHeader = () => (
     <View>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-          accessibilityHint="Navigate back to previous screen"
-          activeOpacity={0.7}
-        >
-          <Icon name="arrow-left" size={22} color="#0F172A" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Notifications</Text>
-        <View style={styles.headerActions}>
+      <ScreenHeader
+        title="Notifications"
+        onBack={() => navigation.goBack()}
+        right={
           <TouchableOpacity
             style={styles.actionButton}
             onPress={handleMarkAllAsRead}
@@ -151,8 +143,8 @@ export default function UserNotificationsScreen() {
           >
             <Icon name="check" size={18} color="#10B981" />
           </TouchableOpacity>
-        </View>
-      </View>
+        }
+      />
       {notifications.length > 0 && (
         <View style={styles.batchActions}>
           <Text style={styles.batchActionsText}>
@@ -165,20 +157,7 @@ export default function UserNotificationsScreen() {
 
   const renderStatePanel = (content: React.ReactNode) => (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-          accessibilityHint="Navigate back to previous screen"
-          activeOpacity={0.7}
-        >
-          <Icon name="arrow-left" size={22} color="#0F172A" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Notifications</Text>
-        <View style={styles.backButton} />
-      </View>
+      <ScreenHeader title="Notifications" onBack={() => navigation.goBack()} />
       <View style={styles.loadingContainer}>{content}</View>
     </SafeAreaView>
   );
@@ -311,27 +290,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '500',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 60,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
+
   headerActions: {
     flexDirection: 'row',
     gap: 8,
@@ -372,12 +331,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontStyle: 'italic',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0F172A',
-    letterSpacing: -0.3,
-  },
+
   listContainer: {
     paddingHorizontal: 20,
     paddingBottom: 24,
