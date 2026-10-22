@@ -1,4 +1,5 @@
 import React from 'react';
+import { Text } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -52,14 +53,29 @@ jest.mock('firebase/firestore', () => ({
 }));
 
 jest.mock('expo-location', () => ({
-  requestForegroundPermissionsAsync: jest.fn(),
-  getCurrentPositionAsync: jest.fn(),
+  requestForegroundPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  getCurrentPositionAsync: jest.fn().mockResolvedValue({
+    coords: { latitude: -34.033, longitude: 25.498 },
+  }),
   Accuracy: { Balanced: 3 },
 }));
 
 jest.mock('../utils/geofencing', () => ({
   isWithinAuthorizedArea: jest.fn(() => true),
 }));
+
+jest.mock('react-native-maps', () => ({
+  __esModule: true,
+  default: ({ children }: any) => children || null,
+  Marker: ({ children }: any) => children || null,
+  PROVIDER_DEFAULT: 'default',
+}));
+
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+
+jest.mock('react-native-vector-icons/Feather', () => 'Feather');
 
 import {
   getOnlineUsers,
@@ -68,6 +84,7 @@ import {
   type OnlineUser,
 } from '../services/OnlineUserService';
 import useOnlineUsers, { type UseOnlineUsersResult } from '../hooks/useOnlineUsers';
+import OnlineUsersScreen from '../screens/Mapping/OnlineUsers';
 
 describe('utils/presence', () => {
   const baseNow = Date.UTC(2026, 9, 22, 12, 0, 0); // 12:00:00 UTC
@@ -454,7 +471,7 @@ describe('useOnlineUsers hook', () => {
     });
     expect(probeResult.users).toHaveLength(0);
 
-    act(() => { renderer.unmount(); });
+    act(() => { renderer!.unmount(); });
     jest.useRealTimers();
   });
 
@@ -496,7 +513,7 @@ describe('useOnlineUsers hook', () => {
 
     expect(mockGetDocs).toHaveBeenCalledTimes(2);
 
-    act(() => { renderer.unmount(); });
+    act(() => { renderer!.unmount(); });
     jest.useRealTimers();
   });
 
@@ -554,5 +571,108 @@ describe('useOnlineUsers hook', () => {
     expect(unsubMock).toHaveBeenCalled();
 
     jest.useRealTimers();
+  });
+});
+
+describe('OnlineUsersScreen rendering', () => {
+  const mockNavigation = { goBack: jest.fn() };
+
+  const getScreenTexts = (renderer: TestRenderer.ReactTestRenderer): string[] =>
+    renderer.root.findAllByType(Text).map((n) => [n.props.children].flat().join(''));
+
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    mockFirebase.FIREBASE_ENABLED = false;
+    mockFirebase.app = undefined;
+    mockFirebase.auth = undefined;
+    mockGetDocs.mockReset();
+    mockOnSnapshot.mockReset();
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('shows "Not connected — online riders unavailable" when Firebase is off and no cache exists', async () => {
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(OnlineUsersScreen, { navigation: mockNavigation }));
+    });
+
+    const texts = getScreenTexts(renderer!);
+    expect(texts).toContain('Not connected — online riders unavailable');
+    expect(texts).not.toContain('No active riders nearby');
+    expect(texts).not.toContain('Showing saved data — may be out of date');
+
+    act(() => { renderer.unmount(); });
+  });
+
+  it('shows cached banner and presence labels without coordinates when cache exists', async () => {
+    const lat = -34.03313;
+    const lng = 25.49812;
+    const cachedUsers: OnlineUser[] = [
+      {
+        uid: 'u_cached_rider',
+        deviceId: 'd1',
+        displayName: 'Cached Rider Jane',
+        location: { latitude: lat, longitude: lng },
+        lastSeen: Date.now() - 5 * 60 * 1000, // 5 min ago
+      },
+    ];
+    await AsyncStorage.setItem('ONLINE_USERS_LOCAL', JSON.stringify(cachedUsers));
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(OnlineUsersScreen, { navigation: mockNavigation }));
+    });
+
+    const texts = getScreenTexts(renderer!);
+    expect(texts).toContain('Showing saved data — may be out of date');
+    expect(texts).toContain('Cached Rider Jane');
+    expect(texts).toContain('Seen 5 min ago');
+
+    // Verify coordinates are not rendered as text
+    const fullText = texts.join(' ');
+    expect(fullText).not.toContain(String(lat));
+    expect(fullText).not.toContain(String(lng));
+
+    act(() => { renderer.unmount(); });
+  });
+
+  it('shows live rider with "Active now" label when live data is received', async () => {
+    mockFirebase.FIREBASE_ENABLED = true;
+    mockFirebase.app = {};
+    mockFirebase.auth = { currentUser: { uid: 'u_viewer' } };
+
+    const liveRider: OnlineUser = {
+      uid: 'u_live_rider',
+      deviceId: 'd2',
+      displayName: 'Live Rider John',
+      location: { latitude: -34.01, longitude: 25.49 },
+      lastSeen: Date.now() - 30 * 1000, // 30s ago -> Active now
+      isRiding: true,
+    };
+
+    mockGetDocs.mockResolvedValueOnce({
+      size: 1,
+      forEach: (cb: any) => cb({ data: () => liveRider }),
+    });
+    mockOnSnapshot.mockReturnValue(() => {});
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(OnlineUsersScreen, { navigation: mockNavigation }));
+    });
+
+    const texts = getScreenTexts(renderer!);
+    expect(texts).toContain('Live Rider John');
+    expect(texts).toContain('Active now');
+    expect(texts).toContain('Riding');
+    expect(texts).not.toContain('Showing saved data — may be out of date');
+    expect(texts).not.toContain('Not connected — online riders unavailable');
+
+    act(() => { renderer.unmount(); });
   });
 });
