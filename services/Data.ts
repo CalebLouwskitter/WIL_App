@@ -14,6 +14,7 @@ import {
 	orderBy as fsOrderBy,
 	limit as fsLimit,
 	runTransaction,
+	updateDoc,
 	deleteDoc,
 	type QueryDocumentSnapshot,
 	type FirestoreDataConverter,
@@ -725,10 +726,15 @@ export async function recalcUserAggregates(userId: string) {
 		totalDistanceM += r.totalDistance;
 		totalDurationMs += r.duration;
 	});
-	const profile = newUserProfile({ uid: userId, totalRides, totalDistanceM, totalDurationMs, points: totalRides * 10 + Math.round(totalDistanceM / 1000) });
-	const ref = doc(collection(db, COLLECTIONS.users), userId).withConverter(userProfileConverter);
-	await setDoc(ref, profile, { merge: true });
-	return profile;
+	const aggregates = {
+		totalRides,
+		totalDistanceM,
+		totalDurationMs,
+		points: totalRides * 10 + Math.round(totalDistanceM / 1000),
+		updatedAt: Date.now(),
+	};
+	await updateDoc(doc(collection(db, COLLECTIONS.users), userId), aggregates);
+	return aggregates;
 }
 
 
