@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, updateDoc, getDoc, setDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, getDoc, setDoc, deleteDoc, query, where, type Firestore } from 'firebase/firestore';
 import { firestore } from './FirebaseFirestoreService';
 import { User } from '../types/User';
 import { userProfileConverter, type UserProfile } from './Data';
@@ -44,20 +44,15 @@ export const getUser = async (userId: string): Promise<User | null> => {
     return null;
   }
 
+  // Read only: a missing status means not yet approved, and is never written back.
   const profile = userSnap.data() as UserProfile;
-  const normalized: User = {
+  return {
     uid: profile.uid,
     email: profile.email ?? null,
     displayName: profile.displayName ?? null,
-    status: (profile.status ?? 'approved') as User['status'],
+    status: (profile.status ?? 'pending') as User['status'],
     role: profile.role ?? 'member',
   };
-
-  if (profile.status !== normalized.status || profile.role !== normalized.role) {
-    await setDoc(userRef, { status: normalized.status, role: normalized.role } as any, { merge: true });
-  }
-
-  return normalized;
 };
 
 export const createUser = async (profile: UserProfile) => {
@@ -114,23 +109,25 @@ export const ensureAdminByEmail = async (email: string) => {
   }
 };
 
-// Seed existing users to include role/status defaults
-export const seedUsersRbac = async () => {
-  if (!firestore) throw new Error('Firestore is not initialized');
-  const usersCol = collection(firestore, 'users');
+// Fill missing role/status defaults on existing users. A missing status becomes
+// 'pending', never 'approved'. Only scripts/seedEmulator.ts calls this, against
+// the local emulator; the app never runs it.
+export const seedUsersRbac = async (db: Firestore | undefined = firestore) => {
+  if (!db) throw new Error('Firestore is not initialized');
+  const usersCol = collection(db, 'users');
   const userSnapshot = await getDocs(usersCol);
   const updates: Array<Promise<any>> = [];
   userSnapshot.forEach((d) => {
     const data = d.data() as any;
     const role = data.role ?? 'member';
-    const status = data.status ?? 'approved';
+    const status = data.status ?? 'pending';
     const email = typeof data.email === 'string' ? data.email : undefined;
     const emailLower = email ? email.toLowerCase() : undefined;
     const patch: Record<string, any> = {};
     if (data.role !== role) patch.role = role;
     if (data.status !== status) patch.status = status;
     if (email && data.emailLower !== emailLower) patch.emailLower = emailLower;
-    if (Object.keys(patch).length) updates.push(updateDoc(doc(firestore as any, 'users', d.id), patch));
+    if (Object.keys(patch).length) updates.push(updateDoc(doc(db, 'users', d.id), patch));
   });
   await Promise.all(updates);
 };

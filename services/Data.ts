@@ -49,18 +49,9 @@ export async function getOrCreateUserProfile(user: User): Promise<UserProfile> {
 	const userSnap = await getDoc(userRef);
 
 	if (userSnap.exists()) {
-		const data = userSnap.data();
-		if (!data.role || !data.status) {
-			const patched: UserProfile = {
-				...data,
-				role: data.role ?? 'member',
-				status: data.status ?? 'approved',
-				updatedAt: Date.now(),
-			};
-			await setDoc(userRef, patched);
-			return patched;
-		}
-		return data;
+		// Never patched from the client: the converter reads a missing role/status
+		// as member/pending, and only an admin can change either (firestore.rules).
+		return userSnap.data();
 	} else {
 		const newUserProfile: UserProfile = {
 			uid: user.uid,

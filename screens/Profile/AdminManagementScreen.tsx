@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { getAllUsers, approveUser, disapproveUser, deleteUserDoc, seedUsersRbac, setUserRole } from '../../services/FirebaseUserService';
+import { getAllUsers, approveUser, disapproveUser, deleteUserDoc, setUserRole } from '../../services/FirebaseUserService';
 import { User } from '../../types/User'; // Assuming a User type exists
 import type { ProfileStackParamList } from '../../navigation/ProfileStack';
 
