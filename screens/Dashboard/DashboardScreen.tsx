@@ -22,6 +22,8 @@ import * as Location from 'expo-location';
 import * as Linking from 'expo-linking';
 import { getRides } from '@/services/RideStorage';
 import { weeklyDistanceKm, totalKm, type DayDistance } from '@/utils/weeklyDistance';
+import { usePreferences } from '@/contexts/PreferencesContext';
+import { formatDistance } from '@/utils/units';
 import { useMapStatus } from '@/hooks/useMapStatus';
 import MapStatusFrame from '@/components/MapStatusFrame';
 
@@ -46,6 +48,7 @@ const DashboardScreen = () => {
   const flatListRef = useRef<FlatList>(null);
   const [weekly, setWeekly] = useState<DayDistance[] | null>(null);
   const previewMapStatus = useMapStatus('dashboard-preview');
+  const { preferences } = usePreferences();
 
   // Chart data comes from the rides stored for this user; null until the first read finishes
   useFocusEffect(
@@ -163,6 +166,10 @@ const DashboardScreen = () => {
     </TouchableOpacity>
   );
 
+  const unitLabel = preferences.units === 'imperial' ? 'mi' : 'km';
+  const totalM = weekly ? totalKm(weekly) * 1000 : 0;
+  const formattedTotal = formatDistance(totalM, preferences.units, 1);
+
   return (
     <>
       <SafeAreaView style={styles.container}>
@@ -258,10 +265,12 @@ const DashboardScreen = () => {
             <View style={styles.chartHeader}>
               <Text style={styles.chartTitle}>Analytics & Data</Text>
               {weekly && totalKm(weekly) > 0 ? (
-                <Text style={styles.chartPeriod}>{totalKm(weekly).toFixed(1)} km</Text>
+                <Text style={styles.chartPeriod}>
+                  {formattedTotal.value} {formattedTotal.unit}
+                </Text>
               ) : null}
             </View>
-            <Text style={styles.chartSubtitle}>Distance ridden per day, last 7 days (km)</Text>
+            <Text style={styles.chartSubtitle}>Distance ridden per day, last 7 days ({unitLabel})</Text>
             {weekly && totalKm(weekly) > 0 ? (
               <>
                 <View style={styles.chartBars}>

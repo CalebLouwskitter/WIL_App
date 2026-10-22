@@ -16,9 +16,9 @@ jest.mock('@react-navigation/native', () => ({
     getParent: mockGetParent,
   }),
   useRoute: () => ({ params: {} }),
-  useFocusEffect: (cb: () => void) => {
-    // call once for test setup
-    cb();
+  useFocusEffect: (cb: any) => {
+    const React = require('react');
+    React.useEffect(cb, []);
   },
   CommonActions: {
     reset: jest.fn(),
@@ -78,6 +78,16 @@ jest.mock('../components/MapViewTracker', () => () => null);
 jest.mock('../components/RideStatsCard', () => () => null);
 jest.mock('../components/Modals/SettingsModal', () => () => null);
 jest.mock('../components/Modals/NotificationsModal', () => () => null);
+
+jest.mock('../hooks/useMapStatus', () => ({
+  useMapStatus: () => ({
+    state: { phase: 'loaded' },
+    mapKey: 'preview-key',
+    mapProps: {},
+    retry: jest.fn(),
+    reportError: jest.fn(),
+  }),
+}));
 
 const mockRideTracker = {
   rideData: null,
@@ -155,8 +165,17 @@ jest.mock('../services/firebase', () => ({
   firestore: null,
 }));
 
+jest.mock('firebase/firestore', () => ({
+  collection: jest.fn(),
+  doc: jest.fn(),
+  onSnapshot: jest.fn(() => () => {}),
+  getDocs: jest.fn().mockResolvedValue({ docs: [] }),
+}));
+
 import LiveTrackingScreen from '../screens/Mapping/LiveTrackingScreen';
 import OnlineUsersScreen from '../screens/Mapping/OnlineUsers';
+import DashboardScreen from '../screens/Dashboard/DashboardScreen';
+import { getRides } from '../services/RideStorage';
 
 describe('G4 Dashboard & Map Tab — Task 1: Riders Online & OnlineUsers ScreenHeader', () => {
   beforeEach(() => {
@@ -213,6 +232,47 @@ describe('G4 Dashboard & Map Tab — Task 1: Riders Online & OnlineUsers ScreenH
       backBtn!.props.onPress();
     });
     expect(mockGoBack).toHaveBeenCalledTimes(1);
+    renderer.unmount();
+  });
+});
+
+describe('G4 Dashboard — Task 2: 7-day chart follows km/mi', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('shows km subtitle and km total when preferences.units is metric', async () => {
+    mockPreferences.units = 'metric';
+    (getRides as jest.Mock).mockResolvedValueOnce([
+      { startTime: Date.now() - 3600000, totalDistance: 10000 },
+    ]);
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<DashboardScreen />);
+    });
+
+    const allTexts = renderer.root.findAllByType(Text).map((t) => [t.props.children].flat().join(''));
+    expect(allTexts).toContain('Distance ridden per day, last 7 days (km)');
+    expect(allTexts).toContain('10.0 km');
+    renderer.unmount();
+  });
+
+  it('shows mi subtitle and mi total when preferences.units is imperial', async () => {
+    mockPreferences.units = 'imperial';
+    (getRides as jest.Mock).mockResolvedValueOnce([
+      { startTime: Date.now() - 3600000, totalDistance: 10000 },
+    ]);
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<DashboardScreen />);
+    });
+
+    const allTexts = renderer.root.findAllByType(Text).map((t) => [t.props.children].flat().join(''));
+    expect(allTexts).toContain('Distance ridden per day, last 7 days (mi)');
+    // 10000 metres in miles: 10000 / 1609.344 = 6.2137 => 6.2 mi
+    expect(allTexts).toContain('6.2 mi');
     renderer.unmount();
   });
 });
