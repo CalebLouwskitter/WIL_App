@@ -44,6 +44,12 @@ jest.mock('react-native-chart-kit', () => ({
   PieChart: () => null,
 }));
 
+jest.mock('../contexts/PreferencesContext', () => ({
+  usePreferences: () => ({
+    preferences: { units: 'metric' },
+    updatePreferences: jest.fn(),
+  }),
+}));
 jest.mock('../components/Modals/SettingsModal', () => () => null);
 jest.mock('../components/Modals/NotificationsModal', () => () => null);
 jest.mock('../components/AnalyticsDownloadButton', () => ({

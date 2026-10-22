@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCurrentUserRides } from '../../services/UserAnalyticsService';
 import type { RideData } from '../../hooks/useRideTracker';
 import { primaryPreviewRoutes } from '../../constants/trails';
@@ -9,7 +10,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { AnalyticsStackParamList, TabParamList } from '../../navigation/types';
-import { Colors, resolvePalette } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AnalyticsUnavailableNotice } from '../../components/AnalyticsUnavailableNotice';
@@ -25,8 +26,7 @@ const RideStatsScreen = () => {
   const [reloadKey, setReloadKey] = useState(0);
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRouteProp>();
-  const colorScheme = useColorScheme();
-  const theme = resolvePalette(colorScheme);
+  const { palette, isDark } = useAppTheme();
 
   useEffect(() => {
     (async () => {
@@ -76,21 +76,23 @@ const RideStatsScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>
         <View style={[styles.simpleHeader, { backgroundColor: 'transparent' }]}> 
           <TouchableOpacity 
             style={styles.headerBack} 
             activeOpacity={0.7} 
             onPress={handleBack}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
           >
-            <Feather name="arrow-left" size={24} color={theme.onSurface} />
+            <Feather name="arrow-left" size={24} color={palette.textPrimary} />
           </TouchableOpacity>
-          <Text style={[styles.simpleHeaderTitle, { color: theme.onSurface }]}>Ride History</Text>
+          <Text style={[styles.simpleHeaderTitle, { color: palette.textPrimary }]}>Ride History</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.brandPrimary} />
-          <Text style={[styles.loadingText, { color: theme.onSurfaceVariant }]}>
+          <ActivityIndicator size="large" color={palette.brandPrimary} />
+          <Text style={[styles.loadingText, { color: palette.textSecondary }]}>
             Loading rides from Firebase...
           </Text>
         </View>
@@ -99,7 +101,7 @@ const RideStatsScreen = () => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}> 
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}> 
       {/* Simple Back Header */}
       <View style={[styles.simpleHeader, { backgroundColor: 'transparent' }]}> 
         <TouchableOpacity 
@@ -107,9 +109,9 @@ const RideStatsScreen = () => {
           activeOpacity={0.7} 
           onPress={handleBack}
         >
-          <Feather name="arrow-left" size={24} color={theme.onSurface} />
+          <Feather name="arrow-left" size={24} color={palette.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.simpleHeaderTitle, { color: theme.onSurface }]}>Ride History</Text>
+        <Text style={[styles.simpleHeaderTitle, { color: palette.textPrimary }]}>Ride History</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -123,13 +125,13 @@ const RideStatsScreen = () => {
           </View>
         ) : rides.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <View style={[styles.emptyIconCircle, { backgroundColor: theme.surfaceVariant }]}>
-              <Feather name="map" size={48} color={theme.onSurfaceVariant} />
+            <View style={[styles.emptyIconCircle, { backgroundColor: palette.cardElevated }]}>
+              <Feather name="map" size={48} color={palette.textSecondary} />
             </View>
-            <Text style={[styles.emptyTitle, { color: theme.onSurface }]}>
+            <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>
               No rides yet
             </Text>
-            <Text style={[styles.emptyText, { color: theme.onSurfaceVariant }]}>
+            <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
               Start tracking your rides from the{'\n'}Mapping tab to see your history here
             </Text>
           </View>
@@ -155,9 +157,9 @@ const RideStatsScreen = () => {
                 style={[
                   styles.card,
                   {
-                    backgroundColor: theme.surface,
-                    shadowColor: theme.shadowStrong,
-                    borderColor: theme.borderMuted,
+                    backgroundColor: palette.card,
+                    shadowColor: palette.shadowStrong,
+                    borderColor: palette.divider,
                   },
                 ]}
                 activeOpacity={0.7}
@@ -166,58 +168,58 @@ const RideStatsScreen = () => {
                 {/* Card Header */}
                 <View style={styles.cardHeader}>
                   <View style={styles.cardHeaderLeft}>
-                    <View style={[styles.rideNumberBadge, { backgroundColor: theme.brandPrimary }]}>
+                    <View style={[styles.rideNumberBadge, { backgroundColor: palette.brandPrimary }]}>
                       <Text style={styles.rideNumberText}>#{rides.length - i}</Text>
                     </View>
                     <View style={styles.cardHeaderInfo}>
-                      <Text style={[styles.cardTitle, { color: theme.onSurface }]}>
+                      <Text style={[styles.cardTitle, { color: palette.textPrimary }]}>
                         {ride.horseName || 'Ride'}
                       </Text>
                       <View style={styles.dateTimeRow}>
-                        <Feather name="calendar" size={12} color={theme.onSurfaceVariant} />
-                        <Text style={[styles.cardDate, { color: theme.onSurfaceVariant }]}>
+                        <Feather name="calendar" size={12} color={palette.textSecondary} />
+                        <Text style={[styles.cardDate, { color: palette.textSecondary }]}>
                           {formatDate(ride.startTime)}
                         </Text>
-                        <Text style={[styles.cardTime, { color: theme.onSurfaceVariant }]}>
+                        <Text style={[styles.cardTime, { color: palette.textSecondary }]}>
                           • {formatTime(ride.startTime)}
                         </Text>
                       </View>
                     </View>
                   </View>
-                  <Feather name="chevron-right" size={20} color={theme.onSurfaceVariant} />
+                  <Feather name="chevron-right" size={20} color={palette.textSecondary} />
                 </View>
 
                 {/* Stats Row */}
                 <View style={styles.statsRow}>
                   <View style={styles.statItem}>
-                    <Feather name="navigation" size={16} color={theme.brandPrimary} />
-                    <Text style={[styles.statValue, { color: theme.onSurface }]}>{distanceKm}</Text>
-                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>km</Text>
+                    <Feather name="navigation" size={16} color={palette.brandPrimary} />
+                    <Text style={[styles.statValue, { color: palette.textPrimary }]}>{distanceKm}</Text>
+                    <Text style={[styles.statLabel, { color: palette.textSecondary }]}>km</Text>
                   </View>
-                  <View style={[styles.statDivider, { backgroundColor: theme.borderMuted }]} />
+                  <View style={[styles.statDivider, { backgroundColor: palette.divider }]} />
                   <View style={styles.statItem}>
-                    <Feather name="clock" size={16} color={theme.brandSecondary} />
-                    <Text style={[styles.statValue, { color: theme.onSurface }]}>{durationMin}</Text>
-                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>min</Text>
+                    <Feather name="clock" size={16} color={palette.caution} />
+                    <Text style={[styles.statValue, { color: palette.textPrimary }]}>{durationMin}</Text>
+                    <Text style={[styles.statLabel, { color: palette.textSecondary }]}>min</Text>
                   </View>
-                  <View style={[styles.statDivider, { backgroundColor: theme.borderMuted }]} />
+                  <View style={[styles.statDivider, { backgroundColor: palette.divider }]} />
                   <View style={styles.statItem}>
-                    <Feather name="trending-up" size={16} color={theme.success} />
-                    <Text style={[styles.statValue, { color: theme.onSurface }]}>{ride.elevationGain.toFixed(0)}</Text>
-                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>m</Text>
+                    <Feather name="trending-up" size={16} color={palette.success} />
+                    <Text style={[styles.statValue, { color: palette.textPrimary }]}>{ride.elevationGain.toFixed(0)}</Text>
+                    <Text style={[styles.statLabel, { color: palette.textSecondary }]}>m</Text>
                   </View>
-                  <View style={[styles.statDivider, { backgroundColor: theme.borderMuted }]} />
+                  <View style={[styles.statDivider, { backgroundColor: palette.divider }]} />
                   <View style={styles.statItem}>
-                    <Feather name="zap" size={16} color={theme.caution} />
-                    <Text style={[styles.statValue, { color: theme.onSurface }]}>{avgSpeed}</Text>
-                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>km/h</Text>
+                    <Feather name="zap" size={16} color={palette.caution} />
+                    <Text style={[styles.statValue, { color: palette.textPrimary }]}>{avgSpeed}</Text>
+                    <Text style={[styles.statLabel, { color: palette.textSecondary }]}>km/h</Text>
                   </View>
                 </View>
 
                 {/* Mini Map */}
                 {ride.path && ride.path.length > 1 && (
                   <View style={styles.miniMapWrap}>
-                    <RideMiniMap path={ride.path} />
+                    <RideMiniMap path={ride.path} strokeColor={palette.brandPrimary} />
                     <LinearGradient
                       colors={['transparent', 'rgba(0,0,0,0.1)']}
                       style={styles.mapOverlay}
@@ -228,7 +230,7 @@ const RideStatsScreen = () => {
                 {/* Route Tags */}
                 {routeLines.length > 0 && (
                   <View style={styles.tagsContainer}>
-                    <Feather name="map-pin" size={14} color={theme.onSurfaceVariant} style={styles.tagIcon} />
+                    <Feather name="map-pin" size={14} color={palette.textSecondary} style={styles.tagIcon} />
                     <ScrollView 
                       horizontal 
                       showsHorizontalScrollIndicator={false}
@@ -237,12 +239,12 @@ const RideStatsScreen = () => {
                       {routeLines.map((line, idx) => (
                         <View 
                           key={idx} 
-                          style={[styles.routeTag, { backgroundColor: theme.chipNeutral, borderColor: theme.borderMuted }]}
+                          style={[styles.routeTag, { backgroundColor: palette.cardElevated, borderColor: palette.divider }]}
                         >
-                          <Text style={[styles.routeTagText, { color: theme.onSurface }]}>
+                          <Text style={[styles.routeTagText, { color: palette.textPrimary }]}>
                             {line.name}
                           </Text>
-                          <Text style={[styles.routeTagDistance, { color: theme.onSurfaceVariant }]}>
+                          <Text style={[styles.routeTagDistance, { color: palette.textSecondary }]}>
                             {line.distance}km
                           </Text>
                         </View>
@@ -260,7 +262,7 @@ const RideStatsScreen = () => {
   );
 };
 
-function RideMiniMap({ path }: { path: RideData['path'] }) {
+function RideMiniMap({ path, strokeColor }: { path: RideData['path']; strokeColor: string }) {
   const mapRef = React.useRef<MapView | null>(null);
   const first = path[0];
   return (
@@ -290,7 +292,7 @@ function RideMiniMap({ path }: { path: RideData['path'] }) {
       <Polyline
         coordinates={path.map((p) => ({ latitude: p.latitude, longitude: p.longitude }))}
         strokeWidth={3}
-        strokeColor={Colors.light.primary}
+        strokeColor={strokeColor}
       />
     </MapView>
   );
