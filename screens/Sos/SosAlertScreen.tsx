@@ -15,7 +15,7 @@ import { PanGestureHandler, State, HandlerStateChangeEvent, PanGestureHandlerEve
 import { useSos } from '../../contexts/SosContext';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 import useFirebaseAuth from '../../hooks/useFirebaseAuth';
-import { auth } from '../../services/firebase';
+import { auth, FIREBASE_ENABLED } from '../../services/firebase';
 import { useFocusEffect } from '@react-navigation/native';
 import { startLocationBroadcast, stopLocationBroadcast } from '../../services/OnlineUserService';
 
@@ -23,10 +23,15 @@ const HOLD_THRESHOLD = -150;
 const SNAP_VALUE = -200;
 const COUNTDOWN_START = 3;
 
+/** What we actually know about the alert. There is no "acknowledged" state: nothing reports a responder receipt yet. */
+type SubmitStatus = 'idle' | 'sending' | 'submitted' | 'failed' | 'unavailable';
+
 const SosAlertScreen = () => {
   const [helpSent, setHelpSent] = useState(false);
   const [activated, setActivated] = useState(false);
   const [countdown, setCountdown] = useState(COUNTDOWN_START);
+  const [submitStatus, setSubmitStatus] = useState<SubmitStatus>('idle');
+  const [submitPartial, setSubmitPartial] = useState(false);
   const { state: sosState, activate, clear } = useSos();
   const { profile } = useCurrentUser();
   const { user } = useFirebaseAuth();
@@ -40,9 +45,17 @@ const SosAlertScreen = () => {
   const activatedThisSessionRef = useRef(false);
   const activationFinalizedRef = useRef(false);
   const whatsappSentRef = useRef(false);
+  const submitStatusRef = useRef<SubmitStatus>('idle');
+
+  const updateSubmitStatus = (status: SubmitStatus, partial = false) => {
+    submitStatusRef.current = status;
+    setSubmitStatus(status);
+    setSubmitPartial(partial);
+  };
 
   const resetToInitialState = () => {
     activatedRef.current = false;
+    updateSubmitStatus('idle');
     setActivated(false);
     setHelpSent(false);
     setCountdown(COUNTDOWN_START);
@@ -63,13 +76,58 @@ const SosAlertScreen = () => {
       console.error('Error starting location broadcast for SOS:', error);
     }
 
+    updateSubmitStatus('sending');
     try {
-      await activate(activatorNameRef.current, auth?.currentUser?.uid ?? null);
-      activatedThisSessionRef.current = true;
+      const result = await activate(activatorNameRef.current, auth?.currentUser?.uid ?? null);
+      if (result.ok) {
+        activatedThisSessionRef.current = true;
+        updateSubmitStatus('submitted');
+      } else if (result.code === 'unavailable') {
+        updateSubmitStatus('unavailable');
+      } else {
+        // A partial failure may still have left a record that has to be cleared later
+        if (result.partial) activatedThisSessionRef.current = true;
+        updateSubmitStatus('failed', !!result.partial);
+      }
     } catch (error) {
       console.error('Error finalizing SOS activation:', error);
+      updateSubmitStatus('failed');
     }
   }, [activate]);
+
+  const retrySos = () => {
+    activationFinalizedRef.current = false;
+    finalizeSosActivation();
+  };
+
+  // Cancel a submitted alert. Only report it cancelled once the server accepted the clear.
+  const cancelSos = async () => {
+    const result = await clear();
+    if (!result.ok && result.code !== 'unavailable') {
+      Alert.alert(
+        "Couldn't cancel the alert",
+        'The alert may still be active. If you no longer need help, contact SBHRA or emergency services directly.'
+      );
+      return;
+    }
+    resetToInitialState();
+    activatedThisSessionRef.current = false;
+    try { stopLocationBroadcast(); } catch {}
+  };
+
+  // Leave the failed / unavailable panel. A half-written record from a partial failure is cleared first.
+  const dismissResult = async () => {
+    if (activatedThisSessionRef.current) {
+      const result = await clear();
+      if (!result.ok && result.code !== 'unavailable') {
+        Alert.alert("Couldn't cancel the alert", 'A partial alert may still be active. Try again, or contact SBHRA directly.');
+        return;
+      }
+    }
+    resetToInitialState();
+    activatedThisSessionRef.current = false;
+    try { stopLocationBroadcast(); } catch {}
+  };
 
   const onGestureEvent = Animated.event(
     [{ nativeEvent: { translationY: translateYJS } }],
@@ -115,7 +173,11 @@ const SosAlertScreen = () => {
           setActivated(false);
           setCountdown(COUNTDOWN_START);
           if (activatedThisSessionRef.current) {
-            clear();
+            clear().then((result) => {
+              if (!result.ok && result.code !== 'unavailable') {
+                Alert.alert("Couldn't cancel the alert", 'The alert may still be active. Contact SBHRA or emergency services directly.');
+              }
+            });
             try { stopLocationBroadcast(); } catch {}
             activatedThisSessionRef.current = false;
           }
@@ -224,7 +286,7 @@ const SosAlertScreen = () => {
           setHelpSent(true);
         }
         startLocationBroadcast({ isRiding: false });
-      } else {
+      } else if (submitStatusRef.current === 'idle') {
         resetToInitialState();
         activatedThisSessionRef.current = false;
         try { stopLocationBroadcast(); } catch {}
@@ -265,14 +327,19 @@ const SosAlertScreen = () => {
               Having an Emergency?
             </Text>
             <Text style={[styles.subtitle, activated && { color: '#FF0000' }]}>
-              Swipe the button up and hold.{'\n'}Help will arrive soon.
+              Swipe up and hold to send an SOS alert to SBHRA
             </Text>
+            {!FIREBASE_ENABLED && (
+              <Text style={[styles.subtitle, { marginTop: -24 }, activated && { color: '#FF0000' }]}>
+                Not connected to SBHRA servers. In an emergency, contact emergency services directly, e.g. 112.
+              </Text>
+            )}
           </>
         ) : (
           <>
-            <Text style={[styles.helpSentTitle, activated && styles.whiteText]}>Help has been sent</Text>
+            <Text style={[styles.helpSentTitle, activated && styles.whiteText]}>{resultTitle(submitStatus)}</Text>
             <Text style={[styles.helpSentSubtitle, activated && styles.whiteText]}>
-              Emergency services have been notified and are on their way.
+              {resultMessage(submitStatus, submitPartial)}
             </Text>
           </>
         )}
@@ -297,24 +364,65 @@ const SosAlertScreen = () => {
             </Text>
           </View>
         ) : (
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => {
-              clear();
-              resetToInitialState();
-              activatedThisSessionRef.current = false;
-              try { stopLocationBroadcast(); } catch {}
-            }}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
+          <View style={styles.resultActions}>
+            {submitStatus === 'failed' && (
+              <TouchableOpacity style={styles.cancelButton} onPress={retrySos}>
+                <Text style={styles.cancelButtonText}>Retry</Text>
+              </TouchableOpacity>
+            )}
+            {submitStatus !== 'sending' && (
+              <TouchableOpacity
+                style={[styles.cancelButton, submitStatus === 'failed' && styles.secondaryButton]}
+                onPress={submitStatus === 'submitted' ? cancelSos : dismissResult}
+              >
+                <Text style={styles.cancelButtonText}>{submitStatus === 'submitted' ? 'Cancel alert' : 'Dismiss'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
       </View>
     </View>
   );
 };
 
+const resultTitle = (status: SubmitStatus) => {
+  switch (status) {
+    case 'sending':
+      return 'Sending SOS alert…';
+    case 'submitted':
+      return 'Alert submitted';
+    case 'failed':
+      return 'SOS alert not sent';
+    case 'unavailable':
+      return 'Not connected';
+    default:
+      return 'Having an Emergency?';
+  }
+};
+
+const resultMessage = (status: SubmitStatus, partial: boolean) => {
+  switch (status) {
+    case 'sending':
+      return 'Contacting SBHRA. If you are in danger, contact emergency services directly, e.g. 112.';
+    case 'submitted':
+      return 'Alert submitted — not yet acknowledged by a responder. If you are in danger, contact emergency services directly, e.g. 112.';
+    case 'failed':
+      return `We couldn't submit your alert${partial ? ' (it may have partly gone through)' : ''}. Retry, or contact emergency services directly, e.g. 112.`;
+    case 'unavailable':
+      return "This app isn't connected to SBHRA servers, so no alert was sent. Contact emergency services directly, e.g. 112.";
+    default:
+      return '';
+  }
+};
+
 const styles = StyleSheet.create({
+  resultActions: {
+    gap: 12,
+    alignItems: 'center',
+  },
+  secondaryButton: {
+    backgroundColor: '#6B7280',
+  },
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
