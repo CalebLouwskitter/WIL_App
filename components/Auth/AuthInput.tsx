@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TextInput, Text, StyleSheet, TouchableOpacity, useColorScheme, KeyboardTypeOptions } from 'react-native';
-import { Colors } from '@/constants/colors'; // adjust path as needed
+import { resolvePalette } from '@/constants/colors';
 import { Ionicons } from '@expo/vector-icons';
 
 type AuthInputProps = {
@@ -27,12 +27,12 @@ const AuthInput = ({
   autoCapitalize,
 }: AuthInputProps) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const colors = resolvePalette(colorScheme);
 
   return (
     <View style={styles.container}>
       <Text style={[styles.label, { color: colors.darkGrey }]}>{label}</Text>
-      <View style={[styles.inputContainer, { borderColor: colors.lightGrey, backgroundColor: colors.white }]}>
+      <View style={[styles.inputContainer, { borderColor: colors.lightGrey, backgroundColor: colors.surface }]}>
         <TextInput
           style={[styles.input, { color: colors.text }]}
           value={value}
@@ -42,9 +42,17 @@ const AuthInput = ({
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
+          accessibilityLabel={label}
         />
         {secureTextEntry && (
-          <TouchableOpacity onPress={onToggleVisibility} style={styles.icon}>
+          <TouchableOpacity
+            onPress={onToggleVisibility}
+            style={styles.icon}
+            accessibilityRole="button"
+            accessibilityLabel={isPasswordVisible ? 'Hide password' : 'Show password'}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            activeOpacity={0.7}
+          >
             <Ionicons name={isPasswordVisible ? 'eye-off' : 'eye'} size={24} color={colors.placeholder} />
           </TouchableOpacity>
         )}
@@ -74,6 +82,10 @@ const styles = StyleSheet.create({
   },
   icon: {
     padding: 10,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

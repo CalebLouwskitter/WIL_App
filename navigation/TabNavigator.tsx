@@ -1,7 +1,7 @@
 import ProfileStack from './ProfileStack'; 
 import React, { ReactNode } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Text, useColorScheme } from 'react-native';
 import { CommonActions } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,7 +15,7 @@ import MappingStack from './MappingStack';
 import SosAlertScreen from '../screens/Sos/SosAlertScreen';
 import AnalyticsStack from './AnalyticsStack';
 
-import { Colors } from '../constants/colors';
+import { Colors, resolvePalette } from '../constants/colors';
 import type { TabParamList } from './types';
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -28,6 +28,8 @@ const CustomTabBarButton = ({ children, onPress }: { children: ReactNode; onPres
 
 const TabNavigator = () => {
   const insets = useSafeAreaInsets();
+  const scheme = useColorScheme();
+  const palette = resolvePalette(scheme);
   
   return (
     <Tab.Navigator
@@ -37,14 +39,15 @@ const TabNavigator = () => {
         tabBarShowLabel: true,
         tabBarStyle: {
           ...styles.tabBar,
+          backgroundColor: palette.surface,
           height: 60 + insets.bottom,
           paddingBottom: insets.bottom,
         },
-        tabBarActiveTintColor: Colors.light.primary,
-        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarActiveTintColor: palette.primary,
+        tabBarInactiveTintColor: palette.tabIconDefault,
         tabBarHideOnKeyboard: true,
         tabBarLabelStyle: styles.label,
-        tabBarBackground: () => <View style={{ flex: 1, backgroundColor: '#FFFFFF' }} />,
+        tabBarBackground: () => <View style={{ flex: 1, backgroundColor: palette.surface }} />,
       }}
     >
       <Tab.Screen

@@ -17,6 +17,7 @@ const ForgotPasswordScreen = ({ navigation }: { navigation: any }) => {
   const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
   const handleResetPassword = async () => {
+    if (loading) return;
     if (!email) {
       setError('Please enter your email address.');
       return;
@@ -105,6 +106,8 @@ const ForgotPasswordScreen = ({ navigation }: { navigation: any }) => {
             title={loading ? "Sending..." : "Reset Password"}
             onPress={handleResetPassword}
             isPrimary={true}
+            loading={loading}
+            disabled={loading}
           />
 
           <TouchableOpacity

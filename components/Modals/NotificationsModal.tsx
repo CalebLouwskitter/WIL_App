@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets, type EdgeInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/colors';
+import { Colors, resolvePalette } from '../../constants/colors';
 import { fetchObstacles, type Obstacle, type ObstacleFeedStatus } from '../../services/ObstacleService';
 import { describeObstacleFeed } from '../../utils/obstacleFeed';
 
@@ -27,7 +27,7 @@ type Props = {
 const NotificationsModal: React.FC<Props> = ({ visible, onClose, onRequestNotificationsScreen }) => {
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
-  const palette = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const palette = resolvePalette(scheme);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -86,7 +86,7 @@ const NotificationsModal: React.FC<Props> = ({ visible, onClose, onRequestNotifi
     return (
       <View
         key={obstacle.id}
-        style={[styles.card, { backgroundColor: palette.cardElevated || palette.surface || '#FFFFFF' }]}
+        style={[styles.card, { backgroundColor: palette.cardElevated }]}
       >
         <View style={styles.cardHeader}>
           <View style={[styles.iconCircle, { backgroundColor: severityColor + '20' }]}>
@@ -318,13 +318,13 @@ const createStyles = (palette: any, insets: EdgeInsets) =>
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(15, 23, 42, 0.55)',
+      backgroundColor: palette.mapOverlay,
     },
     container: {
       width: '100%',
       maxWidth: 420,
       borderRadius: 24,
-      backgroundColor: palette.background || '#FFFFFF',
+      backgroundColor: palette.surface,
       overflow: 'hidden',
       // Fixed panel height to prevent size changes across filters
       minHeight: 560,
@@ -381,7 +381,7 @@ const createStyles = (palette: any, insets: EdgeInsets) =>
       flex: 1,
       paddingVertical: 8,
       borderRadius: 10,
-      backgroundColor: palette.card || '#F8FAFC',
+      backgroundColor: palette.cardMuted,
       alignItems: 'center',
     },
     filterTabActive: {

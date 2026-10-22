@@ -15,6 +15,9 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Feather from 'react-native-vector-icons/Feather';
+import { useColorScheme } from 'react-native';
+import { resolvePalette } from '../../constants/colors';
+import ScreenHeader from '../../components/ScreenHeader';
 import { getObservations, deleteObservation, type RideObservation } from '@/services/ObservationStorage';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -27,6 +30,8 @@ export default function ObservationsScreen({ navigation }: Props) {
   const [observations, setObservations] = useState<RideObservation[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'sightings' | 'reports'>('all');
+  const scheme = useColorScheme();
+  const palette = resolvePalette(scheme);
 
   const loadObservations = async () => {
     try {
@@ -205,21 +210,8 @@ export default function ObservationsScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={['#2C5530', '#1C3A1F']}
-        style={styles.header}
-      >
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Ride Observations</Text>
-        <View style={styles.placeholder} />
-      </LinearGradient>
+    <View style={[styles.container, { backgroundColor: palette.backgroundLight }]}>
+      <ScreenHeader title="Ride Observations" onBack={() => navigation.goBack()} />
 
       {/* Filter Tabs */}
       <View style={styles.filterContainer}>
@@ -278,28 +270,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FAF9F7',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: 'white',
-  },
-  placeholder: {
-    width: 40,
-  },
+
   filterContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,

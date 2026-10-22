@@ -5,6 +5,7 @@ import { Feather as Icon } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAchievementProgress } from '../../hooks/useAchievementProgress';
 import { achievementDataNote, type AchievementStatus } from '../../utils/achievements';
+import ScreenHeader from '../../components/ScreenHeader';
 
 const { width: screenWidth } = Dimensions.get('window');
 const CARD_WIDTH = (screenWidth - 52) / 2;
@@ -124,23 +125,16 @@ export default function AchievementsScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {/* Header */}
-          <View style={[styles.header, { paddingHorizontal: 0 }]}>
-            <TouchableOpacity 
-              onPress={() => {
-                if (route?.params?.fromDashboard) {
-                  navigation.getParent()?.navigate('Dashboard');
-                } else {
-                  navigation.goBack();
-                }
-              }} 
-              style={styles.backButton}
-            >
-              <Icon name="chevron-left" size={24} color="#0F172A" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Achievements</Text>
-            <View style={styles.headerSpacer} />
-          </View>
+          <ScreenHeader
+            title="Achievements"
+            onBack={() => {
+              if (route?.params?.fromDashboard) {
+                navigation.getParent()?.navigate('Dashboard');
+              } else {
+                navigation.goBack();
+              }
+            }}
+          />
 
           {/* Progress Summary */}
           <Animated.View 
@@ -283,38 +277,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 60,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0F172A',
-    letterSpacing: -0.3,
-  },
-  headerSpacer: {
-    width: 44,
-    height: 44,
-  },
+
 
   // Summary Card
   summaryCard: {

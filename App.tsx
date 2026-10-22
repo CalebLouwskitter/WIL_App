@@ -18,10 +18,13 @@ import { RideRecoveryProvider } from './contexts/RideRecoveryContext';
 import { RideRecoveryHandler } from './components/RideRecoveryHandler';
 import { startRideSync } from './services/RideStorage';
 import { PreferencesProvider } from './contexts/PreferencesContext';
+import { useColorScheme } from 'react-native';
 
 export default function App() {
   const { user, initializing, isAuthenticated } = useFirebaseAuth();
   const { profile, loading } = useCurrentUser();
+  const scheme = useColorScheme();
+  const statusBarStyle = scheme === 'dark' ? 'light' : 'dark';
   // Without Firebase config only development builds may run the app, flagged as demo mode.
   // A release build with missing config shows the setup screen instead of a fake working app.
   const allowBypass = !FIREBASE_ENABLED && __DEV__;
@@ -70,7 +73,7 @@ export default function App() {
   if (setupRequired) {
     return (
       <SafeAreaProvider>
-        <StatusBar style="dark" hidden={false} />
+        <StatusBar style={statusBarStyle} hidden={false} />
         <SetupRequiredScreen />
       </SafeAreaProvider>
     );
@@ -81,7 +84,7 @@ export default function App() {
         <RideRecoveryProvider>
       <SosProvider>
         <NavigationContainer>
-          <StatusBar style="dark" hidden={false} />
+          <StatusBar style={statusBarStyle} hidden={false} />
           <RideRecoveryHandler />
           {allowBypass ? (
             <View style={{ flex: 1 }}>
