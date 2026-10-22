@@ -384,3 +384,35 @@ describe('G4 SelectHorseScreen — Theme support', () => {
     renderer.unmount();
   });
 });
+
+describe('G4 OnlineUsersScreen — Theme support', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('renders themed OnlineUsersScreen in dark mode', async () => {
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<OnlineUsersScreen navigation={{ goBack: mockGoBack, navigate: mockNavigate } as any} />);
+    });
+
+    const rootViews = renderer.root.findAllByType(View);
+    const containerStyle = StyleSheet.flatten(rootViews[0].props.style);
+    expect(containerStyle.backgroundColor).toBe(Colors.dark.background);
+
+    const texts = renderer.root.findAllByType(Text);
+    const titleText = texts.find((t) => [t.props.children].flat().join('') === 'Active Riders');
+    expect(titleText).toBeDefined();
+    const titleStyle = StyleSheet.flatten(titleText!.props.style);
+    expect(titleStyle.color).toBe(Colors.dark.textPrimary);
+
+    const userText = texts.find((t) => [t.props.children].flat().join('') === 'Rider Alice');
+    expect(userText).toBeDefined();
+    const userStyle = StyleSheet.flatten(userText!.props.style);
+    expect(userStyle.color).toBe(Colors.dark.textPrimary);
+
+    renderer.unmount();
+  });
+});

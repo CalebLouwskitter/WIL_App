@@ -73,31 +73,33 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
       style={[
         styles.userItem,
         {
-          backgroundColor: palette.cardElevated,
-          borderColor: selectedUser?.uid === item.uid ? palette.brandPrimary : palette.borderMuted,
+          backgroundColor: palette.card,
+          borderColor: selectedUser?.uid === item.uid ? palette.brandPrimary : palette.divider,
         },
       ]}
       onPress={() => handleUserPress(item)}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`User ${item.displayName || 'Anonymous'}`}
     >
       <View style={styles.userItemLeft}>
         {item.photoURL ? (
           <Image source={{ uri: item.photoURL }} style={styles.userAvatar} />
         ) : (
-          <View style={[styles.userAvatarPlaceholder, { backgroundColor: palette.brandMuted }]}>
+          <View style={[styles.userAvatarPlaceholder, { backgroundColor: palette.brandSoft }]}>
             <Feather name="user" size={20} color={palette.brandPrimary} />
           </View>
         )}
         <View style={styles.userInfo}>
-          <Text style={[styles.userName, { color: palette.text }]}>{item.displayName || 'Anonymous'}</Text>
-          <Text style={[styles.userLastSeen, { color: palette.placeholder }]}>
+          <Text style={[styles.userName, { color: palette.textPrimary }]}>{item.displayName || 'Anonymous'}</Text>
+          <Text style={[styles.userLastSeen, { color: palette.textSecondary }]}>
             {presenceLabel(item.lastSeen, Date.now())}
           </Text>
         </View>
       </View>
       {item.isRiding && (
         <View style={[styles.ridingBadge, { backgroundColor: palette.success }]}>
-          <Text style={styles.ridingText}>Riding</Text>
+          <Text style={[styles.ridingText, { color: palette.onPrimary }]}>Riding</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -125,7 +127,7 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
       };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
       <ScreenHeader
         title="Online Users"
         onBack={() => navigation.goBack()}
@@ -151,7 +153,7 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
                   <Image source={{ uri: user.photoURL }} style={styles.avatar} />
                 </View>
               ) : (
-                <View style={[styles.avatar, { backgroundColor: user.isRiding ? palette.success : palette.brandPrimary }]} />
+                <View style={[styles.avatar, { backgroundColor: user.isRiding ? palette.success : palette.brandPrimary, borderColor: palette.card }]} />
               )}
             </Marker>
           ))}
@@ -164,22 +166,22 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
         style={[
           styles.listContainer,
           {
-            backgroundColor: palette.cardElevated,
-            borderTopColor: palette.borderMuted,
+            backgroundColor: palette.card,
+            borderTopColor: palette.divider,
           },
         ]}
       >
         <View style={styles.listHeader}>
-          <Text style={[styles.listTitle, { color: palette.text }]}>Active Riders</Text>
+          <Text style={[styles.listTitle, { color: palette.textPrimary }]}>Active Riders</Text>
           <View style={[styles.countBadge, { backgroundColor: palette.brandPrimary }]}>
-            <Text style={styles.countText}>{filteredUsers.length}</Text>
+            <Text style={[styles.countText, { color: palette.onPrimary }]}>{filteredUsers.length}</Text>
           </View>
         </View>
 
         {source === 'cached' && (
-          <View style={[styles.cachedBanner, { backgroundColor: palette.brandMuted }]}>
+          <View style={[styles.cachedBanner, { backgroundColor: palette.brandSoft }]}>
             <Feather name="info" size={14} color={palette.brandPrimary} />
-            <Text style={[styles.cachedBannerText, { color: palette.text }]}>
+            <Text style={[styles.cachedBannerText, { color: palette.textPrimary }]}>
               Showing saved data — may be out of date
             </Text>
           </View>
@@ -191,15 +193,15 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
           </View>
         ) : source === 'unavailable' ? (
           <View style={styles.emptyContainer}>
-            <Feather name="wifi-off" size={48} color={palette.placeholder} />
-            <Text style={[styles.emptyText, { color: palette.placeholder }]}>
+            <Feather name="wifi-off" size={48} color={palette.textMuted} />
+            <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
               Not connected — online riders unavailable
             </Text>
           </View>
         ) : filteredUsers.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Feather name="users" size={48} color={palette.placeholder} />
-            <Text style={[styles.emptyText, { color: palette.placeholder }]}>No active riders nearby</Text>
+            <Feather name="users" size={48} color={palette.textMuted} />
+            <Text style={[styles.emptyText, { color: palette.textSecondary }]}>No active riders nearby</Text>
           </View>
         ) : (
           <FlatList
@@ -218,7 +220,6 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   mapContainer: {
     flex: 1,
@@ -260,7 +261,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   countText: {
-    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -327,7 +327,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   ridingText: {
-    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -336,7 +335,6 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
   },
   avatarShadow: {
     shadowColor: '#000',
