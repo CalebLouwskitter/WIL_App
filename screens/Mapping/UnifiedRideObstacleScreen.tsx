@@ -341,11 +341,11 @@ export default function UnifiedRideObstacleScreen({
 
   const getSeverityColor = (severity: string): string => {
     switch (severity) {
-      case 'critical': return '#DC2626';
-      case 'high': return '#EA580C';
-      case 'medium': return '#F59E0B';
-      case 'low': return '#10B981';
-      default: return '#6B7280';
+      case 'critical': return palette.obstacleCritical;
+      case 'high': return palette.obstacleHigh;
+      case 'medium': return palette.obstacleMedium;
+      case 'low': return palette.obstacleLow;
+      default: return palette.textSecondary;
     }
   };
 
@@ -882,7 +882,7 @@ export default function UnifiedRideObstacleScreen({
                   <Feather
                     name={feedView.kind === 'empty' || feedView.kind === 'loading' ? 'info' : feedView.kind === 'unavailable' ? 'wifi-off' : 'alert-circle'}
                     size={44}
-                    color={feedView.kind === 'unavailable' || feedView.kind === 'error' ? '#F59E0B' : '#6B7280'}
+                    color={feedView.kind === 'unavailable' || feedView.kind === 'error' ? palette.caution : palette.textSecondary}
                   />
                   <Text style={styles.emptyTitle}>{feedView.title}</Text>
                   {feedView.body ? <Text style={styles.emptySubtitle}>{feedView.body}</Text> : null}
@@ -1389,21 +1389,23 @@ const createStyles = (palette: AppPalette) =>
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#F59E0B',
+    backgroundColor: palette.caution,
   },
   liveDotActive: {
-    backgroundColor: '#10B981',
+    backgroundColor: palette.success,
   },
   liveText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#6B7280',
+    color: palette.textSecondary,
   },
 
   feedCaveat: {
     fontSize: 13,
-    color: '#92400E',
-    backgroundColor: '#FEF3C7',
+    color: palette.caution,
+    backgroundColor: palette.surfaceVariant,
+    borderWidth: 1,
+    borderColor: palette.caution,
     borderRadius: 8,
     padding: 10,
     marginBottom: 12,
@@ -1413,10 +1415,10 @@ const createStyles = (palette: AppPalette) =>
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#3B82F6',
+    backgroundColor: palette.brandPrimary,
   },
   retryButtonText: {
-    color: '#FFFFFF',
+    color: palette.onPrimary,
     fontWeight: '600',
     fontSize: 14,
   },
@@ -1466,10 +1468,12 @@ const createStyles = (palette: AppPalette) =>
     gap: 12,
   },
   obstacleCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: palette.card,
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
+    borderWidth: 1,
+    borderColor: palette.divider,
+    shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -1494,11 +1498,11 @@ const createStyles = (palette: AppPalette) =>
   obstacleTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F2937',
+    color: palette.textPrimary,
   },
   obstacleSubtitle: {
     fontSize: 13,
-    color: '#6B7280',
+    color: palette.textSecondary,
     textTransform: 'capitalize',
     marginTop: 2,
   },
@@ -1508,14 +1512,14 @@ const createStyles = (palette: AppPalette) =>
     borderRadius: 6,
   },
   severityBadgeText: {
-    color: 'white',
+    color: palette.onPrimary,
     fontSize: 11,
     fontWeight: '600',
     textTransform: 'capitalize',
   },
   obstacleDescription: {
     fontSize: 14,
-    color: '#4B5563',
+    color: palette.textSecondary,
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -1526,17 +1530,17 @@ const createStyles = (palette: AppPalette) =>
   },
   obstacleMeta: {
     fontSize: 12,
-    color: '#6B7280',
+    color: palette.textMuted,
     flex: 1,
   },
   viewOnMapButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: palette.brandPrimary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
   },
   viewOnMapButtonText: {
-    color: 'white',
+    color: palette.onPrimary,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -1551,11 +1555,11 @@ const createStyles = (palette: AppPalette) =>
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: palette.textPrimary,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: palette.textSecondary,
     textAlign: 'center',
   },
 

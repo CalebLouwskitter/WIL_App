@@ -175,3 +175,44 @@ describe('G5 Report Screens - Task 1: MapType from Preferences', () => {
     });
   });
 });
+
+describe('G5 Report Screens - Task 2: Hazard feed in dark mode', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('renders hazard-unavailable title with readable textPrimary token in dark mode', async () => {
+    const ReactNative = require('react-native');
+    const { Colors } = require('../constants/colors');
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    const ObstacleService = require('../services/ObstacleService');
+    ObstacleService.subscribeToObstacles.mockImplementationOnce((cb: any, opts: any, onStatusChange: any) => {
+      onStatusChange?.('unavailable');
+      cb([], 'unavailable');
+      return () => {};
+    });
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(
+        <UnifiedRideObstacleScreen
+          route={{ params: { initialTab: 'obstacles' } }}
+          navigation={{ goBack: jest.fn(), navigate: jest.fn() }}
+          initialTab="obstacles"
+        />
+      );
+    });
+
+    const texts = renderer.root.findAllByType(ReactNative.Text);
+    const unavailableTitle = texts.find((t) => [t.props.children].flat().join('').includes('Hazard reports unavailable'));
+    expect(unavailableTitle).toBeDefined();
+
+    const flatStyle = ReactNative.StyleSheet.flatten(unavailableTitle!.props.style);
+    expect(flatStyle.color).toBe(Colors.dark.textPrimary);
+    expect(flatStyle.color).not.toBe(Colors.dark.background);
+    expect(flatStyle.color).not.toBe(Colors.dark.card);
+
+    act(() => {
+      renderer.unmount();
+    });
+  });
+});
