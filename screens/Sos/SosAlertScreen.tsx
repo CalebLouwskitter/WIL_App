@@ -8,7 +8,9 @@ import {
   StatusBar,
   Animated,
   Alert,
+  Linking,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { PanGestureHandler, State, HandlerStateChangeEvent, PanGestureHandlerEventPayload } from 'react-native-gesture-handler';
 import { useSos } from '../../contexts/SosContext';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
@@ -16,6 +18,7 @@ import useFirebaseAuth from '../../hooks/useFirebaseAuth';
 import { auth, FIREBASE_ENABLED } from '../../services/firebase';
 import { useFocusEffect } from '@react-navigation/native';
 import { startLocationBroadcast, stopLocationBroadcast } from '../../services/OnlineUserService';
+import { buildSosShareMessage, whatsAppShareUrls } from '../../utils/sosShare';
 
 const HOLD_THRESHOLD = -150;
 const SNAP_VALUE = -200;
@@ -24,12 +27,16 @@ const COUNTDOWN_START = 3;
 /** What we actually know about the alert. There is no "acknowledged" state: nothing reports a responder receipt yet. */
 type SubmitStatus = 'idle' | 'sending' | 'submitted' | 'failed' | 'unavailable';
 
+/** The rider's own WhatsApp share. Opening WhatsApp is all we can know; the rider sends it, or not. */
+type ShareStatus = 'idle' | 'working' | 'opened' | 'opened-web' | 'denied' | 'no-fix' | 'failed';
+
 const SosAlertScreen = () => {
   const [helpSent, setHelpSent] = useState(false);
   const [activated, setActivated] = useState(false);
   const [countdown, setCountdown] = useState(COUNTDOWN_START);
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>('idle');
   const [submitPartial, setSubmitPartial] = useState(false);
+  const [shareStatus, setShareStatus] = useState<ShareStatus>('idle');
   const { state: sosState, activate, clear } = useSos();
   const { profile } = useCurrentUser();
   const { user } = useFirebaseAuth();
@@ -43,6 +50,7 @@ const SosAlertScreen = () => {
   const activatedThisSessionRef = useRef(false);
   const activationFinalizedRef = useRef(false);
   const submitStatusRef = useRef<SubmitStatus>('idle');
+  const shareInFlightRef = useRef(false);
 
   const updateSubmitStatus = (status: SubmitStatus, partial = false) => {
     submitStatusRef.current = status;
@@ -56,6 +64,7 @@ const SosAlertScreen = () => {
     setActivated(false);
     setHelpSent(false);
     setCountdown(COUNTDOWN_START);
+    setShareStatus('idle');
     activationFinalizedRef.current = false;
     translateY.setValue(0);
     translateYJS.setValue(0);
@@ -187,6 +196,42 @@ const SosAlertScreen = () => {
       }
     } else if (event.nativeEvent.state === State.BEGAN) {
       Animated.spring(buttonScale, { toValue: 0.95, useNativeDriver: true }).start();
+    }
+  };
+
+  // Offered after the alert result, only when the rider taps it. Separate from the SBHRA alert.
+  const shareLocationViaWhatsApp = async () => {
+    if (shareInFlightRef.current) return;
+    shareInFlightRef.current = true;
+    setShareStatus('working');
+
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setShareStatus('denied');
+        return;
+      }
+
+      const { coords } = await Location.getCurrentPositionAsync({});
+      const message = buildSosShareMessage(coords);
+      if (!message) {
+        setShareStatus('no-fix');
+        return;
+      }
+
+      const { app, web } = whatsAppShareUrls(message);
+      if (await Linking.canOpenURL(app)) {
+        await Linking.openURL(app);
+        setShareStatus('opened');
+      } else {
+        await Linking.openURL(web);
+        setShareStatus('opened-web');
+      }
+    } catch (error) {
+      console.error('Error opening WhatsApp location share:', error);
+      setShareStatus('failed');
+    } finally {
+      shareInFlightRef.current = false;
     }
   };
 
@@ -332,6 +377,20 @@ const SosAlertScreen = () => {
               </TouchableOpacity>
             )}
             {submitStatus !== 'sending' && (
+              <View style={styles.shareBlock}>
+                <TouchableOpacity
+                  testID="sos-share-whatsapp"
+                  accessibilityRole="button"
+                  style={[styles.shareButton, shareStatus === 'working' && styles.shareButtonBusy]}
+                  onPress={shareLocationViaWhatsApp}
+                  disabled={shareStatus === 'working'}
+                >
+                  <Text style={styles.shareButtonText}>Share my location via WhatsApp</Text>
+                </TouchableOpacity>
+                <Text style={[styles.shareHint, activated && styles.whiteText]}>{shareMessage(shareStatus)}</Text>
+              </View>
+            )}
+            {submitStatus !== 'sending' && (
               <TouchableOpacity
                 style={[styles.cancelButton, submitStatus === 'failed' && styles.secondaryButton]}
                 onPress={submitStatus === 'submitted' ? cancelSos : dismissResult}
@@ -376,7 +435,59 @@ const resultMessage = (status: SubmitStatus, partial: boolean) => {
   }
 };
 
+const SHARE_HINT =
+  'Opens WhatsApp with your location. You choose who to send it to and send it yourself. This is separate from the SBHRA alert.';
+
+const shareMessage = (status: ShareStatus) => {
+  switch (status) {
+    case 'working':
+      return 'Getting your location…';
+    case 'opened':
+      return 'WhatsApp is open. Choose who to send it to and tap send. Nothing is sent until you do.';
+    case 'opened-web':
+      return "WhatsApp didn't open directly, so we opened wa.me instead. Choose who to send it to and tap send. If WhatsApp isn't installed, contact emergency services directly, e.g. 112.";
+    case 'denied':
+      return 'Location permission is off, so WhatsApp was not opened. Allow location for SBHRA in Settings, or contact emergency services directly, e.g. 112.';
+    case 'no-fix':
+      return "We couldn't get a usable location, so WhatsApp was not opened. Try again, or contact emergency services directly, e.g. 112.";
+    case 'failed':
+      return "We couldn't open WhatsApp. Contact emergency services directly, e.g. 112.";
+    default:
+      return SHARE_HINT;
+  }
+};
+
 const styles = StyleSheet.create({
+  shareBlock: {
+    alignItems: 'center',
+    maxWidth: 300,
+  },
+  shareButton: {
+    width: 260,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shareButtonBusy: {
+    opacity: 0.6,
+  },
+  shareButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#075E54',
+    textAlign: 'center',
+  },
+  shareHint: {
+    fontSize: 13,
+    color: '#666666',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginTop: 8,
+  },
   resultActions: {
     gap: 12,
     alignItems: 'center',
