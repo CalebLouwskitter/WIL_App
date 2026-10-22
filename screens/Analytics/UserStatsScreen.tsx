@@ -32,6 +32,16 @@ const UserStatsScreen = () => {
     }, [refresh])
   );
 
+  const handleBack = () => {
+    if (route.params?.fromDashboard) {
+      navigation.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('Dashboard');
+    } else if (typeof navigation.canGoBack === 'function' && !navigation.canGoBack()) {
+      navigation.navigate('Stats');
+    } else {
+      navigation.goBack();
+    }
+  };
+
   const formatDuration = (ms: number) => {
     const hours = Math.floor(ms / (1000 * 60 * 60));
     const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
@@ -75,11 +85,20 @@ const UserStatsScreen = () => {
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.surface }]}>
         <View style={styles.headerRow}>
+          <TouchableOpacity
+            style={styles.backButton}
+            activeOpacity={0.7}
+            onPress={handleBack}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
+          >
+            <Feather name="arrow-left" size={24} color={theme.onSurface} />
+          </TouchableOpacity>
           <View style={styles.headerContent}>
             <View style={styles.headerIcon}>
               <Feather name="bar-chart-2" size={24} color={theme.brandPrimary} />
             </View>
-            <View>
+            <View style={styles.headerTitleContainer}>
               <Text style={[styles.headerTitle, { color: theme.onSurface }]}>Your Stats</Text>
               <Text style={[styles.headerSubtitle, { color: theme.onSurfaceVariant }]}>
                 Performance overview
@@ -417,9 +436,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerContent: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  headerTitleContainer: {
+    flex: 1,
+  },
+  backButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
   },
   headerIcon: {
     width: 48,
