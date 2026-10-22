@@ -20,8 +20,11 @@ export const rideTrackName = (ride: RideData) => {
 };
 
 export const gpxFileName = (ride: RideData) => {
-  const stamp = new Date(ride.startTime).toISOString().slice(0, 16).replace(/[:T]/g, '-');
-  return `ride-${stamp}.gpx`;
+  const date = new Date(ride.startTime);
+  const stamp = date.toISOString().slice(0, 16).replace(/[:T]/g, '-');
+  const cleanedId = ride.id ? ride.id.replace(/[^A-Za-z0-9]/g, '').slice(-8) : '';
+  const suffix = cleanedId || date.toISOString().slice(17, 19);
+  return `ride-${stamp}-${suffix}.gpx`;
 };
 
 /** Serialise a ride's recorded path (not the trail-snapped one) as GPX 1.1. */

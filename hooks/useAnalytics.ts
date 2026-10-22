@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getRides } from '../services/RideStorage';
 import type { RideData } from './useRideTracker';
+import { ridePoints } from '../utils/points';
 
 export interface UserStats {
   totalRides: number;
@@ -86,7 +87,7 @@ export function useAnalytics() {
       const longestDuration = Math.max(...rides.map(r => r.duration || 0));
       
       // Points calculation: 10 points per ride + 1 point per km
-      const totalPoints = totalRides * 10 + Math.floor(totalDistance / 1000);
+      const totalPoints = ridePoints(totalRides, totalDistance);
 
       setStats({
         totalRides,
