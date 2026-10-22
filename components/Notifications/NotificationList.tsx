@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Notification } from '../../types/Notification';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import NotificationItem from './NotificationItem';
 
 interface NotificationListProps {
@@ -23,11 +24,12 @@ export default function NotificationList({
   onEditNotification,
   isAdmin = false
 }: NotificationListProps) {
+  const { palette } = useAppTheme();
   
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <ActivityIndicator size="large" color={palette.brandPrimary} />
       </View>
     );
   }
@@ -35,7 +37,7 @@ export default function NotificationList({
   if (notifications.length === 0) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyText}>No notifications yet</Text>
+        <Text style={[styles.emptyText, { color: palette.textSecondary }]}>No notifications yet</Text>
       </View>
     );
   }
@@ -90,6 +92,7 @@ const SwipeableItem = ({
   isAdmin?: boolean;
 }) => {
   const [isSwiped, setIsSwiped] = React.useState(false);
+  const { palette } = useAppTheme();
 
   const handleDelete = () => {
     Alert.alert(
@@ -113,21 +116,21 @@ const SwipeableItem = ({
         <View style={styles.actionButtons}>
           {isAdmin && onEdit && (
             <TouchableOpacity 
-              style={styles.editButton}
+              style={[styles.editButton, { backgroundColor: palette.success }]}
               onPress={handleEdit}
               activeOpacity={0.7}
             >
-              <Ionicons name="create" size={20} color="#FFFFFF" />
-              <Text style={styles.actionButtonText}>Edit</Text>
+              <Ionicons name="create" size={20} color={palette.onPrimary} />
+              <Text style={[styles.actionButtonText, { color: palette.onPrimary }]}>Edit</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity 
-            style={styles.deleteButton}
+            style={[styles.deleteButton, { backgroundColor: palette.danger }]}
             onPress={handleDelete}
             activeOpacity={0.7}
           >
-            <Ionicons name="trash" size={20} color="#FFFFFF" />
-            <Text style={styles.actionButtonText}>Delete</Text>
+            <Ionicons name="trash" size={20} color={palette.onPrimary} />
+            <Text style={[styles.actionButtonText, { color: palette.onPrimary }]}>Delete</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -162,7 +165,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#6B7280',
   },
   listContent: {
     padding: 16,
@@ -180,7 +182,6 @@ const styles = StyleSheet.create({
   },
   editButton: {
     width: 80,
-    backgroundColor: '#10B981',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -188,14 +189,12 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     width: 80,
-    backgroundColor: '#DC2626',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
   },
   actionButtonText: {
-    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
   },

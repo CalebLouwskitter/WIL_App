@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Notification } from '../../types/Notification';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 interface NotificationItemProps {
   notification: Notification;
@@ -10,6 +11,8 @@ interface NotificationItemProps {
 }
 
 export default function NotificationItem({ notification, onPress, isRead = false }: NotificationItemProps) {
+  const { palette, isDark } = useAppTheme();
+
   const getIconName = () => {
     switch (notification.type) {
       case 'user_signup':
@@ -28,15 +31,15 @@ export default function NotificationItem({ notification, onPress, isRead = false
   const getIconColor = () => {
     switch (notification.type) {
       case 'user_signup':
-        return '#2563eb';
+        return palette.brandPrimary;
       case 'event':
-        return '#16a34a';
+        return palette.success;
       case 'update':
-        return '#0ea5e9';
+        return palette.brandPrimary;
       case 'alert':
-        return '#f59e0b';
+        return palette.caution;
       default:
-        return '#6b7280';
+        return palette.textSecondary;
     }
   };
 
@@ -54,28 +57,52 @@ export default function NotificationItem({ notification, onPress, isRead = false
     return date.toLocaleDateString();
   };
 
+  const iconColor = getIconColor();
+
   return (
-    <TouchableOpacity 
-      style={[styles.container, !isRead && styles.unread]} 
+    <TouchableOpacity
+      style={[
+        styles.container,
+        {
+          backgroundColor: isRead ? palette.card : palette.brandSoft,
+          borderColor: isRead ? palette.divider : palette.brandPrimary,
+        },
+      ]}
       onPress={onPress}
       activeOpacity={0.7}
       accessibilityState={{ selected: false }}
       accessibilityLabel={`${notification.title}, ${notification.body}${!isRead ? ', unread' : ''}`}
     >
-      <View style={[styles.iconContainer, { backgroundColor: getIconColor() + '20' }]}>
-        <Ionicons name={getIconName() as any} size={24} color={getIconColor()} />
+      <View
+        style={[
+          styles.iconContainer,
+          {
+            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : iconColor + '20',
+          },
+        ]}
+      >
+        <Ionicons name={getIconName() as any} size={24} color={iconColor} />
       </View>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={[styles.title, isRead ? styles.readTitle : styles.unreadTitle]} numberOfLines={1}>
+          <Text
+            style={[
+              styles.title,
+              isRead ? styles.readTitle : styles.unreadTitle,
+              { color: isRead ? palette.textSecondary : palette.textPrimary },
+            ]}
+            numberOfLines={1}
+          >
             {notification.title}
           </Text>
-          {!isRead && <View style={styles.unreadDot} />}
+          {!isRead && (
+            <View style={[styles.unreadDot, { backgroundColor: palette.brandPrimary }]} />
+          )}
         </View>
-        <Text style={styles.body} numberOfLines={2}>
+        <Text style={[styles.body, { color: palette.textSecondary }]} numberOfLines={2}>
           {notification.body}
         </Text>
-        <Text style={styles.time}>
+        <Text style={[styles.time, { color: palette.textMuted }]}>
           {formatTime(notification.createdAt)}
         </Text>
       </View>
@@ -87,15 +114,9 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     padding: 12,
-    backgroundColor: '#FFFFFF',
     borderRadius: 10,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  unread: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
   },
   iconContainer: {
     width: 48,
@@ -116,7 +137,6 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
-    color: '#111827',
     flex: 1,
   },
   unreadTitle: {
@@ -129,16 +149,13 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#2563eb',
     marginLeft: 8,
   },
   body: {
     fontSize: 14,
-    color: '#6B7280',
     marginBottom: 4,
   },
   time: {
     fontSize: 12,
-    color: '#9CA3AF',
   },
 });

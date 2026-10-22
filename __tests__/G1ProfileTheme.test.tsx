@@ -21,8 +21,10 @@ jest.mock('react-native-safe-area-context', () => {
 
 jest.mock('@expo/vector-icons', () => ({
   Feather: () => null,
+  Ionicons: () => null,
 }));
 
+jest.mock('@expo/vector-icons/Ionicons', () => () => null);
 jest.mock('react-native-vector-icons/Feather', () => () => null);
 
 jest.mock('expo-linear-gradient', () => {
@@ -71,6 +73,9 @@ jest.mock('../hooks/useAchievementProgress', () => ({
 
 import ObservationsScreen from '../screens/Profile/ObservationsScreen';
 import AchievementsScreen from '../screens/Profile/AchievementsScreen';
+import NotificationItem from '../components/Notifications/NotificationItem';
+import NotificationBadge from '../components/Notifications/NotificationBadge';
+import { Notification } from '../types/Notification';
 
 afterEach(() => {
   jest.restoreAllMocks();
@@ -150,5 +155,62 @@ describe('G1 AchievementsScreen Theming', () => {
     const cardDesc = texts.find((t) => [t.props.children].flat().join('') === 'Complete your first ride');
     expect(cardDesc).toBeDefined();
     expect(StyleSheet.flatten(cardDesc!.props.style).color).toBe(Colors.dark.textSecondary);
+  });
+});
+
+describe('G1 Notifications Theming', () => {
+  it('distinguishes read and unread items in dark mode with distinct backgrounds, borders, and text tokens', () => {
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    const sampleNotification: Notification = {
+      id: 'n1',
+      title: 'Alert Title',
+      body: 'Alert Body',
+      type: 'alert',
+      audience: 'all',
+      createdBy: 'u1',
+      createdAt: new Date(),
+    };
+
+    let unreadRenderer!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      unreadRenderer = TestRenderer.create(
+        <NotificationItem notification={sampleNotification} isRead={false} />
+      );
+    });
+
+    const unreadTouchable = unreadRenderer.root.findByType(TouchableOpacity);
+    const unreadStyle = StyleSheet.flatten(unreadTouchable.props.style);
+    expect(unreadStyle.backgroundColor).toBe(Colors.dark.brandSoft);
+    expect(unreadStyle.borderColor).toBe(Colors.dark.brandPrimary);
+
+    let readRenderer!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      readRenderer = TestRenderer.create(
+        <NotificationItem notification={sampleNotification} isRead={true} />
+      );
+    });
+
+    const readTouchable = readRenderer.root.findByType(TouchableOpacity);
+    const readStyle = StyleSheet.flatten(readTouchable.props.style);
+    expect(readStyle.backgroundColor).toBe(Colors.dark.card);
+    expect(readStyle.borderColor).toBe(Colors.dark.divider);
+
+    // Unread background is distinct from read background
+    expect(unreadStyle.backgroundColor).not.toBe(readStyle.backgroundColor);
+  });
+
+  it('renders NotificationBadge with danger background and card border', () => {
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = TestRenderer.create(<NotificationBadge count={5} />);
+    });
+
+    const view = renderer.root.findByType(View);
+    const badgeStyle = StyleSheet.flatten(view.props.style);
+    expect(badgeStyle.backgroundColor).toBe(Colors.dark.danger);
+    expect(badgeStyle.borderColor).toBe(Colors.dark.card);
   });
 });
