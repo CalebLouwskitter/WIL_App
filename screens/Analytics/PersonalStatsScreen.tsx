@@ -9,7 +9,7 @@ import { ReportDownload } from '../../services/AnalyticsService';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { formatDistance, formatSpeedKmh } from '../../utils/units';
 import { trailData } from '../../constants/trails';
-import { resolvePalette } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { AnalyticsUnavailableNotice } from '../../components/AnalyticsUnavailableNotice';
 import { analyticsError, type AnalyticsResult } from '../../services/analyticsResult';
 
@@ -40,8 +40,7 @@ interface ChartData {
 function PersonalStatsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const colorScheme = useColorScheme();
-  const theme = resolvePalette(colorScheme);
+  const { palette, isDark } = useAppTheme();
   const { preferences } = usePreferences();
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('month');
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
@@ -93,7 +92,7 @@ function PersonalStatsScreen() {
   const [chartData, setChartData] = useState<ChartData>({ rideFrequency: [], trailPopularity: [], weeklyDistance: [] });
 
   const generateDataForTimeSlot = (slot: TimeSlot, srcRides: RideData[]): ChartData => {
-    const primaryColor = theme.brandPrimary || '#3B82F6';
+    const primaryColor = palette.brandPrimary;
 
     const now = new Date();
     const start = new Date(now);
@@ -203,7 +202,7 @@ function PersonalStatsScreen() {
     });
     const totalTrailMeters = Object.values(trailDistance).reduce((a, b) => a + b, 0) || 1;
     const sorted = Object.entries(trailDistance).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    const colors = ['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6'];
+    const colors = [palette.brandPrimary, palette.success, palette.caution, palette.danger, palette.brandSecondary];
     const trailPopularity = sorted.map(([id, dist], i) => {
       const t = trailData.find(t => t.id === id);
       const pct = Math.round((dist / totalTrailMeters) * 100);
@@ -303,14 +302,14 @@ function PersonalStatsScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
+      <View style={[styles.container, { backgroundColor: palette.background }]}>
         <LinearGradient
-          colors={['#EFF6FF', '#F8FAFC', '#F1F5F9'] as const}
+          colors={isDark ? [palette.background, palette.background] : ['#EFF6FF', '#F8FAFC', '#F1F5F9']}
           style={styles.gradient}
         >
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.brandPrimary} />
-            <Text style={[styles.loadingText, { color: theme.onSurfaceVariant }]}>
+            <ActivityIndicator size="large" color={palette.brandPrimary} />
+            <Text style={[styles.loadingText, { color: palette.textSecondary }]}>
               Loading stats from Firebase...
             </Text>
           </View>
@@ -321,9 +320,9 @@ function PersonalStatsScreen() {
 
   if (problem) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: palette.background }]}>
         <LinearGradient
-          colors={['#EFF6FF', '#F8FAFC', '#F1F5F9'] as const}
+          colors={isDark ? [palette.background, palette.background] : ['#EFF6FF', '#F8FAFC', '#F1F5F9']}
           style={styles.gradient}
         >
           <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
@@ -338,13 +337,15 @@ function PersonalStatsScreen() {
                     }
                   }}
                   style={styles.backButton}
+                  accessibilityLabel="Go back"
+                  accessibilityRole="button"
                 >
-                  <LinearGradient colors={['#fff', '#F8FAFC'] as const} style={styles.backButtonGradient}>
-                    <Feather name="arrow-left" size={22} color="#0F172A" />
+                  <LinearGradient colors={isDark ? [palette.card, palette.card] : ['#fff', '#F8FAFC']} style={styles.backButtonGradient}>
+                    <Feather name="arrow-left" size={22} color={palette.textPrimary} />
                   </LinearGradient>
                 </TouchableOpacity>
                 <View style={styles.headerTextContainer}>
-                  <Text style={styles.headerTitle}>Personal Stats</Text>
+                  <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>Personal Stats</Text>
                 </View>
               </View>
             </View>
@@ -356,9 +357,9 @@ function PersonalStatsScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
       <LinearGradient
-        colors={['#EFF6FF', '#F8FAFC', '#F1F5F9'] as const}
+        colors={isDark ? [palette.background, palette.background, palette.background] : ['#EFF6FF', '#F8FAFC', '#F1F5F9']}
         style={styles.gradient}
       >
         <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
@@ -374,20 +375,22 @@ function PersonalStatsScreen() {
                   }
                 }} 
                 style={styles.backButton}
+                accessibilityLabel="Go back"
+                accessibilityRole="button"
               >
                 <LinearGradient
-                  colors={['#fff', '#F8FAFC'] as const}
+                  colors={isDark ? [palette.card, palette.card] : ['#fff', '#F8FAFC']}
                   style={styles.backButtonGradient}
                 >
-                  <Feather name="arrow-left" size={22} color="#0F172A" />
+                  <Feather name="arrow-left" size={22} color={palette.textPrimary} />
                 </LinearGradient>
               </TouchableOpacity>
               
               <View style={styles.headerTextContainer}>
-                <Text style={styles.headerTitle}>Personal Stats</Text>
-                <View style={styles.headerBadge}>
-                  <View style={styles.liveDot} />
-                  <Text style={styles.headerSubtitle}>{getChartPeriod()} • Firebase</Text>
+                <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>Personal Stats</Text>
+                <View style={[styles.headerBadge, { backgroundColor: palette.brandSoft }]}>
+                  <View style={[styles.liveDot, { backgroundColor: palette.brandPrimary }]} />
+                  <Text style={[styles.headerSubtitle, { color: palette.brandPrimary }]}>{getChartPeriod()} • Firebase</Text>
                 </View>
               </View>
             </View>
@@ -398,12 +401,12 @@ function PersonalStatsScreen() {
               disabled={isGeneratingReport}
             >
               <LinearGradient
-                colors={['#3B82F6', '#2563EB', '#1E40AF'] as const}
+                colors={[palette.gradientPrimaryStart, palette.gradientPrimaryEnd]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.exportGradient}
               >
-                <Feather name={isGeneratingReport ? "loader" : "download"} size={18} color="white" />
+                <Feather name={isGeneratingReport ? "loader" : "download"} size={18} color={palette.onPrimary} />
               </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
@@ -417,7 +420,7 @@ function PersonalStatsScreen() {
             }
           ]}>
             <LinearGradient
-              colors={['#1E40AF', '#3B82F6', '#60A5FA'] as const}
+              colors={[palette.gradientPrimaryStart, palette.gradientPrimaryEnd]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.heroGradient}
@@ -474,6 +477,7 @@ function PersonalStatsScreen() {
                   key={slot} 
                   style={[
                     styles.timePill,
+                    { backgroundColor: palette.card },
                     timeSlot === slot && styles.timePillActive
                   ]}
                   onPress={() => setTimeSlot(slot)}
@@ -481,15 +485,15 @@ function PersonalStatsScreen() {
                 >
                   {timeSlot === slot ? (
                     <LinearGradient
-                      colors={['#3B82F6', '#2563EB'] as const}
+                      colors={[palette.gradientPrimaryStart, palette.gradientPrimaryEnd]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={styles.timePillGradient}
                     >
-                      <Text style={styles.timePillTextActive}>{getTimeSlotLabel(slot)}</Text>
+                      <Text style={[styles.timePillTextActive, { color: palette.onPrimary }]}>{getTimeSlotLabel(slot)}</Text>
                     </LinearGradient>
                   ) : (
-                    <Text style={styles.timePillText}>{getTimeSlotLabel(slot)}</Text>
+                    <Text style={[styles.timePillText, { color: palette.textSecondary }]}>{getTimeSlotLabel(slot)}</Text>
                   )}
                 </TouchableOpacity>
               ))}
@@ -498,30 +502,30 @@ function PersonalStatsScreen() {
 
           {/* Quick Stats Grid */}
           <View style={styles.quickStats}>
-            <View style={styles.quickStatCard}>
+            <View style={[styles.quickStatCard, { backgroundColor: palette.card }]}>
               <View style={styles.quickStatIconWrapper}>
-                <LinearGradient colors={['#DBEAFE', '#BFDBFE'] as const} style={styles.quickStatIcon}>
-                  <Feather name="map-pin" size={20} color="#1E40AF" />
+                <LinearGradient colors={isDark ? [palette.brandSoft, palette.card] : ['#DBEAFE', '#BFDBFE']} style={styles.quickStatIcon}>
+                  <Feather name="map-pin" size={20} color={palette.brandPrimary} />
                 </LinearGradient>
               </View>
-              <Text style={styles.quickStatValue}>{userStats.trailsCompleted}</Text>
-              <Text style={styles.quickStatLabel}>Trails Completed</Text>
+              <Text style={[styles.quickStatValue, { color: palette.textPrimary }]}>{userStats.trailsCompleted}</Text>
+              <Text style={[styles.quickStatLabel, { color: palette.textSecondary }]}>Trails Completed</Text>
             </View>
 
-            <View style={styles.quickStatCard}>
+            <View style={[styles.quickStatCard, { backgroundColor: palette.card }]}>
               <View style={styles.quickStatIconWrapper}>
-                <LinearGradient colors={['#D1FAE5', '#A7F3D0'] as const} style={styles.quickStatIcon}>
-                  <Feather name="target" size={20} color="#065F46" />
+                <LinearGradient colors={isDark ? ['rgba(34, 197, 94, 0.25)', palette.card] : ['#D1FAE5', '#A7F3D0']} style={styles.quickStatIcon}>
+                  <Feather name="target" size={20} color={palette.success} />
                 </LinearGradient>
               </View>
               {(() => {
                 const displaySpeed = formatSpeedKmh(userStats.avgSpeed, preferences.units, 1);
                 return (
                   <>
-                    <Text style={styles.quickStatValue}>{displaySpeed.value}</Text>
-                    <Text style={styles.quickStatLabel}>Average Speed</Text>
-                    <View style={[styles.quickStatBadge, { backgroundColor: '#D1FAE5' }]}>
-                      <Text style={[styles.quickStatBadgeText, { color: '#065F46' }]}>{displaySpeed.unit}</Text>
+                    <Text style={[styles.quickStatValue, { color: palette.textPrimary }]}>{displaySpeed.value}</Text>
+                    <Text style={[styles.quickStatLabel, { color: palette.textSecondary }]}>Average Speed</Text>
+                    <View style={[styles.quickStatBadge, { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : '#D1FAE5' }]}>
+                      <Text style={[styles.quickStatBadgeText, { color: palette.success }]}>{displaySpeed.unit}</Text>
                     </View>
                   </>
                 );
@@ -530,17 +534,17 @@ function PersonalStatsScreen() {
           </View>
 
           {/* Ride Frequency Chart */}
-          <View style={styles.chartCard}>
+          <View style={[styles.chartCard, { backgroundColor: palette.card }]}>
             <View style={styles.chartHeaderPremium}>
               <View style={styles.chartTitleSection}>
                 <View style={styles.chartIconBadge}>
-                  <LinearGradient colors={['#DBEAFE', '#BFDBFE'] as const} style={styles.chartIconBadgeGradient}>
-                    <Feather name="bar-chart-2" size={18} color="#1E40AF" />
+                  <LinearGradient colors={isDark ? [palette.brandSoft, palette.card] : ['#DBEAFE', '#BFDBFE']} style={styles.chartIconBadgeGradient}>
+                    <Feather name="bar-chart-2" size={18} color={palette.brandPrimary} />
                   </LinearGradient>
                 </View>
                 <View>
-                  <Text style={styles.chartTitle}>{getChartTitle('Ride Frequency')}</Text>
-                  <Text style={styles.chartSubtitle}>Rides per period</Text>
+                  <Text style={[styles.chartTitle, { color: palette.textPrimary }]}>{getChartTitle('Ride Frequency')}</Text>
+                  <Text style={[styles.chartSubtitle, { color: palette.textSecondary }]}>Rides per period</Text>
                 </View>
               </View>
             </View>
@@ -561,17 +565,17 @@ function PersonalStatsScreen() {
           </View>
 
           {/* Trail Distribution Chart */}
-          <View style={styles.chartCard}>
+          <View style={[styles.chartCard, { backgroundColor: palette.card }]}>
             <View style={styles.chartHeaderPremium}>
               <View style={styles.chartTitleSection}>
                 <View style={styles.chartIconBadge}>
-                  <LinearGradient colors={['#D1FAE5', '#A7F3D0'] as const} style={styles.chartIconBadgeGradient}>
-                    <Feather name="pie-chart" size={18} color="#065F46" />
+                  <LinearGradient colors={isDark ? ['rgba(34, 197, 94, 0.25)', palette.card] : ['#D1FAE5', '#A7F3D0']} style={styles.chartIconBadgeGradient}>
+                    <Feather name="pie-chart" size={18} color={palette.success} />
                   </LinearGradient>
                 </View>
                 <View>
-                  <Text style={styles.chartTitle}>Trail Distribution</Text>
-                  <Text style={styles.chartSubtitle}>Most visited locations</Text>
+                  <Text style={[styles.chartTitle, { color: palette.textPrimary }]}>Trail Distribution</Text>
+                  <Text style={[styles.chartSubtitle, { color: palette.textSecondary }]}>Most visited locations</Text>
                 </View>
               </View>
             </View>
@@ -582,25 +586,25 @@ function PersonalStatsScreen() {
                   donut
                   radius={90}
                   innerRadius={65}
-                  innerCircleColor="#fff"
+                  innerCircleColor={palette.card}
                   centerLabelComponent={() => (
                     <View style={styles.pieCenterLabel}>
-                      <Text style={styles.pieCenterValue}>{userStats.totalRides}</Text>
-                      <Text style={styles.pieCenterText}>Total</Text>
-                      <Text style={styles.pieCenterSubtext}>rides</Text>
+                      <Text style={[styles.pieCenterValue, { color: palette.textPrimary }]}>{userStats.totalRides}</Text>
+                      <Text style={[styles.pieCenterText, { color: palette.textSecondary }]}>Total</Text>
+                      <Text style={[styles.pieCenterSubtext, { color: palette.textMuted }]}>rides</Text>
                     </View>
                   )}
                 />
               </View>
               <View style={styles.pieLegendContainer}>
                 {chartData.trailPopularity.map((item, index) => (
-                  <View key={index} style={styles.legendRow}>
+                  <View key={index} style={[styles.legendRow, { backgroundColor: palette.background }]}>
                     <View style={styles.legendLeft}>
                       <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                      <Text style={styles.legendLabel}>{item.label}</Text>
+                      <Text style={[styles.legendLabel, { color: palette.textPrimary }]}>{item.label}</Text>
                     </View>
-                    <View style={styles.legendRight}>
-                      <Text style={styles.legendValue}>{item.value}%</Text>
+                    <View style={[styles.legendRight, { backgroundColor: palette.card }]}>
+                      <Text style={[styles.legendValue, { color: palette.textPrimary }]}>{item.value}%</Text>
                     </View>
                   </View>
                 ))}
@@ -609,17 +613,17 @@ function PersonalStatsScreen() {
           </View>
 
           {/* Distance Trend Chart */}
-          <View style={styles.chartCard}>
+          <View style={[styles.chartCard, { backgroundColor: palette.card }]}>
             <View style={styles.chartHeaderPremium}>
               <View style={styles.chartTitleSection}>
                 <View style={styles.chartIconBadge}>
-                  <LinearGradient colors={['#FEF3C7', '#FDE68A'] as const} style={styles.chartIconBadgeGradient}>
-                    <Feather name="trending-up" size={18} color="#92400E" />
+                  <LinearGradient colors={isDark ? ['rgba(245, 158, 11, 0.25)', palette.card] : ['#FEF3C7', '#FDE68A']} style={styles.chartIconBadgeGradient}>
+                    <Feather name="trending-up" size={18} color={palette.caution} />
                   </LinearGradient>
                 </View>
                 <View>
-                  <Text style={styles.chartTitle}>{getChartTitle('Distance Progress')}</Text>
-                  <Text style={styles.chartSubtitle}>Kilometers over time</Text>
+                  <Text style={[styles.chartTitle, { color: palette.textPrimary }]}>{getChartTitle('Distance Progress')}</Text>
+                  <Text style={[styles.chartSubtitle, { color: palette.textSecondary }]}>Kilometers over time</Text>
                 </View>
               </View>
             </View>
@@ -629,9 +633,9 @@ function PersonalStatsScreen() {
                 areaChart
                 yAxisThickness={0}
                 xAxisThickness={0}
-                color="#3B82F6"
-                startFillColor="#3B82F6"
-                endFillColor="#3B82F6"
+                color={palette.brandPrimary}
+                startFillColor={palette.brandPrimary}
+                endFillColor={palette.brandPrimary}
                 startOpacity={0.4}
                 endOpacity={0.05}
                 curved
@@ -639,7 +643,7 @@ function PersonalStatsScreen() {
                 animationDuration={1200}
                 hideRules
                 hideDataPoints={false}
-                dataPointsColor="#3B82F6"
+                dataPointsColor={palette.brandPrimary}
                 dataPointsRadius={5}
                 thickness={3}
               />
@@ -648,20 +652,20 @@ function PersonalStatsScreen() {
 
           {/* Performance Insights */}
           <View style={styles.insightsSection}>
-            <Text style={styles.sectionTitle}>Performance Insights</Text>
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Performance Insights</Text>
             
             <View style={styles.insightCard}>
               <LinearGradient
-                colors={['#F0F9FF', '#fff'] as const}
+                colors={isDark ? [palette.cardElevated, palette.card] : ['#F0F9FF', '#fff']}
                 style={styles.insightGradient}
               >
                 <View style={styles.insightHeader}>
-                  <View style={styles.insightIconCircle}>
-                    <Feather name="star" size={18} color="#F59E0B" />
+                  <View style={[styles.insightIconCircle, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7' }]}>
+                    <Feather name="star" size={18} color={palette.caution} />
                   </View>
                   <View style={styles.insightTitleContainer}>
-                    <Text style={styles.insightTitle}>Favorite Trail</Text>
-                    <Text style={styles.insightValue}>{userStats.favoriteTrail}</Text>
+                    <Text style={[styles.insightTitle, { color: palette.textSecondary }]}>Favorite Trail</Text>
+                    <Text style={[styles.insightValue, { color: palette.textPrimary }]}>{userStats.favoriteTrail}</Text>
                   </View>
                 </View>
               </LinearGradient>
@@ -669,16 +673,16 @@ function PersonalStatsScreen() {
 
             <View style={styles.insightCard}>
               <LinearGradient
-                colors={['#F0FDF4', '#fff'] as const}
+                colors={isDark ? [palette.cardElevated, palette.card] : ['#F0FDF4', '#fff']}
                 style={styles.insightGradient}
               >
                 <View style={styles.insightHeader}>
-                  <View style={[styles.insightIconCircle, { backgroundColor: '#D1FAE5' }]}>
-                    <Feather name="calendar" size={18} color="#10B981" />
+                  <View style={[styles.insightIconCircle, { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : '#D1FAE5' }]}>
+                    <Feather name="calendar" size={18} color={palette.success} />
                   </View>
                   <View style={styles.insightTitleContainer}>
-                    <Text style={styles.insightTitle}>Last Ride</Text>
-                    <Text style={styles.insightValue}>{userStats.lastRide}</Text>
+                    <Text style={[styles.insightTitle, { color: palette.textSecondary }]}>Last Ride</Text>
+                    <Text style={[styles.insightValue, { color: palette.textPrimary }]}>{userStats.lastRide}</Text>
                   </View>
                 </View>
               </LinearGradient>
@@ -693,7 +697,7 @@ function PersonalStatsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#EFF6FF' },
+  container: { flex: 1 },
   gradient: { flex: 1 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
   loadingText: { fontSize: 15, fontWeight: '500' },
@@ -703,10 +707,10 @@ const styles = StyleSheet.create({
   backButton: { width: 48, height: 48, borderRadius: 24, overflow: 'hidden', shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 4 },
   backButtonGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   headerTextContainer: { marginLeft: 16, flex: 1 },
-  headerTitle: { fontSize: 32, fontWeight: '800', color: '#0F172A', letterSpacing: -1, marginBottom: 6 },
-  headerBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#DBEAFE', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, alignSelf: 'flex-start', gap: 6 },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#3B82F6' },
-  headerSubtitle: { fontSize: 13, fontWeight: '700', color: '#1E40AF', letterSpacing: 0.3 },
+  headerTitle: { fontSize: 32, fontWeight: '800', letterSpacing: -1, marginBottom: 6 },
+  headerBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, alignSelf: 'flex-start', gap: 6 },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
+  headerSubtitle: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
   exportButton: { width: 48, height: 48, borderRadius: 24, overflow: 'hidden', shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8, position: 'absolute', right: 20, top: 0 },
   exportGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   heroCard: { marginHorizontal: 20, marginBottom: 24, borderRadius: 28, overflow: 'hidden', shadowColor: '#1E40AF', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 12 },
@@ -724,49 +728,49 @@ const styles = StyleSheet.create({
   heroStatLabel: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.75)', textTransform: 'uppercase', letterSpacing: 0.5 },
   timeSelector: { marginBottom: 24 },
   timeScrollContent: { paddingHorizontal: 20, gap: 10 },
-  timePill: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 20, backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+  timePill: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
   timePillActive: { shadowColor: '#3B82F6', shadowOpacity: 0.25, elevation: 6 },
   timePillGradient: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 20, marginVertical: -12, marginHorizontal: -24, alignItems: 'center', justifyContent: 'center' },
-  timePillText: { fontSize: 15, fontWeight: '600', color: '#64748B' },
+  timePillText: { fontSize: 15, fontWeight: '600' },
   timePillTextActive: { fontSize: 15, fontWeight: '700', color: '#fff' },
   quickStats: { flexDirection: 'row', paddingHorizontal: 20, gap: 12, marginBottom: 24 },
-  quickStatCard: { flex: 1, backgroundColor: '#fff', borderRadius: 24, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 },
+  quickStatCard: { flex: 1, borderRadius: 24, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 },
   quickStatIconWrapper: { marginBottom: 16 },
   quickStatIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
-  quickStatValue: { fontSize: 32, fontWeight: '800', color: '#0F172A', marginBottom: 6, letterSpacing: -1 },
-  quickStatLabel: { fontSize: 13, fontWeight: '600', color: '#64748B', marginBottom: 12, lineHeight: 18 },
-  quickStatBadge: { backgroundColor: '#DBEAFE', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, alignSelf: 'flex-start' },
-  quickStatBadgeText: { fontSize: 11, fontWeight: '700', color: '#1E40AF', letterSpacing: 0.3 },
-  chartCard: { backgroundColor: '#fff', borderRadius: 28, padding: 24, marginHorizontal: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4 },
+  quickStatValue: { fontSize: 32, fontWeight: '800', marginBottom: 6, letterSpacing: -1 },
+  quickStatLabel: { fontSize: 13, fontWeight: '600', marginBottom: 12, lineHeight: 18 },
+  quickStatBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, alignSelf: 'flex-start' },
+  quickStatBadgeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
+  chartCard: { borderRadius: 28, padding: 24, marginHorizontal: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4 },
   chartHeaderPremium: { marginBottom: 24 },
   chartTitleSection: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   chartIconBadge: { width: 52, height: 52, borderRadius: 26, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 2 },
   chartIconBadgeGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  chartTitle: { fontSize: 20, fontWeight: '700', color: '#0F172A', marginBottom: 4, letterSpacing: -0.3 },
-  chartSubtitle: { fontSize: 14, color: '#64748B', fontWeight: '500' },
+  chartTitle: { fontSize: 20, fontWeight: '700', marginBottom: 4, letterSpacing: -0.3 },
+  chartSubtitle: { fontSize: 14, fontWeight: '500' },
   chartWrapper: { paddingVertical: 10 },
   pieWrapper: { gap: 24 },
   pieChartContainer: { alignItems: 'center', paddingVertical: 20 },
   pieCenterLabel: { alignItems: 'center' },
-  pieCenterValue: { fontSize: 32, fontWeight: '800', color: '#0F172A', letterSpacing: -1 },
-  pieCenterText: { fontSize: 13, fontWeight: '600', color: '#64748B', marginTop: 2 },
-  pieCenterSubtext: { fontSize: 11, color: '#94A3B8', fontWeight: '500' },
+  pieCenterValue: { fontSize: 32, fontWeight: '800', letterSpacing: -1 },
+  pieCenterText: { fontSize: 13, fontWeight: '600', marginTop: 2 },
+  pieCenterSubtext: { fontSize: 11, fontWeight: '500' },
   pieLegendContainer: { gap: 12 },
-  legendRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F8FAFC', paddingVertical: 14, paddingHorizontal: 16, borderRadius: 16 },
+  legendRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, borderRadius: 16 },
   legendLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   legendDot: { width: 12, height: 12, borderRadius: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 3, elevation: 2 },
-  legendLabel: { fontSize: 15, fontWeight: '600', color: '#334155' },
-  legendRight: { backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
-  legendValue: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
+  legendLabel: { fontSize: 15, fontWeight: '600' },
+  legendRight: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
+  legendValue: { fontSize: 15, fontWeight: '700' },
   insightsSection: { paddingHorizontal: 20 },
-  sectionTitle: { fontSize: 24, fontWeight: '700', color: '#0F172A', marginBottom: 16, letterSpacing: -0.5 },
+  sectionTitle: { fontSize: 24, fontWeight: '700', marginBottom: 16, letterSpacing: -0.5 },
   insightCard: { marginBottom: 12, borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   insightGradient: { padding: 20 },
   insightHeader: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  insightIconCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center', shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 2 },
+  insightIconCircle: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 2 },
   insightTitleContainer: { flex: 1 },
-  insightTitle: { fontSize: 13, fontWeight: '600', color: '#64748B', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
-  insightValue: { fontSize: 18, fontWeight: '700', color: '#0F172A', letterSpacing: -0.3 },
+  insightTitle: { fontSize: 13, fontWeight: '600', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  insightValue: { fontSize: 18, fontWeight: '700', letterSpacing: -0.3 },
 });
 
 export default PersonalStatsScreen;
