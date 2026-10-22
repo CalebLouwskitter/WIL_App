@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme, ActivityIndicator, RefreshControl, Dimensions } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, RefreshControl, Dimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { AnalyticsStackParamList } from '../../navigation/types';
@@ -15,7 +16,7 @@ import {
   type UserRideStats,
   type GlobalTrailUsage
 } from '../../services/GlobalAnalyticsService';
-import { resolvePalette } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { auth } from '../../services/firebase';
 import SettingsModal from '../../components/Modals/SettingsModal';
 import NotificationsModal from '../../components/Modals/NotificationsModal';
@@ -38,8 +39,7 @@ const GlobalTrailStatsScreen = () => {
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const navigation = useNavigation<NavigationProp>();
-  const colorScheme = useColorScheme();
-  const theme = resolvePalette(colorScheme);
+  const { palette, isDark } = useAppTheme();
 
   const handleRequestFullSettings = () => {
     setTimeout(() => {
@@ -120,7 +120,7 @@ const GlobalTrailStatsScreen = () => {
       labels: top5.map((u, i) => `#${i + 1}`),
       datasets: [{
         data: top5.map(u => Math.max(0.1, Math.round((u.totalDistance / 1000) * 10) / 10)), // Round to 1 decimal
-        colors: top5.map((_, i) => () => i === 0 ? '#3B82F6' : i === 1 ? '#10B981' : i === 2 ? '#F59E0B' : '#8B5CF6')
+        colors: top5.map((_, i) => () => i === 0 ? palette.brandPrimary : i === 1 ? palette.success : i === 2 ? palette.caution : palette.profileStatPointsCircle)
       }]
     };
   }, [userStats]);
@@ -136,20 +136,20 @@ const GlobalTrailStatsScreen = () => {
       return {
         name: trail.trailName, // Use exact trail name from Firebase
         population: trail.totalDistance, // Use this for proportions
-        color: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'][index],
-        legendFontColor: theme.onSurfaceVariant,
+        color: [palette.brandPrimary, palette.success, palette.caution, palette.profileStatPointsCircle, palette.danger][index],
+        legendFontColor: palette.textSecondary,
         legendFontSize: 10
       };
     });
-  }, [trailUsage, theme]);
+  }, [trailUsage, palette]);
 
   const chartConfig = {
-    backgroundColor: theme.surface,
-    backgroundGradientFrom: theme.surface,
-    backgroundGradientTo: theme.surface,
+    backgroundColor: palette.card,
+    backgroundGradientFrom: palette.card,
+    backgroundGradientTo: palette.card,
     decimalPlaces: 1,
     color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-    labelColor: () => theme.onSurfaceVariant,
+    labelColor: () => palette.textSecondary,
     style: {
       borderRadius: 16,
     },
@@ -160,14 +160,14 @@ const GlobalTrailStatsScreen = () => {
     },
     propsForBackgroundLines: {
       strokeDasharray: '',
-      stroke: theme.borderMuted,
+      stroke: palette.divider,
       strokeWidth: 1
     }
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>
         <View style={styles.topIcons}>
           <TouchableOpacity
             style={styles.myStatsAction}
@@ -176,21 +176,21 @@ const GlobalTrailStatsScreen = () => {
             accessibilityRole="button"
             onPress={() => navigation.navigate('DetailedStats')}
           >
-            <Feather name="user" size={18} color={theme.brandPrimary} />
-            <Text style={[styles.myStatsActionText, { color: theme.brandPrimary }]}>My stats</Text>
+            <Feather name="user" size={18} color={palette.brandPrimary} />
+            <Text style={[styles.myStatsActionText, { color: palette.brandPrimary }]}>My stats</Text>
           </TouchableOpacity>
           <View style={styles.topRightIcons}>
             <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)} accessibilityLabel="Settings" accessibilityRole="button">
-              <Feather name="settings" size={27} color={theme.icon} />
+              <Feather name="settings" size={27} color={palette.textSecondary} />
             </TouchableOpacity>
             <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)} accessibilityLabel="Notifications" accessibilityRole="button">
-              <Feather name="bell" size={27} color={theme.icon} />
+              <Feather name="bell" size={27} color={palette.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.brandPrimary} />
-          <Text style={[styles.loadingText, { color: theme.onSurfaceVariant }]}>Loading global data...</Text>
+          <ActivityIndicator size="large" color={palette.brandPrimary} />
+          <Text style={[styles.loadingText, { color: palette.textSecondary }]}>Loading global data...</Text>
         </View>
         <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} onRequestFullSettings={handleRequestFullSettings} />
         <NotificationsModal visible={notificationsVisible} onClose={() => setNotificationsVisible(false)} />
@@ -200,11 +200,11 @@ const GlobalTrailStatsScreen = () => {
 
   if (problem) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>
         <ScrollView
           contentContainerStyle={styles.content}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brandPrimary} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.brandPrimary} />
           }
         >
           <View style={styles.topIcons}>
@@ -215,15 +215,15 @@ const GlobalTrailStatsScreen = () => {
               accessibilityRole="button"
               onPress={() => navigation.navigate('DetailedStats')}
             >
-              <Feather name="user" size={18} color={theme.brandPrimary} />
-              <Text style={[styles.myStatsActionText, { color: theme.brandPrimary }]}>My stats</Text>
+              <Feather name="user" size={18} color={palette.brandPrimary} />
+              <Text style={[styles.myStatsActionText, { color: palette.brandPrimary }]}>My stats</Text>
             </TouchableOpacity>
             <View style={styles.topRightIcons}>
               <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)} accessibilityLabel="Settings" accessibilityRole="button">
-                <Feather name="settings" size={27} color={theme.icon} />
+                <Feather name="settings" size={27} color={palette.textSecondary} />
               </TouchableOpacity>
               <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)} accessibilityLabel="Notifications" accessibilityRole="button">
-                <Feather name="bell" size={27} color={theme.icon} />
+                <Feather name="bell" size={27} color={palette.textSecondary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -243,12 +243,12 @@ const GlobalTrailStatsScreen = () => {
   const maxTrailDistance = trailUsage.length > 0 ? Math.max(...trailUsage.map(t => t.totalDistance)) : 0;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>
       <ScrollView 
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.brandPrimary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.brandPrimary} />
         }
       >
         <View style={styles.topIcons}>
@@ -259,15 +259,15 @@ const GlobalTrailStatsScreen = () => {
             accessibilityRole="button"
             onPress={() => navigation.navigate('DetailedStats')}
           >
-            <Feather name="user" size={18} color={theme.brandPrimary} />
-            <Text style={[styles.myStatsActionText, { color: theme.brandPrimary }]}>My stats</Text>
+            <Feather name="user" size={18} color={palette.brandPrimary} />
+            <Text style={[styles.myStatsActionText, { color: palette.brandPrimary }]}>My stats</Text>
           </TouchableOpacity>
           <View style={styles.topRightIcons}>
             <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)} accessibilityLabel="Settings" accessibilityRole="button">
-              <Feather name="settings" size={27} color={theme.icon} />
+              <Feather name="settings" size={27} color={palette.textSecondary} />
             </TouchableOpacity>
             <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)} accessibilityLabel="Notifications" accessibilityRole="button">
-              <Feather name="bell" size={27} color={theme.icon} />
+              <Feather name="bell" size={27} color={palette.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -275,7 +275,7 @@ const GlobalTrailStatsScreen = () => {
         <View style={styles.contentInner}>
           {/* Hero Stats */}
           <LinearGradient
-            colors={[theme.brandPrimary, theme.brandPrimaryAlt]}
+            colors={[palette.brandPrimary, palette.brandPrimaryAlt]}
             style={styles.heroCard}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -307,21 +307,21 @@ const GlobalTrailStatsScreen = () => {
 
           {/* Quick Stats Grid */}
           <View style={styles.quickStatsGrid}>
-            <View style={[styles.quickStatCard, { backgroundColor: theme.surface }]}>
-              <View style={[styles.quickStatIcon, { backgroundColor: '#10B98120' }]}>
-                <Feather name="navigation" size={20} color="#10B981" />
+            <View style={[styles.quickStatCard, { backgroundColor: palette.card }]}>
+              <View style={[styles.quickStatIcon, { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#10B98120' }]}>
+                <Feather name="navigation" size={20} color={palette.success} />
               </View>
-              <Text style={[styles.quickStatValue, { color: theme.onSurface }]}>
+              <Text style={[styles.quickStatValue, { color: palette.textPrimary }]}>
                 {formatDistance(globalStats?.totalDistance || 0)}
               </Text>
-              <Text style={[styles.quickStatLabel, { color: theme.onSurfaceVariant }]}>Distance</Text>
+              <Text style={[styles.quickStatLabel, { color: palette.textSecondary }]}>Distance</Text>
             </View>
             
-            <View style={[styles.quickStatCard, { backgroundColor: theme.surface }]}>
-              <View style={[styles.quickStatIcon, { backgroundColor: '#F59E0B20' }]}>
-                <Feather name="clock" size={20} color="#F59E0B" />
+            <View style={[styles.quickStatCard, { backgroundColor: palette.card }]}>
+              <View style={[styles.quickStatIcon, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#F59E0B20' }]}>
+                <Feather name="clock" size={20} color={palette.caution} />
               </View>
-              <Text style={[styles.quickStatValue, { color: theme.onSurface }]}>
+              <Text style={[styles.quickStatValue, { color: palette.textPrimary }]}>
                 {(() => {
                   const totalMs = globalStats?.totalDuration || 0;
                   const hours = Math.floor(totalMs / (1000 * 60 * 60));
@@ -332,26 +332,26 @@ const GlobalTrailStatsScreen = () => {
                   return `${minutes}m`;
                 })()}
               </Text>
-              <Text style={[styles.quickStatLabel, { color: theme.onSurfaceVariant }]}>Time</Text>
+              <Text style={[styles.quickStatLabel, { color: palette.textSecondary }]}>Time</Text>
             </View>
             
-            <View style={[styles.quickStatCard, { backgroundColor: theme.surface }]}>
-              <View style={[styles.quickStatIcon, { backgroundColor: '#8B5CF620' }]}>
-                <Feather name="trending-up" size={20} color="#8B5CF6" />
+            <View style={[styles.quickStatCard, { backgroundColor: palette.card }]}>
+              <View style={[styles.quickStatIcon, { backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : '#8B5CF620' }]}>
+                <Feather name="trending-up" size={20} color={isDark ? palette.brandPrimary : '#8B5CF6'} />
               </View>
-              <Text style={[styles.quickStatValue, { color: theme.onSurface }]}>
+              <Text style={[styles.quickStatValue, { color: palette.textPrimary }]}>
                 {Math.round(globalStats?.totalElevation || 0)}m
               </Text>
-              <Text style={[styles.quickStatLabel, { color: theme.onSurfaceVariant }]}>Elevation</Text>
+              <Text style={[styles.quickStatLabel, { color: palette.textSecondary }]}>Elevation</Text>
             </View>
           </View>
 
           {/* Top Riders Bar Chart */}
           {topRidersChartData ? (
-            <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}>
+            <View style={[styles.section, { backgroundColor: palette.card, borderColor: palette.divider }]}>
               <View style={styles.sectionHeader}>
-                <Feather name="bar-chart-2" size={20} color={theme.brandPrimary} />
-                <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>Top 5 Riders by Distance</Text>
+                <Feather name="bar-chart-2" size={20} color={palette.brandPrimary} />
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Top 5 Riders by Distance</Text>
               </View>
               <BarChart
                 data={topRidersChartData}
@@ -366,17 +366,17 @@ const GlobalTrailStatsScreen = () => {
               />
             </View>
           ) : userStats.length > 0 ? (
-            <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}>
+            <View style={[styles.section, { backgroundColor: palette.card, borderColor: palette.divider }]}>
               <View style={styles.sectionHeader}>
-                <Feather name="bar-chart-2" size={20} color={theme.brandPrimary} />
-                <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>Top 5 Riders by Distance</Text>
+                <Feather name="bar-chart-2" size={20} color={palette.brandPrimary} />
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Top 5 Riders by Distance</Text>
               </View>
               <View style={styles.chartPlaceholder}>
-                <Feather name="info" size={32} color={theme.onSurfaceVariant} />
-                <Text style={[styles.chartPlaceholderText, { color: theme.onSurfaceVariant }]}>
+                <Feather name="info" size={32} color={palette.textSecondary} />
+                <Text style={[styles.chartPlaceholderText, { color: palette.textSecondary }]}>
                   More ride data needed for chart visualization
                 </Text>
-                <Text style={[styles.chartPlaceholderSubtext, { color: theme.onSurfaceVariant }]}>
+                <Text style={[styles.chartPlaceholderSubtext, { color: palette.textSecondary }]}>
                   Complete more rides to see detailed charts
                 </Text>
               </View>
@@ -385,10 +385,10 @@ const GlobalTrailStatsScreen = () => {
 
           {/* Trail Distribution Pie Chart */}
           {trailDistributionData && trailDistributionData.length > 0 ? (
-            <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}>
+            <View style={[styles.section, { backgroundColor: palette.card, borderColor: palette.divider }]}>
               <View style={styles.sectionHeader}>
-                <Feather name="pie-chart" size={20} color={theme.brandPrimary} />
-                <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>Trail Usage Distribution</Text>
+                <Feather name="pie-chart" size={20} color={palette.brandPrimary} />
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Trail Usage Distribution</Text>
               </View>
               <PieChart
                 data={trailDistributionData}
@@ -404,17 +404,17 @@ const GlobalTrailStatsScreen = () => {
               />
             </View>
           ) : trailUsage.length > 0 ? (
-            <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}>
+            <View style={[styles.section, { backgroundColor: palette.card, borderColor: palette.divider }]}>
               <View style={styles.sectionHeader}>
-                <Feather name="pie-chart" size={20} color={theme.brandPrimary} />
-                <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>Trail Usage Distribution</Text>
+                <Feather name="pie-chart" size={20} color={palette.brandPrimary} />
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Trail Usage Distribution</Text>
               </View>
               <View style={styles.chartPlaceholder}>
-                <Feather name="info" size={32} color={theme.onSurfaceVariant} />
-                <Text style={[styles.chartPlaceholderText, { color: theme.onSurfaceVariant }]}>
+                <Feather name="info" size={32} color={palette.textSecondary} />
+                <Text style={[styles.chartPlaceholderText, { color: palette.textSecondary }]}>
                   More trail data needed for distribution chart
                 </Text>
-                <Text style={[styles.chartPlaceholderSubtext, { color: theme.onSurfaceVariant }]}>
+                <Text style={[styles.chartPlaceholderSubtext, { color: palette.textSecondary }]}>
                   Ride on different trails to see usage patterns
                 </Text>
               </View>
@@ -422,16 +422,16 @@ const GlobalTrailStatsScreen = () => {
           ) : null}
 
           {/* Detailed Trail List */}
-          <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}>
+          <View style={[styles.section, { backgroundColor: palette.card, borderColor: palette.divider }]}>
             <View style={styles.sectionHeader}>
-              <Feather name="map-pin" size={20} color={theme.brandPrimary} />
-              <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>Popular Trails</Text>
+              <Feather name="map-pin" size={20} color={palette.brandPrimary} />
+              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Popular Trails</Text>
             </View>
 
             {trailUsage.length === 0 ? (
               <View style={styles.emptyState}>
-                <Feather name="map" size={32} color={theme.onSurfaceVariant} />
-                <Text style={[styles.emptyText, { color: theme.onSurfaceVariant }]}>No trail data yet</Text>
+                <Feather name="map" size={32} color={palette.textSecondary} />
+                <Text style={[styles.emptyText, { color: palette.textSecondary }]}>No trail data yet</Text>
               </View>
             ) : (
               trailUsage.map((trail, index) => {
@@ -445,24 +445,24 @@ const GlobalTrailStatsScreen = () => {
                     style={[
                       styles.trailItem,
                       index === trailUsage.length - 1 && styles.lastItem,
-                      { borderBottomColor: theme.borderMuted }
+                      { borderBottomColor: palette.divider }
                     ]}
                   >
                     <View style={styles.trailHeader}>
                       <View style={styles.trailRank}>
-                        <Text style={[styles.trailRankText, { color: theme.brandPrimary }]}>#{index + 1}</Text>
+                        <Text style={[styles.trailRankText, { color: palette.brandPrimary }]}>#{index + 1}</Text>
                       </View>
-                      <Text style={[styles.trailName, { color: theme.onSurface }]}>
+                      <Text style={[styles.trailName, { color: palette.textPrimary }]}>
                         {trail.trailName}
                       </Text>
-                      <Text style={[styles.trailDistance, { color: theme.onSurfaceVariant }]}>
+                      <Text style={[styles.trailDistance, { color: palette.textSecondary }]}>
                         {formatDistance(trail.totalDistance)}
                       </Text>
                     </View>
 
-                    <View style={[styles.barBackground, { backgroundColor: theme.surfaceVariant }]}>
+                    <View style={[styles.barBackground, { backgroundColor: palette.cardElevated }]}>
                       <LinearGradient
-                        colors={[theme.brandPrimary, theme.brandPrimaryAlt]}
+                        colors={[palette.brandPrimary, palette.brandPrimaryAlt]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={[styles.barFill, { width: `${widthPercent}%` }]}
@@ -471,20 +471,20 @@ const GlobalTrailStatsScreen = () => {
 
                     <View style={styles.trailMeta}>
                       <View style={styles.metaBadge}>
-                        <Feather name="activity" size={12} color={theme.brandPrimary} />
-                        <Text style={[styles.metaText, { color: theme.onSurfaceVariant }]}>
+                        <Feather name="activity" size={12} color={palette.brandPrimary} />
+                        <Text style={[styles.metaText, { color: palette.textSecondary }]}>
                           {trail.rideCount} rides
                         </Text>
                       </View>
                       <View style={styles.metaBadge}>
-                        <Feather name="users" size={12} color={theme.brandSecondary} />
-                        <Text style={[styles.metaText, { color: theme.onSurfaceVariant }]}>
+                        <Feather name="users" size={12} color={palette.caution} />
+                        <Text style={[styles.metaText, { color: palette.textSecondary }]}>
                           {trail.uniqueUsers} riders
                         </Text>
                       </View>
                       <View style={styles.metaBadge}>
-                        <Feather name="trending-up" size={12} color={theme.success} />
-                        <Text style={[styles.metaText, { color: theme.onSurfaceVariant }]}>
+                        <Feather name="trending-up" size={12} color={palette.success} />
+                        <Text style={[styles.metaText, { color: palette.textSecondary }]}>
                           {formatDistance(trail.averageDistance)} avg
                         </Text>
                       </View>
@@ -496,16 +496,16 @@ const GlobalTrailStatsScreen = () => {
           </View>
 
           {/* Leaderboard */}
-          <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}>
+          <View style={[styles.section, { backgroundColor: palette.card, borderColor: palette.divider }]}>
             <View style={styles.sectionHeader}>
-              <Feather name="award" size={20} color={theme.brandPrimary} />
-              <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>Leaderboard</Text>
+              <Feather name="award" size={20} color={palette.brandPrimary} />
+              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Leaderboard</Text>
             </View>
 
             {userStats.length === 0 ? (
               <View style={styles.emptyState}>
-                <Feather name="users" size={32} color={theme.onSurfaceVariant} />
-                <Text style={[styles.emptyText, { color: theme.onSurfaceVariant }]}>No rider data yet</Text>
+                <Feather name="users" size={32} color={palette.textSecondary} />
+                <Text style={[styles.emptyText, { color: palette.textSecondary }]}>No rider data yet</Text>
               </View>
             ) : (
               userStats.slice(0, 10).map((user, index) => (
@@ -514,17 +514,17 @@ const GlobalTrailStatsScreen = () => {
                   style={[
                     styles.userItem,
                     index === Math.min(9, userStats.length - 1) && styles.lastItem,
-                    { borderBottomColor: theme.borderMuted }
+                    { borderBottomColor: palette.divider }
                   ]}
                 >
                   <View style={styles.userRank}>
                     <LinearGradient
-                      colors={index < 3 ? ['#FFD700', '#FFA500'] : [theme.surfaceVariant, theme.surfaceVariant]}
+                      colors={index < 3 ? ['#FFD700', '#FFA500'] : [palette.cardElevated, palette.cardElevated]}
                       style={styles.rankBadge}
                     >
                       <Text style={[
                         styles.rankText,
-                        { color: index < 3 ? '#FFFFFF' : theme.onSurface }
+                        { color: index < 3 ? '#FFFFFF' : palette.textPrimary }
                       ]}>
                         {index + 1}
                       </Text>
@@ -532,19 +532,19 @@ const GlobalTrailStatsScreen = () => {
                   </View>
 
                   <View style={styles.userInfo}>
-                    <Text style={[styles.userName, { color: theme.onSurface }]}>
+                    <Text style={[styles.userName, { color: palette.textPrimary }]}>
                       {user.userName || `Rider ${user.userId.slice(0, 8)}`}
                     </Text>
                     <View style={styles.userMeta}>
                       <View style={styles.metaBadge}>
-                        <Feather name="activity" size={12} color={theme.brandPrimary} />
-                        <Text style={[styles.metaText, { color: theme.onSurfaceVariant }]}>
+                        <Feather name="activity" size={12} color={palette.brandPrimary} />
+                        <Text style={[styles.metaText, { color: palette.textSecondary }]}>
                           {user.rideCount} rides
                         </Text>
                       </View>
                       <View style={styles.metaBadge}>
-                        <Feather name="navigation" size={12} color={theme.brandSecondary} />
-                        <Text style={[styles.metaText, { color: theme.onSurfaceVariant }]}>
+                        <Feather name="navigation" size={12} color={palette.caution} />
+                        <Text style={[styles.metaText, { color: palette.textSecondary }]}>
                           {formatDistance(user.averageDistance)} avg
                         </Text>
                       </View>
@@ -552,10 +552,10 @@ const GlobalTrailStatsScreen = () => {
                   </View>
 
                   <View style={styles.userStats}>
-                    <Text style={[styles.userDistance, { color: theme.onSurface }]}>
+                    <Text style={[styles.userDistance, { color: palette.textPrimary }]}>
                       {formatDistance(user.totalDistance)}
                     </Text>
-                    <Text style={[styles.userDuration, { color: theme.onSurfaceVariant }]}>
+                    <Text style={[styles.userDuration, { color: palette.textSecondary }]}>
                       {formatDuration(user.totalDuration)}
                     </Text>
                   </View>
@@ -592,7 +592,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: 12,
     borderRadius: 22,
-    backgroundColor: '#3B82F614',
+    backgroundColor: 'rgba(37, 99, 235, 0.08)',
   },
   myStatsActionText: {
     fontSize: 14,
