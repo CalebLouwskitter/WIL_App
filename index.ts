@@ -1,7 +1,6 @@
 import { registerRootComponent } from 'expo';
 // Ensure Firestore side-effect registration & initialization occurs before app mounts
 import './services/FirebaseFirestoreService';
-import { seedUsersRbac } from './services/FirebaseUserService';
 import App from './App';
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);
@@ -9,19 +8,5 @@ import App from './App';
 // the environment is set up appropriately
 registerRootComponent(App);
 
-// Dev-only auto seed to ensure RBAC fields and admin promotion
-if (__DEV__) {
-	setTimeout(async () => {
-		try {
-			await seedUsersRbac();
-			// Optionally promote a user to admin by email during dev seeding:
-			// import { ensureAdminByEmail } from './services/FirebaseUserService';
-			// await ensureAdminByEmail('<dev-admin@example.com>');
-			// eslint-disable-next-line no-console
-			console.log('[Seed] RBAC seeded and admin ensured');
-		} catch (e) {
-			// eslint-disable-next-line no-console
-			console.warn('[Seed] Failed to run seeding:', e);
-		}
-	}, 0);
-}
+// Launch performs no Firestore writes. User seeding lives in
+// scripts/seedEmulator.ts and runs only against the local emulator.
