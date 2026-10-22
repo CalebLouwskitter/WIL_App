@@ -18,6 +18,7 @@ export interface Notification {
     [key: string]: any;
   };
   read?: boolean; // for user's notification history
+  dismissed?: boolean;
 }
 
 export interface NotificationPreferences {
