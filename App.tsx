@@ -17,6 +17,7 @@ import { SosProvider } from './contexts/SosContext';
 import { RideRecoveryProvider } from './contexts/RideRecoveryContext';
 import { RideRecoveryHandler } from './components/RideRecoveryHandler';
 import { startRideSync } from './services/RideStorage';
+import { PreferencesProvider } from './contexts/PreferencesContext';
 
 export default function App() {
   const { user, initializing, isAuthenticated } = useFirebaseAuth();
@@ -76,7 +77,8 @@ export default function App() {
   }
   return (
     <SafeAreaProvider>
-    <RideRecoveryProvider>
+      <PreferencesProvider>
+        <RideRecoveryProvider>
       <SosProvider>
         <NavigationContainer>
           <StatusBar style="dark" hidden={false} />
@@ -97,7 +99,8 @@ export default function App() {
           )}
         </NavigationContainer>
       </SosProvider>
-    </RideRecoveryProvider>
+        </RideRecoveryProvider>
+      </PreferencesProvider>
     </SafeAreaProvider>
   );
 }
