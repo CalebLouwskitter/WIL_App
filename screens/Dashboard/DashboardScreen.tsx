@@ -12,7 +12,8 @@ import {
 import MapView from 'react-native-maps';
 import Feather from 'react-native-vector-icons/Feather';
 import { useNavigation, CommonActions, useFocusEffect } from '@react-navigation/native';
-import type { StackNavigationProp } from '@react-navigation/stack';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { TabParamList } from '@/navigation/types';
 import SettingsModal from '../../components/Modals/SettingsModal';
 import NotificationsModal from '../../components/Modals/NotificationsModal';
 import { firestore } from '@/services/firebase';
@@ -24,7 +25,7 @@ import { weeklyDistanceKm, totalKm, type DayDistance } from '@/utils/weeklyDista
 import { useMapStatus } from '@/hooks/useMapStatus';
 import MapStatusFrame from '@/components/MapStatusFrame';
 
-type RootNavigationProp = StackNavigationProp<any>;
+type DashboardNavigationProp = BottomTabNavigationProp<TabParamList, 'Dashboard'>;
 const screenWidth = Dimensions.get('window').width;
 const PADDING_HORIZONTAL = 16;
 const GAP_SIZE = 12;
@@ -37,7 +38,7 @@ const DASHBOARD_PROFILE_SCREENS = [
 ];
 
 const DashboardScreen = () => {
-  const navigation = useNavigation<RootNavigationProp>();
+  const navigation = useNavigation<DashboardNavigationProp>();
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [sosList, setSosList] = useState<any[]>([]);
@@ -88,16 +89,17 @@ const DashboardScreen = () => {
         profileTarget === 'RideHistory' ||
         profileTarget === 'CreateHorse'
       ) {
-        navigation.navigate('ProfileStack', { screen: profileTarget, params: { fromDashboard: true } } as never);
+        navigation.navigate('ProfileStack', { screen: profileTarget, params: { fromDashboard: true } });
       } else {
-        navigation.navigate('ProfileStack', { screen: profileTarget } as never);
+        // Other profile sub-screens take undefined params
+        navigation.navigate('ProfileStack', { screen: profileTarget as any });
       }
       return;
     }
-    if (screen === 'MappingTab') navigation.navigate('Mapping', { screen: 'LiveTracking' } as never);
-    else if (screen === 'ReportsPage') navigation.navigate('Mapping', { screen: 'RideReviewScreen' } as never);
-    else if (screen === 'AnalyticsPage') navigation.navigate('Analytics' as never);
-    else navigation.navigate(screen as never);
+    if (screen === 'MappingTab') navigation.navigate('Mapping', { screen: 'LiveTracking' });
+    else if (screen === 'ReportsPage') navigation.navigate('Mapping', { screen: 'RideReviewScreen' });
+    else if (screen === 'AnalyticsPage') navigation.navigate('Analytics', { screen: 'Stats' });
+    else (navigation as any).navigate(screen);
   };
 
   const handleTrackSOS = async (sosItem: any) => {
@@ -224,10 +226,10 @@ const DashboardScreen = () => {
             style={styles.startRideContainer}
             activeOpacity={0.9}
             onPress={() =>
-              (navigation as any).navigate('Mapping', {
+              navigation.navigate('Mapping', {
                 screen: 'LiveTracking',
-                params: { autoStart: true },
-              } as never)
+                params: { autoStart: true, autoStartRequestId: Date.now() },
+              })
             }
           >
             <View style={styles.startRideHeader}>

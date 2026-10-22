@@ -1,6 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { ProfileStackParamList, TabParamList } from '../../navigation/types';
 import { Feather as Icon } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { saveHorse } from '../../services/HorseStorage';
@@ -8,9 +12,12 @@ import { useColorScheme } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { BorderRadius, ComponentStyles, Spacing, Typography } from '../../constants/styleguide';
 
+type CreateHorseRouteProp = RouteProp<ProfileStackParamList, 'CreateHorse'>;
+type CreateHorseNavigationProp = StackNavigationProp<ProfileStackParamList, 'CreateHorse'>;
+
 const CreateHorseScreen = () => {
-  const nav = useNavigation<any>();
-  const route = useRoute<any>();
+  const nav = useNavigation<CreateHorseNavigationProp>();
+  const route = useRoute<CreateHorseRouteProp>();
   const [name, setName] = useState('');
   const [breed, setBreed] = useState('');
   const [age, setAge] = useState<string>('');
@@ -35,9 +42,9 @@ const CreateHorseScreen = () => {
       setSaving(true);
       await saveHorse({ name: name.trim(), breed: breed.trim() || undefined, age: ageNum, notes: notes.trim() || undefined });
       if (route?.params?.fromDashboard) {
-        nav.getParent()?.navigate('Dashboard');
+        nav.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('Dashboard');
       } else if (route?.params?.returnToSelectHorse) {
-        nav.getParent()?.navigate('Mapping' as never, { screen: 'SelectHorse' } as never);
+        nav.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('Mapping', { screen: 'SelectHorse' });
       } else {
         nav.goBack();
       }
@@ -55,9 +62,9 @@ const CreateHorseScreen = () => {
           <TouchableOpacity
             onPress={() => {
               if (route?.params?.fromDashboard) {
-                nav.getParent()?.navigate('Dashboard');
+                nav.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('Dashboard');
               } else if (route?.params?.returnToSelectHorse) {
-                nav.getParent()?.navigate('Mapping' as never, { screen: 'SelectHorse' } as never);
+                nav.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('Mapping', { screen: 'SelectHorse' });
               } else {
                 nav.goBack();
               }
