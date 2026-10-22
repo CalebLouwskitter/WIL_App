@@ -8,10 +8,14 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Colors, resolvePalette } from '../../constants/colors';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { AnalyticsUnavailableNotice } from '../../components/AnalyticsUnavailableNotice';
+import { analyticsError, type AnalyticsResult } from '../../services/analyticsResult';
 
 const RideStatsScreen = () => {
   const [rides, setRides] = useState<RideData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [problem, setProblem] = useState<AnalyticsResult<unknown> | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const colorScheme = useColorScheme();
@@ -22,14 +26,16 @@ const RideStatsScreen = () => {
       try {
         setLoading(true);
         const data = await getCurrentUserRides();
-        setRides(data.sort((a, b) => b.startTime - a.startTime));
+        setRides([...data.data].sort((a, b) => b.startTime - a.startTime));
+        setProblem(data.status === 'ok' ? null : data);
       } catch (error) {
         console.error('Error loading rides from Firebase:', error);
+        setProblem(analyticsError(error, []));
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [reloadKey]);
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -102,7 +108,11 @@ const RideStatsScreen = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {rides.length === 0 ? (
+        {problem ? (
+          <View style={styles.emptyContainer}>
+            <AnalyticsUnavailableNotice result={problem} onRetry={() => setReloadKey((k) => k + 1)} />
+          </View>
+        ) : rides.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View style={[styles.emptyIconCircle, { backgroundColor: theme.surfaceVariant }]}>
               <Feather name="map" size={48} color={theme.onSurfaceVariant} />

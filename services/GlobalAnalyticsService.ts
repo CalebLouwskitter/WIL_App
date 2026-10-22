@@ -2,6 +2,13 @@ import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { auth, firestore, FIREBASE_ENABLED } from './FirebaseConfig';
 import type { RideData } from '../hooks/useRideTracker';
 import { Converters, COLLECTIONS, type RideDTO, ridePointFromDTO } from './Data';
+import {
+  analyticsError,
+  analyticsOk,
+  analyticsUnavailable,
+  mapAnalytics,
+  type AnalyticsResult,
+} from './analyticsResult';
 
 export interface GlobalRideStats {
   totalRides: number;
@@ -31,18 +38,18 @@ export interface GlobalTrailUsage {
 }
 
 /**
- * Fetch all rides from all users in Firebase Firestore
+ * Fetch all rides from all users in Firebase Firestore.
+ * 'unavailable' (Firebase off, or signed out) is an expected state and is not logged;
+ * 'error' means a configured query failed and is logged with its detail.
  */
-export const getAllUserRides = async (): Promise<RideData[]> => {
+export const getAllUserRides = async (): Promise<AnalyticsResult<RideData[]>> => {
   try {
     if (!FIREBASE_ENABLED || !firestore) {
-      console.error('[GlobalAnalytics] Firebase Firestore not initialized');
-      return [];
+      return analyticsUnavailable('firebase-off', []);
     }
 
     if (!auth?.currentUser) {
-      console.warn('[GlobalAnalytics] User not authenticated');
-      return [];
+      return analyticsUnavailable('signed-out', []);
     }
 
     const ridesRef = collection(firestore, COLLECTIONS.rides).withConverter(Converters.ride);
@@ -50,7 +57,7 @@ export const getAllUserRides = async (): Promise<RideData[]> => {
 
     if (snapshot.empty) {
       console.log('[GlobalAnalytics] No rides data found in Firestore');
-      return [];
+      return analyticsOk([]);
     }
 
     const allRides: RideData[] = snapshot.docs.reduce((acc: RideData[], docSnap) => {
@@ -75,37 +82,37 @@ export const getAllUserRides = async (): Promise<RideData[]> => {
     }, []);
 
     console.log(`[GlobalAnalytics] Fetched ${allRides.length} rides from Firestore`);
-    return allRides;
+    return analyticsOk(allRides);
   } catch (error) {
-    console.error('[GlobalAnalytics] Error fetching all rides:', error);
-    return [];
+    console.warn('[GlobalAnalytics] Error fetching all rides:', error);
+    return analyticsError(error, []);
   }
 };
 
 /**
  * Get global statistics across all users
  */
-export const getGlobalRideStats = async (): Promise<GlobalRideStats> => {
-  const rides = await getAllUserRides();
-  
-  const uniqueUserIds = new Set(rides.map(r => (r as any).userId));
-  
-  return {
-    totalRides: rides.length,
-    totalDistance: rides.reduce((sum, r) => sum + (r.totalDistance || 0), 0),
-    totalDuration: rides.reduce((sum, r) => sum + (r.duration || 0), 0),
-    totalElevation: rides.reduce((sum, r) => sum + (r.elevationGain || 0), 0),
-    uniqueUsers: uniqueUserIds.size,
-    rides,
-  };
-};
+export const getGlobalRideStats = async (): Promise<AnalyticsResult<GlobalRideStats>> =>
+  mapAnalytics(await getAllUserRides(), (rides) => {
+    const uniqueUserIds = new Set(rides.map(r => (r as any).userId));
+
+    return {
+      totalRides: rides.length,
+      totalDistance: rides.reduce((sum, r) => sum + (r.totalDistance || 0), 0),
+      totalDuration: rides.reduce((sum, r) => sum + (r.duration || 0), 0),
+      totalElevation: rides.reduce((sum, r) => sum + (r.elevationGain || 0), 0),
+      uniqueUsers: uniqueUserIds.size,
+      rides,
+    };
+  });
 
 /**
  * Get per-user statistics
  */
-export const getUserRideStats = async (): Promise<UserRideStats[]> => {
-  const rides = await getAllUserRides();
-  
+export const getUserRideStats = async (): Promise<AnalyticsResult<UserRideStats[]>> => {
+  const ridesResult = await getAllUserRides();
+  const rides = ridesResult.data;
+
   const userMap = new Map<string, UserRideStats>();
   
   rides.forEach(ride => {
@@ -128,7 +135,7 @@ export const getUserRideStats = async (): Promise<UserRideStats[]> => {
     stats.totalDuration += ride.duration || 0;
   });
   
-if (FIREBASE_ENABLED && firestore) {
+  if (ridesResult.status === 'ok' && FIREBASE_ENABLED && firestore) {
     const firestoreInstance = firestore; 
     const userIds = Array.from(userMap.keys());
     await Promise.all(
@@ -165,15 +172,18 @@ if (FIREBASE_ENABLED && firestore) {
       : 0;
   });
   
-  return Array.from(userMap.values()).sort((a, b) => b.totalDistance - a.totalDistance);
+  return mapAnalytics(ridesResult, () =>
+    Array.from(userMap.values()).sort((a, b) => b.totalDistance - a.totalDistance),
+  );
 };
 
 /**
  * Get global trail usage across all users
  */
-export const getGlobalTrailUsage = async (): Promise<GlobalTrailUsage[]> => {
-  const rides = await getAllUserRides();
-  
+export const getGlobalTrailUsage = async (): Promise<AnalyticsResult<GlobalTrailUsage[]>> => {
+  const ridesResult = await getAllUserRides();
+  const rides = ridesResult.data;
+
   const trailMap = new Map<string, {
     name: string;
     distance: number;
@@ -204,25 +214,24 @@ export const getGlobalTrailUsage = async (): Promise<GlobalTrailUsage[]> => {
     });
   });
   
-  return Array.from(trailMap.entries())
-    .map(([trailId, data]) => ({
-      trailId,
-      trailName: data.name,
-      totalDistance: data.distance,
-      rideCount: data.rideCount,
-      uniqueUsers: data.users.size,
-      averageDistance: data.rideCount > 0 ? data.distance / data.rideCount : 0,
-    }))
-    .sort((a, b) => b.totalDistance - a.totalDistance);
+  return mapAnalytics(ridesResult, () =>
+    Array.from(trailMap.entries())
+      .map(([trailId, data]) => ({
+        trailId,
+        trailName: data.name,
+        totalDistance: data.distance,
+        rideCount: data.rideCount,
+        uniqueUsers: data.users.size,
+        averageDistance: data.rideCount > 0 ? data.distance / data.rideCount : 0,
+      }))
+      .sort((a, b) => b.totalDistance - a.totalDistance),
+  );
 };
 
 /**
  * Get recent activity (last N rides across all users)
  */
-export const getRecentGlobalActivity = async (limit: number = 10): Promise<RideData[]> => {
-  const rides = await getAllUserRides();
-  
-  return rides
-    .sort((a, b) => (b.startTime || 0) - (a.startTime || 0))
-    .slice(0, limit);
-};
+export const getRecentGlobalActivity = async (limit: number = 10): Promise<AnalyticsResult<RideData[]>> =>
+  mapAnalytics(await getAllUserRides(), (rides) =>
+    [...rides].sort((a, b) => (b.startTime || 0) - (a.startTime || 0)).slice(0, limit),
+  );
