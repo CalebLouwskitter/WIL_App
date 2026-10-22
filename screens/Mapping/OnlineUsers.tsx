@@ -16,23 +16,15 @@ import { Colors } from '@/constants/colors';
 import useOnlineUsers from '../../hooks/useOnlineUsers';
 import { auth } from '../../services/firebase';
 import { startLocationBroadcast, stopLocationBroadcast, type OnlineUser } from '../../services/OnlineUserService';
+import { presenceLabel } from '../../utils/presence';
 import * as Location from 'expo-location';
 
 const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
-  const { users, loading } = useOnlineUsers();
+  const { users, loading, source } = useOnlineUsers();
   const filteredUsers = React.useMemo(() => {
     const currentUid = auth?.currentUser?.uid;
-    const byKey = new Map<string, OnlineUser>();
-    for (const u of users) {
-      // hide stale entries older than 5 minutes
-      if (Date.now() - (u.lastSeen || 0) > 5 * 60 * 1000) continue;
-      // exclude current user's uid
-      if (currentUid && u.uid === currentUid) continue;
-      const key = `${u.uid}_${u.deviceId || 'unknown'}`;
-      const prev = byKey.get(key);
-      if (!prev || (u.lastSeen || 0) > (prev.lastSeen || 0)) byKey.set(key, u);
-    }
-    return Array.from(byKey.values());
+    if (!currentUid) return users;
+    return users.filter((u) => u.uid !== currentUid);
   }, [users]);
   const [selectedUser, setSelectedUser] = useState<OnlineUser | null>(null);
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -71,16 +63,6 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
     };
   }, []);
 
-  const formatLastSeen = (timestamp: number) => {
-    const diff = Date.now() - timestamp;
-    const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-  };
-
   const handleUserPress = (user: OnlineUser) => {
     setSelectedUser(user);
   };
@@ -108,7 +90,7 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
         <View style={styles.userInfo}>
           <Text style={[styles.userName, { color: palette.text }]}>{item.displayName || 'Anonymous'}</Text>
           <Text style={[styles.userLastSeen, { color: palette.placeholder }]}>
-            {formatLastSeen(item.lastSeen)}
+            {presenceLabel(item.lastSeen, Date.now())}
           </Text>
         </View>
       </View>
@@ -156,7 +138,7 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
               key={`${user.uid}_${user.deviceId || 'unknown'}`}
               coordinate={user.location}
               title={user.displayName || 'Anonymous'}
-              description={formatLastSeen(user.lastSeen)}
+              description={presenceLabel(user.lastSeen, Date.now())}
               anchor={{ x: 0.5, y: 0.5 }}
             >
               {user.photoURL ? (
@@ -195,9 +177,25 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
           </View>
         </View>
 
+        {source === 'cached' && (
+          <View style={[styles.cachedBanner, { backgroundColor: palette.brandMuted }]}>
+            <Feather name="info" size={14} color={palette.brandPrimary} />
+            <Text style={[styles.cachedBannerText, { color: palette.text }]}>
+              Showing saved data — may be out of date
+            </Text>
+          </View>
+        )}
+
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={palette.brandPrimary} />
+          </View>
+        ) : source === 'unavailable' ? (
+          <View style={styles.emptyContainer}>
+            <Feather name="wifi-off" size={48} color={palette.placeholder} />
+            <Text style={[styles.emptyText, { color: palette.placeholder }]}>
+              Not connected — online riders unavailable
+            </Text>
           </View>
         ) : filteredUsers.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -208,7 +206,7 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
           <FlatList
             data={filteredUsers}
             renderItem={renderUserItem}
-            keyExtractor={(item) => item.uid}
+            keyExtractor={(item) => `${item.uid}_${item.deviceId || 'unknown'}`}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           />
@@ -290,6 +288,20 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
+  },
+  cachedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  cachedBannerText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   listContent: {
     paddingHorizontal: 20,

@@ -1,69 +1,122 @@
-import { useState, useEffect } from 'react';
-import { getOnlineUsers, subscribeToOnlineUsers, type OnlineUser } from '../services/OnlineUserService';
+import { useState, useEffect, useRef } from 'react';
+import {
+  getOnlineUsersWithSource,
+  subscribeToOnlineUsers,
+  type OnlineUser,
+} from '../services/OnlineUserService';
+import { filterPresent } from '../utils/presence';
 
-export default function useOnlineUsers() {
+export type OnlineUsersSource = 'live' | 'cached' | 'unavailable';
+
+export type UseOnlineUsersResult = {
+  users: OnlineUser[];
+  loading: boolean;
+  source: OnlineUsersSource;
+  lastUpdated: number | null;
+};
+
+export default function useOnlineUsers(): UseOnlineUsersResult {
   const [users, setUsers] = useState<OnlineUser[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [source, setSource] = useState<OnlineUsersSource>('unavailable');
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+
+  const latestUsersRef = useRef<OnlineUser[]>([]);
 
   useEffect(() => {
+    let cancelled = false;
     let unsubscribe: (() => void) | undefined;
     let pollTimer: ReturnType<typeof setInterval> | undefined;
+    let agingTimer: ReturnType<typeof setInterval> | undefined;
     let hasSnapshot = false;
 
-    const dedupe = (list: OnlineUser[]) => {
-      const map = new Map<string, OnlineUser>();
-      for (const u of list) {
-        const key = `${u.uid}_${u.deviceId || 'unknown'}`;
-        // keep the most recent by lastSeen
-        const prev = map.get(key);
-        if (!prev || (u.lastSeen || 0) > (prev.lastSeen || 0)) {
-          map.set(key, u);
-        }
-      }
-      return Array.from(map.values());
-    };
-
     const init = async () => {
-      console.log('[useOnlineUsers] init');
       setLoading(true);
       try {
-        const initialUsers = await getOnlineUsers();
-        const deduped = dedupe(initialUsers);
-        console.log(`[useOnlineUsers] initial fetch -> users=${initialUsers.length} deduped=${deduped.length}`);
-        setUsers(deduped);
+        const res = await getOnlineUsersWithSource();
+        if (cancelled) return;
+        latestUsersRef.current = res.users;
+        setUsers(res.users);
+        setSource(res.source);
+        setLastUpdated(Date.now());
+      } catch (e) {
+        if (cancelled) return;
+        console.warn('[useOnlineUsers] init fetch error', e);
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
 
-      unsubscribe = subscribeToOnlineUsers((updatedUsers) => {
-        hasSnapshot = true;
-        const deduped = dedupe(updatedUsers);
-        console.log(`[useOnlineUsers] onSnapshot -> users=${updatedUsers.length} deduped=${deduped.length}`);
-        setUsers(deduped);
-      });
+      if (cancelled) return;
+
+      unsubscribe = subscribeToOnlineUsers(
+        (updatedUsers) => {
+          if (cancelled) return;
+          hasSnapshot = true;
+          latestUsersRef.current = updatedUsers;
+          const present = filterPresent(updatedUsers, Date.now());
+          setUsers(present);
+          setSource('live');
+          setLastUpdated(Date.now());
+        },
+        (error) => {
+          if (cancelled) return;
+          console.warn('[useOnlineUsers] listener error; resuming polling', error);
+          hasSnapshot = false;
+        }
+      );
+
+      if (cancelled) {
+        if (unsubscribe) unsubscribe();
+        return;
+      }
 
       pollTimer = setInterval(async () => {
-        if (hasSnapshot) return; // avoid flicker once realtime is active
+        if (hasSnapshot) return;
         try {
-          const refreshed = await getOnlineUsers();
-          const deduped = dedupe(refreshed);
-          console.log(`[useOnlineUsers] poll refresh -> users=${refreshed.length} deduped=${deduped.length}`);
-          setUsers(deduped);
+          const res = await getOnlineUsersWithSource();
+          if (cancelled) return;
+          latestUsersRef.current = res.users;
+          setUsers(res.users);
+          setSource(res.source);
+          setLastUpdated(Date.now());
         } catch (e) {
+          if (cancelled) return;
           console.warn('[useOnlineUsers] poll refresh error', e);
         }
       }, 30000);
+
+      agingTimer = setInterval(() => {
+        if (cancelled) return;
+        const present = filterPresent(latestUsersRef.current, Date.now());
+        setUsers(present);
+      }, 60000);
+
+      if (cancelled) {
+        if (pollTimer !== undefined) clearInterval(pollTimer);
+        if (agingTimer !== undefined) clearInterval(agingTimer);
+      }
     };
 
     init();
 
     return () => {
+      cancelled = true;
       if (unsubscribe) {
         unsubscribe();
+        unsubscribe = undefined;
       }
-      if (pollTimer !== undefined) clearInterval(pollTimer);
+      if (pollTimer !== undefined) {
+        clearInterval(pollTimer);
+        pollTimer = undefined;
+      }
+      if (agingTimer !== undefined) {
+        clearInterval(agingTimer);
+        agingTimer = undefined;
+      }
     };
   }, []);
 
-  return { users, loading };
+  return { users, loading, source, lastUpdated };
 }
