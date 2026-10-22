@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as Location from 'expo-location';
 import { useBackgroundRideTracker } from '../../components/backgroundServices';
-import { saveRide } from '../../services/RideStorage';
+import { archiveEndedDraft } from '../../services/RideArchive';
 import MapViewTracker from '../../components/MapViewTracker';
 import RideStatsCard from '../../components/RideStatsCard';
 import SettingsModal from '../../components/Modals/SettingsModal';
@@ -31,7 +31,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
     startRide,
     stopRide,
     isBackgroundEnabled,
-    error,
+    persistWarning,
   } = useBackgroundRideTracker();
 
   const [isConfirmingStart, setIsConfirmingStart] = useState(false);
@@ -53,7 +53,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   const nav = useNavigation<any>();
   
   // Ride recovery context
-  const { hasRecoverableRide, isResumed, alertShown, clearRecoveryState, recoveredRideData, checkForRecoverableRide, markAsResumed } = useRideRecovery();
+  const { hasRecoverableRide, isResumed, clearRecoveryState, checkForRecoverableRide } = useRideRecovery();
 
   // Derive riding state from background tracker status
   const isRiding = status === 'active_foreground' || status === 'active_background';
@@ -252,13 +252,13 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
       }
 
       // Start ride with background tracking and horse information
-      const success = await startRide(horse.id, horse.name);
-      
-      if (!success) {
+      const result = await startRide(horse.id, horse.name);
+
+      if (!result.ok) {
         // Handle permission or initialization errors
         Alert.alert(
           'Failed to Start Ride',
-          error || 'Could not start location tracking. Please check permissions.',
+          result.error || 'Could not start location tracking. Please check permissions.',
           [
             {
               text: 'Check Permissions',
@@ -292,20 +292,44 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
           style: 'destructive',
           onPress: async () => {
             stopLocationBroadcast();
-            
-            const finalRide = await stopRide();
-            
-            // Clear recovery state since ride is complete
-            clearRecoveryState();
-            
-            if (finalRide) {
-              await saveRide(finalRide);
-              navigation.navigate('RideReviewScreen', { rideData: finalRide });
-            }
+            await stopRide();
+            await finishRide();
           },
         },
       ]
     );
+  };
+
+  // Save the ended ride to history. The recording stays on the device until
+  // this succeeds, so a failure can be retried here or at the next launch.
+  const finishRide = async () => {
+    try {
+      const result = await archiveEndedDraft();
+      if (result.status === 'active') {
+        throw new Error('The ride could not be ended.');
+      }
+      // Clear recovery state since ride is complete
+      clearRecoveryState();
+      if (result.status === 'archived') {
+        navigation.navigate('RideReviewScreen', { rideData: result.ride, rideId: result.ride.id });
+      }
+    } catch (e) {
+      console.error('Failed to save ride:', e);
+      Alert.alert(
+        'Ride Not Saved Yet',
+        'Your ride is still stored on this device but could not be added to Ride History.',
+        [
+          { text: 'Later', style: 'cancel' },
+          {
+            text: 'Retry',
+            onPress: async () => {
+              await stopRide();
+              await finishRide();
+            },
+          },
+        ]
+      );
+    }
   };
 
   const handleOpenSettings = () => {
@@ -318,37 +342,11 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
 
   const handleManualResumeCheck = async () => {
     try {
-      // Re-check for recoverable rides
-      await checkForRecoverableRide();
-      
-      if (hasRecoverableRide && recoveredRideData) {
-        Alert.alert(
-          'Resume Ride?',
-          `Found an interrupted ride with ${(recoveredRideData.totalDistance / 1000).toFixed(2)} km tracked. Resume?`,
-          [
-            {
-              text: 'Discard',
-              style: 'destructive',
-              onPress: async () => {
-                const { BackgroundLocationService, RideStateManager } = await import('../../components/backgroundServices');
-                await BackgroundLocationService.stop();
-                await RideStateManager.clearRideState();
-                clearRecoveryState();
-              },
-            },
-            {
-              text: 'Resume',
-              style: 'default',
-              onPress: async () => {
-                const { recoverActiveRide } = await import('../../components/backgroundServices');
-                await recoverActiveRide();
-                markAsResumed();
-                startLocationBroadcast({ isRiding: true });
-              },
-            },
-          ]
-        );
-      } else {
+      // Re-check for recoverable rides; RideRecoveryHandler shows the
+      // resume / save / discard prompt when one is found
+      const kind = await checkForRecoverableRide();
+
+      if (kind !== 'active' && kind !== 'stale') {
         Alert.alert('No Interrupted Rides', 'No interrupted rides found to resume.');
       }
     } catch (error) {
@@ -395,6 +393,14 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
             >
               <Text style={styles.warningButtonText}>Enable</Text>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Persistence Warning Banner */}
+        {isRiding && persistWarning && (
+          <View style={styles.warningBanner}>
+            <Feather name="alert-triangle" size={16} color="#ff9500" />
+            <Text style={styles.warningText}>{persistWarning}</Text>
           </View>
         )}
 
@@ -525,6 +531,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
               onPress={() =>
                 navigation.navigate('DuringRideScreen', {
                   rideData: rideData,
+                  rideId: rideData?.id,
                   initialTab: 'report',
                 })
               }
@@ -607,7 +614,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
                   </TouchableOpacity>
 
                   {/* Manual Resume Button */}
-                  {hasRecoverableRide && !isRiding && !alertShown && (
+                  {hasRecoverableRide && !isRiding && (
                     <TouchableOpacity
                       style={styles.resumeRideButton}
                       onPress={() => {
