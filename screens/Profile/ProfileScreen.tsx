@@ -20,6 +20,8 @@ import { ProfileStackParamList } from '@/navigation/ProfileStack';
 import { getRides } from '../../services/RideStorage';
 import type { RideData } from '../../hooks/useRideTracker';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { usePreferences } from '../../contexts/PreferencesContext';
+import { formatDistance } from '../../utils/units';
 import { FIREBASE_ENABLED, auth } from '../../services/firebase';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 import { useAchievementProgress } from '../../hooks/useAchievementProgress';
@@ -38,6 +40,7 @@ const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const [navDisabled, setNavDisabled] = useState<boolean>(false);
   const { palette, isDark } = useAppTheme();
+  const { preferences } = usePreferences();
   const [settingsVisible, setSettingsVisible] = useState<boolean>(false);
   const [notificationsVisible, setNotificationsVisible] = useState<boolean>(false);
   
@@ -46,9 +49,11 @@ const ProfileScreen: React.FC = () => {
   const fadeAnim = new Animated.Value(0);
   const slideAnim = new Animated.Value(0);
   
+  const initialDist = formatDistance(0, preferences.units, 0);
+  const distLabel = preferences.units === 'imperial' ? 'MI' : 'KM';
   const [statsData, setStatsData] = useState<StatItem[]>([
     { label: 'Rides', value: '0', boxColor: palette.profileStatRidesBox, circleColor: palette.profileStatRidesCircle, icon: 'activity' },
-    { label: 'Km', value: '0', boxColor: palette.profileStatKmBox, circleColor: palette.profileStatKmCircle, icon: 'map' },
+    { label: distLabel, value: initialDist.value, boxColor: palette.profileStatKmBox, circleColor: palette.profileStatKmCircle, icon: 'map' },
     { label: 'Hours', value: '0', boxColor: palette.profileStatHoursBox, circleColor: palette.profileStatHoursCircle, icon: 'clock' },
     { label: 'Points', value: '0', boxColor: palette.profileStatPointsBox, circleColor: palette.profileStatPointsCircle, icon: 'star' },
   ]);
@@ -95,9 +100,43 @@ const ProfileScreen: React.FC = () => {
     }
   };
 
+  const loadStats = useCallback(async () => {
+    setIsLoadingStats(true);
+    try {
+      const rides: RideData[] = await getRides();
+      const sorted = [...rides].sort((a, b) => b.startTime - a.startTime);
+      setRecentRides(sorted.slice(0, 3));
+      const totalRides = rides.length;
+      const totalDistanceMeters = rides.reduce((a, r) => a + (r.totalDistance || 0), 0);
+      const totalKm = Math.round(totalDistanceMeters / 1000);
+      const dist = formatDistance(totalDistanceMeters, preferences.units, 0);
+      const totalDurationMs = rides.reduce((a, r) => a + (r.duration || 0), 0);
+      const hours = Math.round(totalDurationMs / (1000 * 60 * 60));
+      const points = totalRides * 10 + totalKm;
+      const currentDistLabel = preferences.units === 'imperial' ? 'MI' : 'KM';
+
+      setStatsData([
+        { label: 'Rides', value: String(totalRides), boxColor: palette.profileStatRidesBox, circleColor: palette.profileStatRidesCircle, icon: 'activity' },
+        { label: currentDistLabel, value: dist.value, boxColor: palette.profileStatKmBox, circleColor: palette.profileStatKmCircle, icon: 'map' },
+        { label: 'Hours', value: String(hours), boxColor: palette.profileStatHoursBox, circleColor: palette.profileStatHoursCircle, icon: 'clock' },
+        { label: 'Points', value: String(points), boxColor: palette.profileStatPointsBox, circleColor: palette.profileStatPointsCircle, icon: 'star' },
+      ]);
+    } catch (e) {
+      console.error('Error loading stats:', e);
+      // keep defaults on error
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, [palette, preferences.units]);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
   useFocusEffect(
     useCallback(() => {
       loadProfilePicture();
+      loadStats();
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -110,39 +149,8 @@ const ProfileScreen: React.FC = () => {
           useNativeDriver: true,
         }),
       ]).start();
-    }, [loadProfilePicture])
+    }, [loadProfilePicture, loadStats])
   );
-
-  useEffect(() => {
-    const loadStats = async () => {
-      setIsLoadingStats(true);
-      try {
-        const rides: RideData[] = await getRides();
-        const sorted = [...rides].sort((a, b) => b.startTime - a.startTime);
-        setRecentRides(sorted.slice(0, 3));
-        const totalRides = rides.length;
-        const totalDistanceMeters = rides.reduce((a, r) => a + (r.totalDistance || 0), 0);
-        const totalKm = Math.round(totalDistanceMeters / 1000);
-        const totalDurationMs = rides.reduce((a, r) => a + (r.duration || 0), 0);
-        const hours = Math.round(totalDurationMs / (1000 * 60 * 60));
-        const points = totalRides * 10 + totalKm;
-
-        setStatsData([
-          { label: 'Rides', value: String(totalRides), boxColor: palette.profileStatRidesBox, circleColor: palette.profileStatRidesCircle, icon: 'activity' },
-          { label: 'Km', value: String(totalKm), boxColor: palette.profileStatKmBox, circleColor: palette.profileStatKmCircle, icon: 'map' },
-          { label: 'Hours', value: String(hours), boxColor: palette.profileStatHoursBox, circleColor: palette.profileStatHoursCircle, icon: 'clock' },
-          { label: 'Points', value: String(points), boxColor: palette.profileStatPointsBox, circleColor: palette.profileStatPointsCircle, icon: 'star' },
-        ]);
-      } catch (e) {
-        console.error('Error loading stats:', e);
-        // keep defaults on error
-      } finally {
-        setIsLoadingStats(false);
-      }
-    };
-    
-    loadStats();
-  }, [palette]);
 
   const handleNavigate = useCallback(
     (screen: string, params?: any) => {

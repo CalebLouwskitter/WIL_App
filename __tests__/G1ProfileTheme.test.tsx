@@ -4,11 +4,14 @@ import TestRenderer, { act } from 'react-test-renderer';
 import * as ReactNative from 'react-native';
 import { Colors } from '../constants/colors';
 
-jest.mock('@react-navigation/native', () => ({
-  useFocusEffect: (cb: () => void) => cb(),
-  useNavigation: () => ({ goBack: jest.fn(), navigate: jest.fn(), getParent: () => ({ navigate: jest.fn() }) }),
-  useRoute: () => ({ params: {} }),
-}));
+jest.mock('@react-navigation/native', () => {
+  const React = require('react');
+  return {
+    useFocusEffect: (cb: () => void) => React.useEffect(cb, [cb]),
+    useNavigation: () => ({ goBack: jest.fn(), navigate: jest.fn(), getParent: () => ({ navigate: jest.fn() }) }),
+    useRoute: () => ({ params: {} }),
+  };
+});
 
 jest.mock('react-native-safe-area-context', () => {
   const React = require('react');
@@ -41,7 +44,14 @@ jest.mock('@/services/ObservationStorage', () => ({
 }));
 
 jest.mock('../services/RideStorage', () => ({
-  getRides: jest.fn().mockResolvedValue([]),
+  getRides: jest.fn().mockResolvedValue([
+    {
+      id: 'r1',
+      startTime: 1000000,
+      totalDistance: 5000,
+      duration: 3600000,
+    },
+  ]),
 }));
 
 jest.mock('../services/ProfilePictureService', () => ({
@@ -96,9 +106,10 @@ jest.mock('../hooks/useAchievementProgress', () => ({
   }),
 }));
 
+let mockCurrentUnits: 'metric' | 'imperial' = 'metric';
 jest.mock('../contexts/PreferencesContext', () => ({
   usePreferences: () => ({
-    preferences: { units: 'metric', mapType: 'standard', notificationsWanted: true },
+    preferences: { units: mockCurrentUnits, mapType: 'standard', notificationsWanted: true },
     setUnits: jest.fn(),
     setMapType: jest.fn(),
     setNotificationsWanted: jest.fn(),
@@ -280,6 +291,7 @@ describe('G1 ProfileScreen Theming', () => {
     let renderer!: TestRenderer.ReactTestRenderer;
     await act(async () => {
       renderer = TestRenderer.create(<ProfileScreen />);
+      await Promise.resolve();
     });
 
     const textNodes = renderer.root.findAllByType(Text);
@@ -293,5 +305,47 @@ describe('G1 ProfileScreen Theming', () => {
       return style && style.backgroundColor === Colors.dark.profileStatRidesBox;
     });
     expect(statCards.length).toBeGreaterThan(0);
+
+    act(() => {
+      renderer.unmount();
+    });
+  });
+});
+
+describe('G1 ProfileScreen Units (km/mi)', () => {
+  it('proves the Profile summary shows KM with Metric selected', async () => {
+    mockCurrentUnits = 'metric';
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<ProfileScreen />);
+      await Promise.resolve();
+    });
+    const textNodes = renderer.root.findAllByType(Text);
+    const kmLabel = textNodes.find((t) => [t.props.children].flat().join('') === 'KM');
+    expect(kmLabel).toBeDefined();
+    const kmValue = textNodes.find((t) => [t.props.children].flat().join('') === '5');
+    expect(kmValue).toBeDefined();
+
+    act(() => {
+      renderer.unmount();
+    });
+  });
+
+  it('proves the Profile summary shows MI with Imperial selected', async () => {
+    mockCurrentUnits = 'imperial';
+    let renderer!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<ProfileScreen />);
+      await Promise.resolve();
+    });
+    const textNodes = renderer.root.findAllByType(Text);
+    const miLabel = textNodes.find((t) => [t.props.children].flat().join('') === 'MI');
+    expect(miLabel).toBeDefined();
+    const miValue = textNodes.find((t) => [t.props.children].flat().join('') === '3');
+    expect(miValue).toBeDefined();
+
+    act(() => {
+      renderer.unmount();
+    });
   });
 });
