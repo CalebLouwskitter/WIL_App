@@ -60,6 +60,22 @@ jest.mock('../components/AnalyticsUnavailableNotice', () => ({
   AnalyticsUnavailableNotice: () => null,
 }));
 jest.mock('../services/firebase', () => ({ auth: null, firestore: null, FIREBASE_ENABLED: false }));
+jest.mock('../services/TrailAnalyticsService', () => ({
+  getTrailUsageSummaries: jest.fn().mockResolvedValue([]),
+}));
+const mockRidesList = [
+  {
+    startTime: 1234567890,
+    totalDistance: 5000,
+    duration: 1800000,
+    elevationGain: 40,
+    horseName: 'Star',
+    path: [{ latitude: 0, longitude: 0 }, { latitude: 1, longitude: 1 }],
+  },
+];
+jest.mock('../services/RideStorage', () => ({
+  getRides: jest.fn(() => Promise.resolve(mockRidesList)),
+}));
 
 const mockGetCurrentUserRides = jest.fn();
 const mockGetUserRidesByTimePeriod = jest.fn();
@@ -108,6 +124,11 @@ jest.mock('../contexts/PreferencesContext', () => ({
 import GlobalTrailStatsScreen from '../screens/Analytics/GlobalTrailStatsScreen';
 import UserStatsScreen from '../screens/Analytics/UserStatsScreen';
 import PersonalStatsScreen from '../screens/Analytics/PersonalStatsScreen';
+import RideStatsScreen from '../screens/Analytics/RideStatsScreen';
+import TrailStatsScreen from '../screens/Analytics/TrailStatsScreen';
+import RideViewMoreScreen from '../screens/Analytics/RideViewMoreScreen';
+import { Colors } from '../constants/colors';
+import * as ReactNative from 'react-native';
 import { analyticsOk } from '../services/analyticsResult';
 
 describe('G3 Analytics flow — five required behaviours', () => {
@@ -335,6 +356,112 @@ describe('G3 Analytics flow — five required behaviours', () => {
       expect(allTexts.some((t) => t.includes('mph'))).toBe(true);
       expect(allTexts.some((t) => t.includes('km/h'))).toBe(false);
       expect(allTexts.some((t) => t.includes('mi'))).toBe(true);
+    });
+  });
+
+  describe('Dark-mode readability tests (key title uses palette.textPrimary in dark mode)', () => {
+    beforeEach(() => {
+      jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('UserStatsScreen title uses palette.textPrimary in dark mode', async () => {
+      mockRouteParams = {};
+      let renderer!: TestRenderer.ReactTestRenderer;
+      await act(async () => {
+        renderer = TestRenderer.create(<UserStatsScreen />);
+      });
+
+      const titleNode = renderer.root
+        .findAllByType(Text)
+        .find((t) => [t.props.children].flat().join('') === 'Your Stats');
+
+      expect(titleNode).toBeDefined();
+      const style = StyleSheet.flatten(titleNode!.props.style);
+      expect(style.color).toBe(Colors.dark.textPrimary);
+    });
+
+    it('GlobalTrailStatsScreen leaderboard title uses palette.textPrimary in dark mode', async () => {
+      mockRouteParams = {};
+      let renderer!: TestRenderer.ReactTestRenderer;
+      await act(async () => {
+        renderer = TestRenderer.create(<GlobalTrailStatsScreen />);
+      });
+
+      const titleNode = renderer.root
+        .findAllByType(Text)
+        .find((t) => [t.props.children].flat().join('') === 'Leaderboard');
+
+      expect(titleNode).toBeDefined();
+      const style = StyleSheet.flatten(titleNode!.props.style);
+      expect(style.color).toBe(Colors.dark.textPrimary);
+    });
+
+    it('PersonalStatsScreen title uses palette.textPrimary in dark mode', async () => {
+      mockRouteParams = {};
+      let renderer!: TestRenderer.ReactTestRenderer;
+      await act(async () => {
+        renderer = TestRenderer.create(<PersonalStatsScreen />);
+      });
+
+      const titleNode = renderer.root
+        .findAllByType(Text)
+        .find((t) => [t.props.children].flat().join('') === 'Personal Stats');
+
+      expect(titleNode).toBeDefined();
+      const style = StyleSheet.flatten(titleNode!.props.style);
+      expect(style.color).toBe(Colors.dark.textPrimary);
+    });
+
+    it('RideStatsScreen header title uses palette.textPrimary in dark mode', async () => {
+      mockRouteParams = {};
+      let renderer!: TestRenderer.ReactTestRenderer;
+      await act(async () => {
+        renderer = TestRenderer.create(<RideStatsScreen />);
+      });
+
+      const titleNode = renderer.root
+        .findAllByType(Text)
+        .find((t) => [t.props.children].flat().join('') === 'Ride History');
+
+      expect(titleNode).toBeDefined();
+      const style = StyleSheet.flatten(titleNode!.props.style);
+      expect(style.color).toBe(Colors.dark.textPrimary);
+    });
+
+    it('TrailStatsScreen header title uses palette.textPrimary in dark mode', async () => {
+      mockRouteParams = {};
+      let renderer!: TestRenderer.ReactTestRenderer;
+      await act(async () => {
+        renderer = TestRenderer.create(<TrailStatsScreen />);
+      });
+
+      const titleNode = renderer.root
+        .findAllByType(Text)
+        .find((t) => [t.props.children].flat().join('') === 'Trail Insights');
+
+      expect(titleNode).toBeDefined();
+      const style = StyleSheet.flatten(titleNode!.props.style);
+      expect(style.color).toBe(Colors.dark.textPrimary);
+    });
+
+    it('RideViewMoreScreen title uses palette.textPrimary in dark mode', async () => {
+      mockRouteParams = { startTime: 1234567890 };
+      let renderer!: TestRenderer.ReactTestRenderer;
+      await act(async () => {
+        renderer = TestRenderer.create(<RideViewMoreScreen />);
+      });
+
+      const titleNode = renderer.root
+        .findAllByType(Text)
+        .find((t) => [t.props.children].flat().join('') === 'Ride Details');
+
+      expect(titleNode).toBeDefined();
+      const style = StyleSheet.flatten(titleNode!.props.style);
+      expect(style.color).toBe(Colors.dark.textPrimary);
     });
   });
 });
