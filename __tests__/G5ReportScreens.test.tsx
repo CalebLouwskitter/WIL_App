@@ -124,6 +124,8 @@ jest.mock('../contexts/PreferencesContext', () => ({
 }));
 
 import UnifiedRideObstacleScreen from '../screens/Mapping/UnifiedRideObstacleScreen';
+import ObstacleView from '../screens/Mapping/ObstacleView';
+import MarkObstacleScreen from '../screens/Mapping/MarkObstacleScreen';
 
 describe('G5 Report Screens - Task 1: MapType from Preferences', () => {
   beforeEach(() => {
@@ -214,5 +216,69 @@ describe('G5 Report Screens - Task 2: Hazard feed in dark mode', () => {
     act(() => {
       renderer.unmount();
     });
+  });
+});
+
+describe('G5 Report Screens - Task 3: ObstacleView & MarkObstacleScreen theme', () => {
+  const ReactNative = require('react-native');
+  const { Colors } = require('../constants/colors');
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it('renders ObstacleView callout and badge with theme tokens in dark mode', () => {
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    const sampleObstacle = {
+      id: 'o1',
+      userId: 'u1',
+      title: 'Fallen branch',
+      severity: 'critical' as const,
+      type: 'tree' as const,
+      status: 'active' as const,
+      location: { latitude: -26.2, longitude: 28.0 },
+      reportedAt: 100,
+      createdAt: 100,
+      updatedAt: 100,
+    };
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = TestRenderer.create(<ObstacleView obstacles={[sampleObstacle]} />);
+    });
+
+    const texts = renderer.root.findAllByType(ReactNative.Text);
+    const titleText = texts.find((t) => [t.props.children].flat().join('') === 'Fallen branch');
+    expect(titleText).toBeDefined();
+    const titleStyle = ReactNative.StyleSheet.flatten(titleText!.props.style);
+    expect(titleStyle.color).toBe(Colors.dark.textPrimary);
+
+    const severityText = texts.find((t) => [t.props.children].flat().join('') === 'critical');
+    expect(severityText).toBeDefined();
+    const severityBadge = renderer.root.findAllByType(ReactNative.View).find((v) => {
+      const s = ReactNative.StyleSheet.flatten(v.props.style);
+      return s?.backgroundColor === Colors.dark.obstacleCritical;
+    });
+    expect(severityBadge).toBeDefined();
+  });
+
+  it('renders MarkObstacleScreen container and section title in dark mode', () => {
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+
+    let renderer!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = TestRenderer.create(
+        <MarkObstacleScreen navigation={{ goBack: jest.fn() }} />
+      );
+    });
+
+    const rootViews = renderer.root.findAllByType(ReactNative.View);
+    const container = ReactNative.StyleSheet.flatten(rootViews[0].props.style);
+    expect(container.backgroundColor).toBe(Colors.dark.background);
+
+    const texts = renderer.root.findAllByType(ReactNative.Text);
+    const sectionTitle = texts.find((t) => [t.props.children].flat().join('') === 'Obstacle Type');
+    expect(sectionTitle).toBeDefined();
+    const titleStyle = ReactNative.StyleSheet.flatten(sectionTitle!.props.style);
+    expect(titleStyle.color).toBe(Colors.dark.textPrimary);
   });
 });

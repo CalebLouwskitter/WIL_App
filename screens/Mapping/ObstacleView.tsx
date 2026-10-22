@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Marker, Callout } from 'react-native-maps';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import type { Obstacle } from '../../services/ObstacleService';
 import type { ObstacleSeverity, ObstacleType } from '../../services/Data';
+import { useAppTheme, type AppPalette } from '../../hooks/useAppTheme';
 
 type Props = {
   obstacles: Obstacle[];
@@ -33,22 +34,25 @@ const getObstacleIcon = (type: string): string => {
   }
 };
 
-const getSeverityColor = (severity: string): string => {
-  switch (severity) {
-    case 'critical':
-      return '#DC2626'; // red
-    case 'high':
-      return '#EA580C'; // orange
-    case 'medium':
-      return '#F59E0B'; // amber
-    case 'low':
-      return '#10B981'; // green
-    default:
-      return '#6B7280'; // gray
-  }
-};
-
 const ObstacleView: React.FC<Props> = ({ obstacles, onObstaclePress, onVerify }) => {
+  const { palette } = useAppTheme();
+  const styles = useMemo(() => createStyles(palette), [palette]);
+
+  const getSeverityColor = (severity: string): string => {
+    switch (severity) {
+      case 'critical':
+        return palette.obstacleCritical;
+      case 'high':
+        return palette.obstacleHigh;
+      case 'medium':
+        return palette.obstacleMedium;
+      case 'low':
+        return palette.obstacleLow;
+      default:
+        return palette.textSecondary;
+    }
+  };
+
   return (
     <>
       {obstacles.map((obstacle) => {
@@ -81,7 +85,7 @@ const ObstacleView: React.FC<Props> = ({ obstacles, onObstaclePress, onVerify })
                     <View style={[styles.badge, { backgroundColor: color }]}>
                       <Text style={styles.badgeText}>{obstacle.severity}</Text>
                     </View>
-                    <View style={[styles.badge, { backgroundColor: '#6B7280' }]}>
+                    <View style={[styles.badge, { backgroundColor: palette.textSecondary }]}>
                       <Text style={styles.badgeText}>{obstacle.type}</Text>
                     </View>
                   </View>
@@ -115,87 +119,88 @@ const ObstacleView: React.FC<Props> = ({ obstacles, onObstaclePress, onVerify })
   );
 };
 
-const styles = StyleSheet.create({
-  markerContainer: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    borderWidth: 3,
-    padding: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  calloutContainer: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 12,
-    minWidth: 200,
-    maxWidth: 250,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  calloutHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  calloutTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 8,
-    flex: 1,
-    color: '#1F2937',
-  },
-  calloutBody: {
-    gap: 8,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeText: {
-    color: 'white',
-    fontSize: 11,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  description: {
-    fontSize: 13,
-    color: '#6B7280',
-    lineHeight: 18,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  verifiedText: {
-    fontSize: 12,
-    color: '#10B981',
-    fontWeight: '500',
-  },
-  verifyButton: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  verifyButtonText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-});
+const createStyles = (palette: AppPalette) =>
+  StyleSheet.create({
+    markerContainer: {
+      backgroundColor: palette.card,
+      borderRadius: 20,
+      borderWidth: 3,
+      padding: 6,
+      shadowColor: palette.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 5,
+    },
+    calloutContainer: {
+      backgroundColor: palette.card,
+      borderRadius: 12,
+      padding: 12,
+      minWidth: 200,
+      maxWidth: 250,
+      shadowColor: palette.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 6,
+      elevation: 8,
+    },
+    calloutHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    calloutTitle: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      marginLeft: 8,
+      flex: 1,
+      color: palette.textPrimary,
+    },
+    calloutBody: {
+      gap: 8,
+    },
+    badgeRow: {
+      flexDirection: 'row',
+      gap: 6,
+    },
+    badge: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+    },
+    badgeText: {
+      color: palette.onPrimary,
+      fontSize: 11,
+      fontWeight: '600',
+      textTransform: 'capitalize',
+    },
+    description: {
+      fontSize: 13,
+      color: palette.textSecondary,
+      lineHeight: 18,
+    },
+    footer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 4,
+    },
+    verifiedText: {
+      fontSize: 12,
+      color: palette.success,
+      fontWeight: '500',
+    },
+    verifyButton: {
+      backgroundColor: palette.brandPrimary,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 6,
+    },
+    verifyButtonText: {
+      color: palette.onPrimary,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+  });
 
 export default ObstacleView;
