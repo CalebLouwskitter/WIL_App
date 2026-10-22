@@ -22,6 +22,7 @@ import {
   DEFAULT_PREFERENCES,
   type PreferencesContextType,
 } from '../contexts/PreferencesContext';
+import { useUnits } from '../hooks/useUnits';
 
 describe('PreferencesContext', () => {
   beforeEach(async () => {
@@ -174,6 +175,63 @@ describe('PreferencesContext', () => {
 
       const status = await getLocationPermissionStatus();
       expect(status).toBe('Not allowed');
+    });
+  });
+
+  describe('useUnits', () => {
+    it('integrates with PreferencesProvider and converts distance and speed', async () => {
+      let unitsHook!: ReturnType<typeof useUnits>;
+      const UnitsProbe = () => {
+        unitsHook = useUnits();
+        return null;
+      };
+
+      await act(async () => {
+        TestRenderer.create(
+          <PreferencesProvider>
+            <UnitsProbe />
+          </PreferencesProvider>
+        );
+      });
+
+      expect(unitsHook.isMetric).toBe(true);
+      expect(unitsHook.convertDistance(1500)).toEqual({ value: 1.5, unit: 'km' });
+      expect(unitsHook.convertSpeed(36)).toEqual({ value: 36, unit: 'km/h' });
+
+      await act(async () => {
+        await unitsHook.toggle();
+      });
+
+      expect(unitsHook.isMetric).toBe(false);
+      expect(unitsHook.convertDistance(1609.344)).toEqual({ value: 1, unit: 'mi' });
+      expect(unitsHook.convertSpeed(36).unit).toBe('mph');
+      expect(unitsHook.convertSpeed(36).value).toBeCloseTo(22.369, 2);
+    });
+
+    it('falls back to default metric and warns in dev when used outside a provider', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      let unitsHook!: ReturnType<typeof useUnits>;
+      const OrphanProbe = () => {
+        unitsHook = useUnits();
+        return null;
+      };
+
+      await act(async () => {
+        TestRenderer.create(<OrphanProbe />);
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith('useUnits must be used within a PreferencesProvider');
+      expect(unitsHook.isMetric).toBe(true);
+      expect(unitsHook.convertDistance(1000)).toEqual({ value: 1, unit: 'km' });
+      expect(unitsHook.convertSpeed(10)).toEqual({ value: 10, unit: 'km/h' });
+
+      // toggle is a no-op
+      await act(async () => {
+        await unitsHook.toggle();
+      });
+      expect(unitsHook.isMetric).toBe(true);
+
+      warnSpy.mockRestore();
     });
   });
 });
