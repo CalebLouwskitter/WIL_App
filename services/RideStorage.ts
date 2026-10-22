@@ -104,15 +104,36 @@ const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
 };
 
 let inFlightSync: Promise<SyncResult> | null = null;
+// Set when a sync is requested while one is running; that run then makes
+// another pass so a ride saved mid-upload doesn't wait for the next trigger.
+let syncDirty = false;
 
 /** Upload every pending ride that belongs to the signed-in user. */
 export const syncPendingRides = (): Promise<SyncResult> => {
-  if (!inFlightSync) {
-    inFlightSync = runSync().finally(() => {
-      inFlightSync = null;
-    });
+  if (inFlightSync) {
+    syncDirty = true;
+    return inFlightSync;
   }
+  inFlightSync = (async () => {
+    const total: SyncResult = { synced: 0, failed: 0 };
+    do {
+      syncDirty = false;
+      const pass = await runSync();
+      total.synced += pass.synced;
+      total.failed += pass.failed;
+    } while (syncDirty);
+    return total;
+  })().finally(() => {
+    inFlightSync = null;
+  });
   return inFlightSync;
+};
+
+/** Resolves once no sync is running. Does not start one. */
+export const whenRideSyncIdle = async (): Promise<void> => {
+  while (inFlightSync) {
+    await inFlightSync.catch(() => undefined);
+  }
 };
 
 const runSync = async (): Promise<SyncResult> => {
