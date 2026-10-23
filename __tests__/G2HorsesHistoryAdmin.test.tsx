@@ -36,6 +36,10 @@ jest.mock('@expo/vector-icons', () => ({
   MaterialCommunityIcons: () => null,
 }));
 
+// The admin screens import icons by subpath, which the root mock above does not cover.
+jest.mock('@expo/vector-icons/Ionicons', () => () => null);
+jest.mock('@expo/vector-icons/MaterialCommunityIcons', () => () => null);
+
 jest.mock('expo-linear-gradient', () => ({
   LinearGradient: ({ children, style }: any) => {
     const { View } = require('react-native');

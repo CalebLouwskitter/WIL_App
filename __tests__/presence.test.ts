@@ -76,6 +76,8 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 jest.mock('react-native-vector-icons/Feather', () => 'Feather');
+// ScreenHeader's back icon comes from @expo/vector-icons.
+jest.mock('@expo/vector-icons', () => ({ Feather: () => null }));
 
 import {
   getOnlineUsers,
