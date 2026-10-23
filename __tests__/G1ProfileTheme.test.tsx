@@ -126,7 +126,24 @@ import SettingsScreen from '../screens/Profile/SettingsScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import { Notification } from '../types/Notification';
 
+// Screens with lists schedule timers; unmount every renderer so none fire after the test ends.
+const mounted: TestRenderer.ReactTestRenderer[] = [];
+const mountTracked = (...args: Parameters<typeof TestRenderer.create>) => {
+  const renderer = TestRenderer.create(...args);
+  mounted.push(renderer);
+  return renderer;
+};
+
 afterEach(() => {
+  act(() => {
+    for (const renderer of mounted.splice(0)) {
+      try {
+        renderer.unmount();
+      } catch {
+        // already unmounted by the test
+      }
+    }
+  });
   jest.restoreAllMocks();
 });
 
@@ -136,7 +153,7 @@ describe('G1 ObservationsScreen Theming', () => {
 
     let renderer!: TestRenderer.ReactTestRenderer;
     await act(async () => {
-      renderer = TestRenderer.create(<ObservationsScreen navigation={{ goBack: jest.fn() }} />);
+      renderer = mountTracked(<ObservationsScreen navigation={{ goBack: jest.fn() }} />);
     });
 
     const texts = renderer.root.findAllByType(Text);
@@ -158,7 +175,7 @@ describe('G1 ObservationsScreen Theming', () => {
 
     let renderer!: TestRenderer.ReactTestRenderer;
     await act(async () => {
-      renderer = TestRenderer.create(<ObservationsScreen navigation={{ goBack: jest.fn() }} />);
+      renderer = mountTracked(<ObservationsScreen navigation={{ goBack: jest.fn() }} />);
     });
 
     const tabs = renderer.root.findAllByType(TouchableOpacity).filter((t) => t.props.accessibilityRole === 'tab');
@@ -186,7 +203,7 @@ describe('G1 AchievementsScreen Theming', () => {
 
     let renderer!: TestRenderer.ReactTestRenderer;
     await act(async () => {
-      renderer = TestRenderer.create(<AchievementsScreen />);
+      renderer = mountTracked(<AchievementsScreen />);
     });
 
     // Check section title "Unlocked" uses textPrimary
@@ -223,7 +240,7 @@ describe('G1 Notifications Theming', () => {
 
     let unreadRenderer!: TestRenderer.ReactTestRenderer;
     act(() => {
-      unreadRenderer = TestRenderer.create(
+      unreadRenderer = mountTracked(
         <NotificationItem notification={sampleNotification} isRead={false} />
       );
     });
@@ -235,7 +252,7 @@ describe('G1 Notifications Theming', () => {
 
     let readRenderer!: TestRenderer.ReactTestRenderer;
     act(() => {
-      readRenderer = TestRenderer.create(
+      readRenderer = mountTracked(
         <NotificationItem notification={sampleNotification} isRead={true} />
       );
     });
@@ -254,7 +271,7 @@ describe('G1 Notifications Theming', () => {
 
     let renderer!: TestRenderer.ReactTestRenderer;
     act(() => {
-      renderer = TestRenderer.create(<NotificationBadge count={5} />);
+      renderer = mountTracked(<NotificationBadge count={5} />);
     });
 
     const view = renderer.root.findByType(View);
@@ -270,7 +287,7 @@ describe('G1 SettingsScreen Theming', () => {
 
     let renderer!: TestRenderer.ReactTestRenderer;
     await act(async () => {
-      renderer = TestRenderer.create(<SettingsScreen />);
+      renderer = mountTracked(<SettingsScreen />);
     });
 
     const textNodes = renderer.root.findAllByType(Text);
@@ -290,7 +307,7 @@ describe('G1 ProfileScreen Theming', () => {
 
     let renderer!: TestRenderer.ReactTestRenderer;
     await act(async () => {
-      renderer = TestRenderer.create(<ProfileScreen />);
+      renderer = mountTracked(<ProfileScreen />);
       await Promise.resolve();
     });
 
@@ -317,7 +334,7 @@ describe('G1 ProfileScreen Units (km/mi)', () => {
     mockCurrentUnits = 'metric';
     let renderer!: TestRenderer.ReactTestRenderer;
     await act(async () => {
-      renderer = TestRenderer.create(<ProfileScreen />);
+      renderer = mountTracked(<ProfileScreen />);
       await Promise.resolve();
     });
     const textNodes = renderer.root.findAllByType(Text);
@@ -335,7 +352,7 @@ describe('G1 ProfileScreen Units (km/mi)', () => {
     mockCurrentUnits = 'imperial';
     let renderer!: TestRenderer.ReactTestRenderer;
     await act(async () => {
-      renderer = TestRenderer.create(<ProfileScreen />);
+      renderer = mountTracked(<ProfileScreen />);
       await Promise.resolve();
     });
     const textNodes = renderer.root.findAllByType(Text);
