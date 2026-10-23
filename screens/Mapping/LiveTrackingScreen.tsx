@@ -185,7 +185,7 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
   }, [isResumed, isRiding]);
 
   useEffect(() => {
-    Animated.loop(
+    const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1.2,
@@ -198,7 +198,8 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    pulse.start();
 
     Animated.spring(scaleAnim, {
       toValue: 1,
@@ -206,6 +207,9 @@ const LiveTrackingScreen = ({ navigation }: { navigation: any }) => {
       tension: 40,
       useNativeDriver: true,
     }).start();
+
+    // The pulse loops forever; stop it when the screen unmounts.
+    return () => pulse.stop();
   }, []);
 
   useFocusEffect(
