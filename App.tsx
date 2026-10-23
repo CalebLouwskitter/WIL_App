@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { ActivityIndicator, View, Platform, Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import AppNavigator from './navigation/AppNavigator';
 import AuthNavigator from './navigation/AuthNavigator';
@@ -78,7 +79,9 @@ export default function App() {
       </SafeAreaProvider>
     );
   }
+  // Gesture handlers (SOS slider, stack swipe-back) only work under this root view.
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <PreferencesProvider>
         <RideRecoveryProvider>
@@ -105,5 +108,6 @@ export default function App() {
         </RideRecoveryProvider>
       </PreferencesProvider>
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
