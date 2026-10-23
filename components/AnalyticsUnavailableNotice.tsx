@@ -1,7 +1,7 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { resolvePalette } from '../constants/colors';
+import { useAppTheme } from '../hooks/useAppTheme';
 import type { AnalyticsResult } from '../services/analyticsResult';
 
 export const analyticsNotice = (
@@ -24,18 +24,18 @@ export const AnalyticsUnavailableNotice: React.FC<{
   result: AnalyticsResult<unknown>;
   onRetry?: () => void;
 }> = ({ result, onRetry }) => {
-  const theme = resolvePalette(useColorScheme());
+  const { palette } = useAppTheme();
   const notice = analyticsNotice(result);
   if (!notice) return null;
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}>
-      <Feather name={notice.icon} size={32} color={theme.onSurfaceVariant} />
-      <Text style={[styles.title, { color: theme.onSurface }]}>{notice.title}</Text>
-      <Text style={[styles.detail, { color: theme.onSurfaceVariant }]}>{notice.detail}</Text>
+    <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.divider }]}>
+      <Feather name={notice.icon} size={32} color={palette.textSecondary} />
+      <Text style={[styles.title, { color: palette.textPrimary }]}>{notice.title}</Text>
+      <Text style={[styles.detail, { color: palette.textSecondary }]}>{notice.detail}</Text>
       {result.status === 'error' && onRetry ? (
-        <TouchableOpacity accessibilityRole="button" onPress={onRetry} style={[styles.retry, { borderColor: theme.brandPrimary }]}>
-          <Text style={[styles.retryText, { color: theme.brandPrimary }]}>Retry</Text>
+        <TouchableOpacity accessibilityRole="button" onPress={onRetry} style={[styles.retry, { borderColor: palette.brandPrimary }]}>
+          <Text style={[styles.retryText, { color: palette.brandPrimary }]}>Retry</Text>
         </TouchableOpacity>
       ) : null}
     </View>

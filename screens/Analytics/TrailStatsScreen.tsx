@@ -1,17 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme, ActivityIndicator } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getTrailUsageSummaries, type TrailUsageSummary } from '../../services/TrailAnalyticsService';
-import { resolvePalette } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 const TrailStatsScreen = () => {
   const [summaries, setSummaries] = useState<TrailUsageSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation<any>();
-  const colorScheme = useColorScheme();
-  const theme = resolvePalette(colorScheme);
+  const { palette, isDark } = useAppTheme();
 
   useEffect(() => {
     let mounted = true;
@@ -43,17 +43,17 @@ const TrailStatsScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
-        <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.borderMuted }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>
+        <View style={[styles.header, { backgroundColor: palette.card, borderBottomColor: palette.divider }]}>
           <TouchableOpacity style={styles.headerBack} activeOpacity={0.7} onPress={() => navigation.goBack()}>
-            <Feather name="arrow-left" size={24} color={theme.onSurface} />
+            <Feather name="arrow-left" size={24} color={palette.textPrimary} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.onSurface }]}>Trail Insights</Text>
+          <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>Trail Insights</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.brandPrimary} />
-          <Text style={[styles.loadingText, { color: theme.onSurfaceVariant }]}>
+          <ActivityIndicator size="large" color={palette.brandPrimary} />
+          <Text style={[styles.loadingText, { color: palette.textSecondary }]}>
             Loading trail data from Firebase...
           </Text>
         </View>
@@ -62,33 +62,33 @@ const TrailStatsScreen = () => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}> 
-      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.borderMuted }]}> 
-        <TouchableOpacity style={styles.headerBack} activeOpacity={0.7} onPress={() => navigation.goBack()}> 
-          <Feather name="arrow-left" size={24} color={theme.onSurface} /> 
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}> 
+      <View style={[styles.header, { backgroundColor: palette.card, borderBottomColor: palette.divider }]}> 
+        <TouchableOpacity style={styles.headerBack} activeOpacity={0.7} onPress={() => navigation.goBack()} accessibilityLabel="Go back" accessibilityRole="button"> 
+          <Feather name="arrow-left" size={24} color={palette.textPrimary} /> 
         </TouchableOpacity> 
-        <Text style={[styles.headerTitle, { color: theme.onSurface }]}>Trail Insights</Text> 
+        <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>Trail Insights</Text> 
         <View style={styles.headerSpacer} /> 
       </View> 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}> 
         <View style={styles.metricsRow}> 
-          <LinearGradient colors={[theme.brandPrimary, theme.brandPrimaryAlt]} style={styles.metricCard}> 
-            <Text style={[styles.metricValue, { color: theme.onPrimary }]}>{totalRides}</Text> 
-            <Text style={[styles.metricLabel, { color: theme.onPrimary }]}>Ride Interactions</Text> 
+          <LinearGradient colors={[palette.brandPrimary, palette.brandPrimaryAlt]} style={styles.metricCard}> 
+            <Text style={[styles.metricValue, { color: palette.onPrimary }]}>{totalRides}</Text> 
+            <Text style={[styles.metricLabel, { color: palette.onPrimary }]}>Ride Interactions</Text> 
           </LinearGradient> 
-          <LinearGradient colors={[theme.brandSecondary, theme.brandSecondary]} style={styles.metricCard}> 
-            <Text style={[styles.metricValue, { color: theme.onPrimary }]}>{formatDistance(totalDistance)}</Text> 
-            <Text style={[styles.metricLabel, { color: theme.onPrimary }]}>Total Distance</Text> 
+          <LinearGradient colors={[palette.caution, palette.caution]} style={styles.metricCard}> 
+            <Text style={[styles.metricValue, { color: palette.onPrimary }]}>{formatDistance(totalDistance)}</Text> 
+            <Text style={[styles.metricLabel, { color: palette.onPrimary }]}>Total Distance</Text> 
           </LinearGradient> 
         </View> 
         {summaries.length === 0 ? ( 
-          <View style={[styles.emptyState, { backgroundColor: theme.surface }]}> 
-            <Feather name="map" size={40} color={theme.onSurfaceVariant} /> 
-            <Text style={[styles.emptyTitle, { color: theme.onSurface }]}>No trail activity yet</Text> 
-            <Text style={[styles.emptySubtitle, { color: theme.onSurfaceVariant }]}>Ride with route tracking to see trail usage.</Text> 
+          <View style={[styles.emptyState, { backgroundColor: palette.card }]}> 
+            <Feather name="map" size={40} color={palette.textSecondary} /> 
+            <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>No trail activity yet</Text> 
+            <Text style={[styles.emptySubtitle, { color: palette.textSecondary }]}>Ride with route tracking to see trail usage.</Text> 
           </View> 
         ) : ( 
-          <View style={[styles.list, { backgroundColor: theme.surface, borderColor: theme.borderMuted }]}> 
+          <View style={[styles.list, { backgroundColor: palette.card, borderColor: palette.divider }]}> 
             {summaries.map((item, index) => {
               const widthPercent = maxDistance > 0 ? Math.min(100, Math.max(8, (item.totalDistance / maxDistance) * 100)) : 8;
               return (
@@ -97,20 +97,20 @@ const TrailStatsScreen = () => {
                   style={[styles.listItem, index === summaries.length - 1 && styles.lastListItem]}
                 >
                   <View style={styles.itemHeader}>
-                    <Text style={[styles.trailName, { color: theme.onSurface }]}>{item.trailName}</Text>
-                    <Text style={[styles.trailDistance, { color: theme.onSurfaceVariant }]}>{formatDistance(item.totalDistance)}</Text>
+                    <Text style={[styles.trailName, { color: palette.textPrimary }]}>{item.trailName}</Text>
+                    <Text style={[styles.trailDistance, { color: palette.textSecondary }]}>{formatDistance(item.totalDistance)}</Text>
                   </View>
-                  <View style={[styles.barBackground, { backgroundColor: theme.surfaceVariant }]}>
-                    <View style={[styles.barFill, { width: `${widthPercent}%`, backgroundColor: theme.brandPrimary }]} />
+                  <View style={[styles.barBackground, { backgroundColor: palette.cardElevated }]}>
+                    <View style={[styles.barFill, { width: `${widthPercent}%`, backgroundColor: palette.brandPrimary }]} />
                   </View>
                   <View style={styles.itemMeta}>
                     <View style={styles.metaBadge}> 
-                      <Feather name="activity" size={14} color={theme.brandPrimary} /> 
-                      <Text style={[styles.metaText, { color: theme.onSurface }]}>{item.rideCount} rides</Text> 
+                      <Feather name="activity" size={14} color={palette.brandPrimary} /> 
+                      <Text style={[styles.metaText, { color: palette.textPrimary }]}>{item.rideCount} rides</Text> 
                     </View> 
                     <View style={styles.metaBadge}> 
-                      <Feather name="navigation" size={14} color={theme.brandSecondary} /> 
-                      <Text style={[styles.metaText, { color: theme.onSurface }]}>{formatDistance(item.averageDistance)}</Text> 
+                      <Feather name="navigation" size={14} color={palette.caution} /> 
+                      <Text style={[styles.metaText, { color: palette.textPrimary }]}>{formatDistance(item.averageDistance)}</Text> 
                     </View> 
                   </View>
                 </View>

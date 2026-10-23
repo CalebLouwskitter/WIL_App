@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, SafeAreaView, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -8,7 +9,9 @@ import type { AnalyticsStackParamList, TabParamList } from '../../navigation/typ
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAnalytics } from '../../hooks/useAnalytics';
-import { Colors, resolvePalette } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
+import { usePreferences } from '../../contexts/PreferencesContext';
+import { formatDistance, formatSpeedKmh } from '../../utils/units';
 import { Dimensions } from 'react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -23,14 +26,25 @@ const UserStatsScreen = () => {
   const { stats, loading, error, refresh } = useAnalytics();
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
-  const colorScheme = useColorScheme();
-  const theme = resolvePalette(colorScheme);
+  const { palette, isDark } = useAppTheme();
+  const { preferences } = usePreferences();
+  const unitSystem = preferences?.units || 'metric';
 
   useFocusEffect(
     React.useCallback(() => {
       refresh();
     }, [refresh])
   );
+
+  const handleBack = () => {
+    if (route.params?.fromDashboard) {
+      navigation.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('Dashboard');
+    } else if (typeof navigation.canGoBack === 'function' && !navigation.canGoBack()) {
+      navigation.navigate('Stats');
+    } else {
+      navigation.goBack();
+    }
+  };
 
   const formatDuration = (ms: number) => {
     const hours = Math.floor(ms / (1000 * 60 * 60));
@@ -41,16 +55,14 @@ const UserStatsScreen = () => {
     return `${minutes}m`;
   };
 
-  const formatDistance = (meters: number) => {
-    return (meters / 1000).toFixed(1);
-  };
+
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.brandPrimary} />
-          <Text style={[styles.loadingText, { color: theme.onSurfaceVariant }]}>Loading your stats...</Text>
+          <ActivityIndicator size="large" color={palette.brandPrimary} />
+          <Text style={[styles.loadingText, { color: palette.textSecondary }]}>Loading your stats...</Text>
         </View>
       </SafeAreaView>
     );
@@ -58,11 +70,11 @@ const UserStatsScreen = () => {
 
   if (error) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>
         <View style={styles.errorContainer}>
-          <Feather name="alert-circle" size={48} color={theme.error} />
-          <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
-          <TouchableOpacity onPress={refresh} style={[styles.retryButton, { backgroundColor: theme.brandPrimary }]}>
+          <Feather name="alert-circle" size={48} color={palette.danger} />
+          <Text style={[styles.errorText, { color: palette.danger }]}>{error}</Text>
+          <TouchableOpacity onPress={refresh} style={[styles.retryButton, { backgroundColor: palette.brandPrimary }]}>
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -71,17 +83,26 @@ const UserStatsScreen = () => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundLight }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.surface }]}>
+      <View style={[styles.header, { backgroundColor: palette.card }]}>
         <View style={styles.headerRow}>
+          <TouchableOpacity
+            style={styles.backButton}
+            activeOpacity={0.7}
+            onPress={handleBack}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
+          >
+            <Feather name="arrow-left" size={24} color={palette.textPrimary} />
+          </TouchableOpacity>
           <View style={styles.headerContent}>
             <View style={styles.headerIcon}>
-              <Feather name="bar-chart-2" size={24} color={theme.brandPrimary} />
+              <Feather name="bar-chart-2" size={24} color={palette.brandPrimary} />
             </View>
-            <View>
-              <Text style={[styles.headerTitle, { color: theme.onSurface }]}>Your Stats</Text>
-              <Text style={[styles.headerSubtitle, { color: theme.onSurfaceVariant }]}>
+            <View style={styles.headerTitleContainer}>
+              <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>Your Stats</Text>
+              <Text style={[styles.headerSubtitle, { color: palette.textSecondary }]}>
                 Performance overview
               </Text>
             </View>
@@ -92,14 +113,14 @@ const UserStatsScreen = () => {
               style={styles.headerActionButton}
               onPress={() => setSettingsVisible(true)}
             >
-              <Feather name="settings" size={24} color={theme.icon} />
+              <Feather name="settings" size={24} color={palette.textSecondary} />
             </TouchableOpacity>
             <TouchableOpacity
               activeOpacity={0.7}
               style={styles.headerActionButton}
               onPress={() => setNotificationsVisible(true)}
             >
-              <Feather name="bell" size={24} color={theme.icon} />
+              <Feather name="bell" size={24} color={palette.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -111,92 +132,94 @@ const UserStatsScreen = () => {
       >
         {/* Overview Stats Grid */}
         <View style={styles.statsSection}>
-          <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>Overview</Text>
+          <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Overview</Text>
           <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
-              <View style={[styles.statIconCircle, { backgroundColor: '#3B82F6' }]}>
-                <Feather name="activity" size={20} color="#fff" />
+            <View style={[styles.statCard, { backgroundColor: palette.card }]}>
+              <View style={[styles.statIconCircle, { backgroundColor: palette.brandPrimary }]}>
+                <Feather name="activity" size={20} color={palette.onPrimary} />
               </View>
-              <Text style={[styles.statValue, { color: theme.onSurface }]}>{stats.totalRides}</Text>
-              <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>RIDES</Text>
+              <Text style={[styles.statValue, { color: palette.textPrimary }]}>{stats.totalRides}</Text>
+              <Text style={[styles.statLabel, { color: palette.textSecondary }]}>RIDES</Text>
             </View>
 
-            <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
-              <View style={[styles.statIconCircle, { backgroundColor: '#10B981' }]}>
-                <Feather name="map" size={20} color="#fff" />
+            <View style={[styles.statCard, { backgroundColor: palette.card }]}>
+              <View style={[styles.statIconCircle, { backgroundColor: palette.success }]}>
+                <Feather name="map" size={20} color={palette.onPrimary} />
               </View>
-              <Text style={[styles.statValue, { color: theme.onSurface }]}>
-                {formatDistance(stats.totalDistance)}
+              <Text style={[styles.statValue, { color: palette.textPrimary }]}>
+                {formatDistance(stats.totalDistance, unitSystem, 1).value}
               </Text>
-              <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>KM</Text>
+              <Text style={[styles.statLabel, { color: palette.textSecondary }]}>
+                {formatDistance(stats.totalDistance, unitSystem, 1).unit.toUpperCase()}
+              </Text>
             </View>
 
-            <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
-              <View style={[styles.statIconCircle, { backgroundColor: '#F59E0B' }]}>
-                <Feather name="clock" size={20} color="#fff" />
+            <View style={[styles.statCard, { backgroundColor: palette.card }]}>
+              <View style={[styles.statIconCircle, { backgroundColor: palette.caution }]}>
+                <Feather name="clock" size={20} color={palette.onPrimary} />
               </View>
-              <Text style={[styles.statValue, { color: theme.onSurface }]}>
+              <Text style={[styles.statValue, { color: palette.textPrimary }]}>
                 {Math.round(stats.totalDuration / (1000 * 60 * 60))}
               </Text>
-              <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>HOURS</Text>
+              <Text style={[styles.statLabel, { color: palette.textSecondary }]}>HOURS</Text>
             </View>
 
-            <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
-              <View style={[styles.statIconCircle, { backgroundColor: '#8B5CF6' }]}>
-                <Feather name="star" size={20} color="#fff" />
+            <View style={[styles.statCard, { backgroundColor: palette.card }]}>
+              <View style={[styles.statIconCircle, { backgroundColor: palette.brandSecondary }]}>
+                <Feather name="star" size={20} color={palette.onPrimary} />
               </View>
-              <Text style={[styles.statValue, { color: theme.onSurface }]}>{stats.totalPoints}</Text>
-              <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>POINTS</Text>
+              <Text style={[styles.statValue, { color: palette.textPrimary }]}>{stats.totalPoints}</Text>
+              <Text style={[styles.statLabel, { color: palette.textSecondary }]}>POINTS</Text>
             </View>
           </View>
         </View>
 
         {/* Performance Metrics */}
         <View style={styles.performanceSection}>
-          <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>Performance</Text>
+          <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Performance</Text>
           
-          <View style={[styles.performanceCard, { backgroundColor: theme.surface }]}>
+          <View style={[styles.performanceCard, { backgroundColor: palette.card }]}>
             <View style={styles.performanceRow}>
               <View style={styles.performanceItem}>
-                <Feather name="trending-up" size={20} color={theme.brandPrimary} />
+                <Feather name="trending-up" size={20} color={palette.brandPrimary} />
                 <View style={styles.performanceInfo}>
-                  <Text style={[styles.performanceLabel, { color: theme.onSurfaceVariant }]}>Avg Speed</Text>
-                  <Text style={[styles.performanceValue, { color: theme.onSurface }]}>
-                    {stats.averageSpeed.toFixed(1)} km/h
+                  <Text style={[styles.performanceLabel, { color: palette.textSecondary }]}>Avg Speed</Text>
+                  <Text style={[styles.performanceValue, { color: palette.textPrimary }]}>
+                    {formatSpeedKmh(stats.averageSpeed, unitSystem, 1).value} {formatSpeedKmh(stats.averageSpeed, unitSystem, 1).unit}
                   </Text>
                 </View>
               </View>
-              <View style={[styles.performanceDivider, { backgroundColor: theme.borderMuted }]} />
+              <View style={[styles.performanceDivider, { backgroundColor: palette.divider }]} />
               <View style={styles.performanceItem}>
-                <Feather name="navigation" size={20} color={theme.success} />
+                <Feather name="navigation" size={20} color={palette.success} />
                 <View style={styles.performanceInfo}>
-                  <Text style={[styles.performanceLabel, { color: theme.onSurfaceVariant }]}>Avg Distance</Text>
-                  <Text style={[styles.performanceValue, { color: theme.onSurface }]}>
-                    {formatDistance(stats.averageDistance)} km
+                  <Text style={[styles.performanceLabel, { color: palette.textSecondary }]}>Avg Distance</Text>
+                  <Text style={[styles.performanceValue, { color: palette.textPrimary }]}>
+                    {formatDistance(stats.averageDistance, unitSystem, 1).value} {formatDistance(stats.averageDistance, unitSystem, 1).unit}
                   </Text>
                 </View>
               </View>
             </View>
 
-            <View style={[styles.performanceRowDivider, { backgroundColor: theme.borderMuted }]} />
+            <View style={[styles.performanceRowDivider, { backgroundColor: palette.divider }]} />
 
             <View style={styles.performanceRow}>
               <View style={styles.performanceItem}>
-                <Feather name="arrow-up" size={20} color={theme.caution} />
+                <Feather name="arrow-up" size={20} color={palette.caution} />
                 <View style={styles.performanceInfo}>
-                  <Text style={[styles.performanceLabel, { color: theme.onSurfaceVariant }]}>Elevation Gain</Text>
-                  <Text style={[styles.performanceValue, { color: theme.onSurface }]}>
+                  <Text style={[styles.performanceLabel, { color: palette.textSecondary }]}>Elevation Gain</Text>
+                  <Text style={[styles.performanceValue, { color: palette.textPrimary }]}>
                     {Math.round(stats.totalElevationGain)} m
                   </Text>
                 </View>
               </View>
-              <View style={[styles.performanceDivider, { backgroundColor: theme.borderMuted }]} />
+              <View style={[styles.performanceDivider, { backgroundColor: palette.divider }]} />
               <View style={styles.performanceItem}>
-                <Feather name="award" size={20} color="#EF4444" />
+                <Feather name="award" size={20} color={palette.danger} />
                 <View style={styles.performanceInfo}>
-                  <Text style={[styles.performanceLabel, { color: theme.onSurfaceVariant }]}>Longest Ride</Text>
-                  <Text style={[styles.performanceValue, { color: theme.onSurface }]}>
-                    {formatDistance(stats.longestRide)} km
+                  <Text style={[styles.performanceLabel, { color: palette.textSecondary }]}>Longest Ride</Text>
+                  <Text style={[styles.performanceValue, { color: palette.textPrimary }]}>
+                    {formatDistance(stats.longestRide, unitSystem, 1).value} {formatDistance(stats.longestRide, unitSystem, 1).unit}
                   </Text>
                 </View>
               </View>
@@ -206,101 +229,101 @@ const UserStatsScreen = () => {
 
         {/* Quick Actions */}
         <View style={styles.actionsSection}>
-          <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>Insights</Text>
+          <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Insights</Text>
           
           {/* Global Analytics Card */}
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: theme.surface }]}
+            style={[styles.actionCard, { backgroundColor: palette.card }]}
             activeOpacity={0.8}
             onPress={() => navigation.navigate('GlobalStats')}
           >
             <LinearGradient
-              colors={['#8B5CF611', '#8B5CF605']}
+              colors={isDark ? ['rgba(139, 92, 246, 0.15)', 'rgba(139, 92, 246, 0.05)'] : ['#8B5CF611', '#8B5CF605']}
               style={styles.actionCardGradient}
             >
               <View style={styles.actionCardContent}>
-                <View style={[styles.actionIconCircle, { backgroundColor: '#8B5CF622' }]}>
-                  <Feather name="globe" size={24} color="#8B5CF6" />
+                <View style={[styles.actionIconCircle, { backgroundColor: isDark ? 'rgba(139, 92, 246, 0.25)' : '#8B5CF622' }]}>
+                  <Feather name="globe" size={24} color={isDark ? palette.brandPrimary : '#8B5CF6'} />
                 </View>
                 <View style={styles.actionTextContainer}>
-                  <Text style={[styles.actionTitle, { color: theme.onSurface }]}>Global Analytics</Text>
-                  <Text style={[styles.actionSubtitle, { color: theme.onSurfaceVariant }]}>
+                  <Text style={[styles.actionTitle, { color: palette.textPrimary }]}>Global Analytics</Text>
+                  <Text style={[styles.actionSubtitle, { color: palette.textSecondary }]}>
                     Community stats and leaderboards
                   </Text>
                 </View>
-                <Feather name="chevron-right" size={24} color={theme.onSurfaceVariant} />
+                <Feather name="chevron-right" size={24} color={palette.textSecondary} />
               </View>
             </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: theme.surface }]}
+            style={[styles.actionCard, { backgroundColor: palette.card }]}
             activeOpacity={0.8}
             onPress={() => navigation.navigate('RideHistory')}
           >
             <LinearGradient
-              colors={[theme.brandPrimary + '11', theme.brandPrimary + '05']}
+              colors={[palette.brandPrimary + '11', palette.brandPrimary + '05']}
               style={styles.actionCardGradient}
             >
               <View style={styles.actionCardContent}>
-                <View style={[styles.actionIconCircle, { backgroundColor: theme.brandPrimary + '22' }]}>
-                  <Feather name="list" size={24} color={theme.brandPrimary} />
+                <View style={[styles.actionIconCircle, { backgroundColor: palette.brandPrimary + '22' }]}>
+                  <Feather name="list" size={24} color={palette.brandPrimary} />
                 </View>
                 <View style={styles.actionTextContainer}>
-                  <Text style={[styles.actionTitle, { color: theme.onSurface }]}>Ride History</Text>
-                  <Text style={[styles.actionSubtitle, { color: theme.onSurfaceVariant }]}>
+                  <Text style={[styles.actionTitle, { color: palette.textPrimary }]}>Ride History</Text>
+                  <Text style={[styles.actionSubtitle, { color: palette.textSecondary }]}>
                     View all {stats.totalRides} completed rides
                   </Text>
                 </View>
-                <Feather name="chevron-right" size={24} color={theme.onSurfaceVariant} />
+                <Feather name="chevron-right" size={24} color={palette.textSecondary} />
               </View>
             </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: theme.surface }]}
+            style={[styles.actionCard, { backgroundColor: palette.card }]}
             activeOpacity={0.8}
-            onPress={() => navigation.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('ProfileStack', { screen: 'PersonalStats' })}
+            onPress={() => navigation.navigate('PersonalStats')}
           >
             <LinearGradient
-              colors={['#F59E0B11', '#F59E0B05']}
+              colors={isDark ? ['rgba(245, 158, 11, 0.15)', 'rgba(245, 158, 11, 0.05)'] : ['#F59E0B11', '#F59E0B05']}
               style={styles.actionCardGradient}
             >
               <View style={styles.actionCardContent}>
-                <View style={[styles.actionIconCircle, { backgroundColor: '#F59E0B22' }]}>
-                  <Feather name="pie-chart" size={24} color="#F59E0B" />
+                <View style={[styles.actionIconCircle, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.25)' : '#F59E0B22' }]}>
+                  <Feather name="pie-chart" size={24} color={palette.caution} />
                 </View>
                 <View style={styles.actionTextContainer}>
-                  <Text style={[styles.actionTitle, { color: theme.onSurface }]}>Detailed Analytics</Text>
-                  <Text style={[styles.actionSubtitle, { color: theme.onSurfaceVariant }]}>
+                  <Text style={[styles.actionTitle, { color: palette.textPrimary }]}>Detailed Analytics</Text>
+                  <Text style={[styles.actionSubtitle, { color: palette.textSecondary }]}>
                     Advanced charts and insights
                   </Text>
                 </View>
-                <Feather name="chevron-right" size={24} color={theme.onSurfaceVariant} />
+                <Feather name="chevron-right" size={24} color={palette.textSecondary} />
               </View>
             </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: theme.surface }]}
+            style={[styles.actionCard, { backgroundColor: palette.card }]}
             activeOpacity={0.8}
             onPress={() => navigation.navigate('TrailStats')}
           >
             <LinearGradient
-              colors={[theme.brandSecondary + '11', theme.brandSecondary + '05']}
+              colors={[palette.caution + '11', palette.caution + '05']}
               style={styles.actionCardGradient}
             >
               <View style={styles.actionCardContent}>
-                <View style={[styles.actionIconCircle, { backgroundColor: theme.brandSecondary + '22' }]}>
-                  <Feather name="trending-up" size={24} color={theme.brandSecondary} />
+                <View style={[styles.actionIconCircle, { backgroundColor: palette.caution + '22' }]}>
+                  <Feather name="trending-up" size={24} color={palette.caution} />
                 </View>
                 <View style={styles.actionTextContainer}>
-                  <Text style={[styles.actionTitle, { color: theme.onSurface }]}>Trail Usage</Text>
-                  <Text style={[styles.actionSubtitle, { color: theme.onSurfaceVariant }]}>
+                  <Text style={[styles.actionTitle, { color: palette.textPrimary }]}>Trail Usage</Text>
+                  <Text style={[styles.actionSubtitle, { color: palette.textSecondary }]}>
                     See which routes you ride most
                   </Text>
                 </View>
-                <Feather name="chevron-right" size={24} color={theme.onSurfaceVariant} />
+                <Feather name="chevron-right" size={24} color={palette.textSecondary} />
               </View>
             </LinearGradient>
           </TouchableOpacity>
@@ -322,14 +345,14 @@ const UserStatsScreen = () => {
             activeOpacity={1}
             onPress={() => setSettingsVisible(false)}
           />
-          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+          <View style={[styles.modalContent, { backgroundColor: palette.card }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.onSurface }]}>Settings</Text>
+              <Text style={[styles.modalTitle, { color: palette.textPrimary }]}>Settings</Text>
               <TouchableOpacity onPress={() => setSettingsVisible(false)}>
-                <Feather name="x" size={20} color={theme.onSurfaceVariant} />
+                <Feather name="x" size={20} color={palette.textSecondary} />
               </TouchableOpacity>
             </View>
-            <Text style={[styles.modalPlaceholder, { color: theme.onSurfaceVariant }]}>
+            <Text style={[styles.modalPlaceholder, { color: palette.textSecondary }]}>
               Quick settings will appear here.
             </Text>
           </View>
@@ -348,14 +371,14 @@ const UserStatsScreen = () => {
             activeOpacity={1}
             onPress={() => setNotificationsVisible(false)}
           />
-          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+          <View style={[styles.modalContent, { backgroundColor: palette.card }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.onSurface }]}>Notifications</Text>
+              <Text style={[styles.modalTitle, { color: palette.textPrimary }]}>Notifications</Text>
               <TouchableOpacity onPress={() => setNotificationsVisible(false)}>
-                <Feather name="x" size={20} color={theme.onSurfaceVariant} />
+                <Feather name="x" size={20} color={palette.textSecondary} />
               </TouchableOpacity>
             </View>
-            <Text style={[styles.modalPlaceholder, { color: theme.onSurfaceVariant }]}>
+            <Text style={[styles.modalPlaceholder, { color: palette.textSecondary }]}>
               Notifications will show here.
             </Text>
           </View>
@@ -398,7 +421,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   retryButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
@@ -417,9 +440,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerContent: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  headerTitleContainer: {
+    flex: 1,
+  },
+  backButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
   },
   headerIcon: {
     width: 48,

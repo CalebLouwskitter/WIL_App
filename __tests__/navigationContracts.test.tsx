@@ -44,6 +44,12 @@ jest.mock('react-native-chart-kit', () => ({
   PieChart: () => null,
 }));
 
+jest.mock('../contexts/PreferencesContext', () => ({
+  usePreferences: () => ({
+    preferences: { units: 'metric' },
+    updatePreferences: jest.fn(),
+  }),
+}));
 jest.mock('../components/Modals/SettingsModal', () => () => null);
 jest.mock('../components/Modals/NotificationsModal', () => () => null);
 jest.mock('../components/AnalyticsDownloadButton', () => ({
@@ -209,7 +215,7 @@ describe('Analytics hub navigation contract', () => {
     expect(mockNavigate).toHaveBeenCalledWith('DetailedStats');
   });
 
-  it('UserStatsScreen Detailed Analytics card navigates to ProfileStack -> PersonalStats', async () => {
+  it('UserStatsScreen Detailed Analytics card navigates to PersonalStats inside AnalyticsStack', async () => {
     let renderer!: TestRenderer.ReactTestRenderer;
     await act(async () => {
       renderer = TestRenderer.create(<UserStatsScreen />);
@@ -225,7 +231,8 @@ describe('Analytics hub navigation contract', () => {
       detailedCard!.props.onPress();
     });
 
-    expect(mockParentNavigate).toHaveBeenCalledWith('ProfileStack', { screen: 'PersonalStats' });
+    expect(mockNavigate).toHaveBeenCalledWith('PersonalStats');
+    expect(mockParentNavigate).not.toHaveBeenCalledWith('ProfileStack', expect.anything());
     // Crucially: it must NOT navigate to DetailedStats (self-link)
     expect(mockNavigate).not.toHaveBeenCalledWith('DetailedStats');
   });

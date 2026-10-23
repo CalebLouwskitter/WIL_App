@@ -6,13 +6,12 @@ import {
   StyleSheet, 
   ActivityIndicator, 
   Alert,
-  Modal,
-  useColorScheme
+  Modal
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { downloadAndShareGlobalAnalytics } from '../services/AnalyticsDownloadService';
-import { resolvePalette } from '../constants/colors';
+import { useAppTheme } from '../hooks/useAppTheme';
 
 interface AnalyticsDownloadButtonProps {
   /** Disables the button; `disabledReason` is shown under it so the user knows why. */
@@ -32,8 +31,7 @@ export const AnalyticsDownloadButton: React.FC<AnalyticsDownloadButtonProps> = (
 }) => {
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const colorScheme = useColorScheme();
-  const theme = resolvePalette(colorScheme);
+  const { palette, isDark } = useAppTheme();
 
   const handleDownload = async (format: 'json' | 'csv' | 'excel') => {
     try {
@@ -77,7 +75,7 @@ export const AnalyticsDownloadButton: React.FC<AnalyticsDownloadButtonProps> = (
         style={[styles.buttonContainer, disabled && styles.buttonDisabled]}
       >
         <LinearGradient
-          colors={[theme.brandPrimary, theme.brandPrimaryAlt]}
+          colors={[palette.brandPrimary, palette.brandPrimaryAlt]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.button}
@@ -87,13 +85,13 @@ export const AnalyticsDownloadButton: React.FC<AnalyticsDownloadButtonProps> = (
           ) : (
             <>
               <Feather name="download" size={20} color="#FFFFFF" />
-              <Text style={styles.buttonText}>Export Analytics</Text>
+              <Text style={[styles.buttonText, { color: palette.onPrimary }]}>Export Analytics</Text>
             </>
           )}
         </LinearGradient>
       </TouchableOpacity>
       {disabled && disabledReason ? (
-        <Text style={[styles.disabledReason, { color: theme.onSurfaceVariant }]}>{disabledReason}</Text>
+        <Text style={[styles.disabledReason, { color: palette.textSecondary }]}>{disabledReason}</Text>
       ) : null}
 
       <Modal
@@ -108,76 +106,76 @@ export const AnalyticsDownloadButton: React.FC<AnalyticsDownloadButtonProps> = (
           onPress={() => setModalVisible(false)}
         >
           <View 
-            style={[styles.modalContent, { backgroundColor: theme.surface }]}
+            style={[styles.modalContent, { backgroundColor: palette.card }]}
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.modalHeader}>
-              <Feather name="download-cloud" size={32} color={theme.brandPrimary} />
-              <Text style={[styles.modalTitle, { color: theme.onSurface }]}>
+              <Feather name="download-cloud" size={32} color={palette.brandPrimary} />
+              <Text style={[styles.modalTitle, { color: palette.textPrimary }]}>
                 Export Analytics
               </Text>
-              <Text style={[styles.modalSubtitle, { color: theme.onSurfaceVariant }]}>
+              <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>
                 Choose your preferred format
               </Text>
             </View>
 
             <TouchableOpacity
-              style={[styles.formatOption, { backgroundColor: theme.surfaceVariant }]}
+              style={[styles.formatOption, { backgroundColor: palette.background }]}
               onPress={() => handleDownload('excel')}
               activeOpacity={0.7}
             >
               <View style={styles.formatIconContainer}>
-                <Feather name="file-text" size={24} color="#10B981" />
+                <Feather name="file-text" size={24} color={palette.success} />
               </View>
               <View style={styles.formatInfo}>
-                <Text style={[styles.formatTitle, { color: theme.onSurface }]}>Excel Format</Text>
-                <Text style={[styles.formatDescription, { color: theme.onSurfaceVariant }]}>
+                <Text style={[styles.formatTitle, { color: palette.textPrimary }]}>Excel Format</Text>
+                <Text style={[styles.formatDescription, { color: palette.textSecondary }]}>
                   Multiple sheets with detailed analytics
                 </Text>
               </View>
-              <Feather name="chevron-right" size={20} color={theme.onSurfaceVariant} />
+              <Feather name="chevron-right" size={20} color={palette.textSecondary} />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.formatOption, { backgroundColor: theme.surfaceVariant }]}
+              style={[styles.formatOption, { backgroundColor: palette.background }]}
               onPress={() => handleDownload('json')}
               activeOpacity={0.7}
             >
               <View style={styles.formatIconContainer}>
-                <Feather name="code" size={24} color={theme.brandPrimary} />
+                <Feather name="code" size={24} color={palette.brandPrimary} />
               </View>
               <View style={styles.formatInfo}>
-                <Text style={[styles.formatTitle, { color: theme.onSurface }]}>JSON Format</Text>
-                <Text style={[styles.formatDescription, { color: theme.onSurfaceVariant }]}>
+                <Text style={[styles.formatTitle, { color: palette.textPrimary }]}>JSON Format</Text>
+                <Text style={[styles.formatDescription, { color: palette.textSecondary }]}>
                   Complete data with full ride details
                 </Text>
               </View>
-              <Feather name="chevron-right" size={20} color={theme.onSurfaceVariant} />
+              <Feather name="chevron-right" size={20} color={palette.textSecondary} />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.formatOption, { backgroundColor: theme.surfaceVariant }]}
+              style={[styles.formatOption, { backgroundColor: palette.background }]}
               onPress={() => handleDownload('csv')}
               activeOpacity={0.7}
             >
               <View style={styles.formatIconContainer}>
-                <Feather name="database" size={24} color={theme.brandSecondary} />
+                <Feather name="database" size={24} color={palette.caution} />
               </View>
               <View style={styles.formatInfo}>
-                <Text style={[styles.formatTitle, { color: theme.onSurface }]}>CSV Format</Text>
-                <Text style={[styles.formatDescription, { color: theme.onSurfaceVariant }]}>
+                <Text style={[styles.formatTitle, { color: palette.textPrimary }]}>CSV Format</Text>
+                <Text style={[styles.formatDescription, { color: palette.textSecondary }]}>
                   Spreadsheet-friendly summary data
                 </Text>
               </View>
-              <Feather name="chevron-right" size={20} color={theme.onSurfaceVariant} />
+              <Feather name="chevron-right" size={20} color={palette.textSecondary} />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.cancelButton, { borderColor: theme.borderMuted }]}
+              style={[styles.cancelButton, { borderColor: palette.divider }]}
               onPress={() => setModalVisible(false)}
               activeOpacity={0.7}
             >
-              <Text style={[styles.cancelButtonText, { color: theme.onSurfaceVariant }]}>
+              <Text style={[styles.cancelButtonText, { color: palette.textSecondary }]}>
                 Cancel
               </Text>
             </TouchableOpacity>
@@ -264,7 +262,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: 'rgba(128, 128, 128, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
