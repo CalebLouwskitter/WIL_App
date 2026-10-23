@@ -13,6 +13,8 @@ import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import { Colors } from '@/constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
+import ScreenHeader from '../../components/ScreenHeader';
 import useOnlineUsers from '../../hooks/useOnlineUsers';
 import { auth } from '../../services/firebase';
 import { startLocationBroadcast, stopLocationBroadcast, type OnlineUser } from '../../services/OnlineUserService';
@@ -29,8 +31,7 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
   const [selectedUser, setSelectedUser] = useState<OnlineUser | null>(null);
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { palette, isDark } = useAppTheme();
 
   useEffect(() => {
     let cancelled = false;
@@ -72,31 +73,33 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
       style={[
         styles.userItem,
         {
-          backgroundColor: palette.cardElevated,
-          borderColor: selectedUser?.uid === item.uid ? palette.brandPrimary : palette.borderMuted,
+          backgroundColor: palette.card,
+          borderColor: selectedUser?.uid === item.uid ? palette.brandPrimary : palette.divider,
         },
       ]}
       onPress={() => handleUserPress(item)}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`User ${item.displayName || 'Anonymous'}`}
     >
       <View style={styles.userItemLeft}>
         {item.photoURL ? (
           <Image source={{ uri: item.photoURL }} style={styles.userAvatar} />
         ) : (
-          <View style={[styles.userAvatarPlaceholder, { backgroundColor: palette.brandMuted }]}>
+          <View style={[styles.userAvatarPlaceholder, { backgroundColor: palette.brandSoft }]}>
             <Feather name="user" size={20} color={palette.brandPrimary} />
           </View>
         )}
         <View style={styles.userInfo}>
-          <Text style={[styles.userName, { color: palette.text }]}>{item.displayName || 'Anonymous'}</Text>
-          <Text style={[styles.userLastSeen, { color: palette.placeholder }]}>
+          <Text style={[styles.userName, { color: palette.textPrimary }]}>{item.displayName || 'Anonymous'}</Text>
+          <Text style={[styles.userLastSeen, { color: palette.textSecondary }]}>
             {presenceLabel(item.lastSeen, Date.now())}
           </Text>
         </View>
       </View>
       {item.isRiding && (
         <View style={[styles.ridingBadge, { backgroundColor: palette.success }]}>
-          <Text style={styles.ridingText}>Riding</Text>
+          <Text style={[styles.ridingText, { color: palette.onPrimary }]}>Riding</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -124,7 +127,11 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
       };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
+      <ScreenHeader
+        title="Online Users"
+        onBack={() => navigation.goBack()}
+      />
       <View style={styles.mapContainer}>
         <MapView
           style={styles.map}
@@ -146,41 +153,35 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
                   <Image source={{ uri: user.photoURL }} style={styles.avatar} />
                 </View>
               ) : (
-                <View style={[styles.avatar, { backgroundColor: user.isRiding ? palette.success : palette.brandPrimary }]} />
+                <View style={[styles.avatar, { backgroundColor: user.isRiding ? palette.success : palette.brandPrimary, borderColor: palette.card }]} />
               )}
             </Marker>
           ))}
         </MapView>
       </View>
 
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Feather name="arrow-left" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Online Users</Text>
-        <View style={styles.headerRight} />
-      </View>
+
 
       <View
         style={[
           styles.listContainer,
           {
-            backgroundColor: palette.cardElevated,
-            borderTopColor: palette.borderMuted,
+            backgroundColor: palette.card,
+            borderTopColor: palette.divider,
           },
         ]}
       >
         <View style={styles.listHeader}>
-          <Text style={[styles.listTitle, { color: palette.text }]}>Active Riders</Text>
+          <Text style={[styles.listTitle, { color: palette.textPrimary }]}>Active Riders</Text>
           <View style={[styles.countBadge, { backgroundColor: palette.brandPrimary }]}>
-            <Text style={styles.countText}>{filteredUsers.length}</Text>
+            <Text style={[styles.countText, { color: palette.onPrimary }]}>{filteredUsers.length}</Text>
           </View>
         </View>
 
         {source === 'cached' && (
-          <View style={[styles.cachedBanner, { backgroundColor: palette.brandMuted }]}>
+          <View style={[styles.cachedBanner, { backgroundColor: palette.brandSoft }]}>
             <Feather name="info" size={14} color={palette.brandPrimary} />
-            <Text style={[styles.cachedBannerText, { color: palette.text }]}>
+            <Text style={[styles.cachedBannerText, { color: palette.textPrimary }]}>
               Showing saved data — may be out of date
             </Text>
           </View>
@@ -192,15 +193,15 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
           </View>
         ) : source === 'unavailable' ? (
           <View style={styles.emptyContainer}>
-            <Feather name="wifi-off" size={48} color={palette.placeholder} />
-            <Text style={[styles.emptyText, { color: palette.placeholder }]}>
+            <Feather name="wifi-off" size={48} color={palette.textMuted} />
+            <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
               Not connected — online riders unavailable
             </Text>
           </View>
         ) : filteredUsers.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Feather name="users" size={48} color={palette.placeholder} />
-            <Text style={[styles.emptyText, { color: palette.placeholder }]}>No active riders nearby</Text>
+            <Feather name="users" size={48} color={palette.textMuted} />
+            <Text style={[styles.emptyText, { color: palette.textSecondary }]}>No active riders nearby</Text>
           </View>
         ) : (
           <FlatList
@@ -219,7 +220,6 @@ const OnlineUsersScreen = ({ navigation }: { navigation: any }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   mapContainer: {
     flex: 1,
@@ -227,31 +227,7 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  headerRight: {
-    width: 40,
-  },
+
   listContainer: {
     position: 'absolute',
     bottom: 0,
@@ -285,7 +261,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   countText: {
-    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -352,7 +327,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   ridingText: {
-    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -361,7 +335,6 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
   },
   avatarShadow: {
     shadowColor: '#000',

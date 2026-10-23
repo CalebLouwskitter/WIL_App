@@ -1,6 +1,7 @@
 import React, { Component, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useAppTheme } from '../hooks/useAppTheme';
 
 interface Props {
   children: ReactNode;
@@ -12,6 +13,56 @@ interface State {
   error?: Error;
   errorInfo?: any;
 }
+
+interface DefaultErrorFallbackProps {
+  error?: Error;
+  onRetry: () => void;
+}
+
+const DefaultErrorFallback: React.FC<DefaultErrorFallbackProps> = ({ error, onRetry }) => {
+  const { palette } = useAppTheme();
+
+  return (
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
+      <View style={styles.content}>
+        <Feather name="alert-circle" size={48} color={palette.danger} />
+        <Text style={[styles.title, { color: palette.textPrimary }]}>Something went wrong</Text>
+        <Text style={[styles.message, { color: palette.textSecondary }]}>
+          An unexpected error occurred. Please try again or contact support if the problem persists.
+        </Text>
+
+        {__DEV__ && error && (
+          <View
+            style={[
+              styles.errorDetails,
+              {
+                backgroundColor: palette.profileStatRidesBox,
+                borderColor: palette.divider,
+              },
+            ]}
+          >
+            <Text style={[styles.errorTitle, { color: palette.danger }]}>
+              Error Details (Development Mode):
+            </Text>
+            <Text style={[styles.errorText, { color: palette.textPrimary }]}>
+              {error.toString()}
+            </Text>
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={[styles.retryButton, { backgroundColor: palette.brandPrimary }]}
+          onPress={onRetry}
+          accessibilityRole="button"
+          accessibilityLabel="Try Again"
+        >
+          <Feather name="refresh-cw" size={16} color={palette.onPrimary} />
+          <Text style={[styles.retryText, { color: palette.onPrimary }]}>Try Again</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
 
 class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
@@ -39,27 +90,10 @@ class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <View style={styles.container}>
-          <View style={styles.content}>
-            <Feather name="alert-circle" size={48} color="#EF4444" />
-            <Text style={styles.title}>Something went wrong</Text>
-            <Text style={styles.message}>
-              An unexpected error occurred. Please try again or contact support if the problem persists.
-            </Text>
-            
-            {__DEV__ && this.state.error && (
-              <View style={styles.errorDetails}>
-                <Text style={styles.errorTitle}>Error Details (Development Mode):</Text>
-                <Text style={styles.errorText}>{this.state.error.toString()}</Text>
-              </View>
-            )}
-            
-            <TouchableOpacity style={styles.retryButton} onPress={this.handleRetry}>
-              <Feather name="refresh-cw" size={16} color="#fff" />
-              <Text style={styles.retryText}>Try Again</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <DefaultErrorFallback
+          error={this.state.error}
+          onRetry={this.handleRetry}
+        />
       );
     }
 
@@ -70,7 +104,6 @@ class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -82,47 +115,41 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#0F172A',
     marginTop: 16,
     marginBottom: 8,
     textAlign: 'center',
   },
   message: {
     fontSize: 14,
-    color: '#64748B',
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
   },
   errorDetails: {
-    backgroundColor: '#FEE2E2',
     padding: 12,
     borderRadius: 8,
+    borderWidth: 1,
     marginBottom: 24,
     width: '100%',
   },
   errorTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#DC2626',
     marginBottom: 4,
   },
   errorText: {
     fontSize: 11,
-    color: '#7F1D1D',
     fontFamily: 'monospace',
   },
   retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3B82F6',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,
     gap: 8,
   },
   retryText: {
-    color: '#fff',
     fontSize: 14,
     fontWeight: '600',
   },

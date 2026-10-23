@@ -22,6 +22,9 @@ import * as Location from 'expo-location';
 import * as Linking from 'expo-linking';
 import { getRides } from '@/services/RideStorage';
 import { weeklyDistanceKm, totalKm, type DayDistance } from '@/utils/weeklyDistance';
+import { usePreferences } from '@/contexts/PreferencesContext';
+import { useAppTheme } from '@/hooks/useAppTheme';
+import { formatDistance } from '@/utils/units';
 import { useMapStatus } from '@/hooks/useMapStatus';
 import MapStatusFrame from '@/components/MapStatusFrame';
 
@@ -46,6 +49,8 @@ const DashboardScreen = () => {
   const flatListRef = useRef<FlatList>(null);
   const [weekly, setWeekly] = useState<DayDistance[] | null>(null);
   const previewMapStatus = useMapStatus('dashboard-preview');
+  const { preferences } = usePreferences();
+  const { palette, isDark } = useAppTheme();
 
   // Chart data comes from the rides stored for this user; null until the first read finishes
   useFocusEffect(
@@ -151,28 +156,40 @@ const DashboardScreen = () => {
   ) => (
     <TouchableOpacity
       key={title}
-      style={styles.navWidgetContainer}
+      style={[styles.navWidgetContainer, { backgroundColor: palette.card, shadowColor: palette.shadow }]}
       activeOpacity={0.8}
       onPress={() => navigateToScreen(targetScreen)}
     >
       <View style={[styles.iconCircle, { backgroundColor: `${iconColor}30` }]}>
         <Feather name={iconName} size={24} color={iconColor} />
       </View>
-      <Text style={styles.navWidgetTitle}>{title}</Text>
-      <Text style={styles.navWidgetSubtitle}>{subtitle}</Text>
+      <Text style={[styles.navWidgetTitle, { color: palette.textPrimary }]}>{title}</Text>
+      <Text style={[styles.navWidgetSubtitle, { color: palette.textSecondary }]}>{subtitle}</Text>
     </TouchableOpacity>
   );
 
+  const unitLabel = preferences.units === 'imperial' ? 'mi' : 'km';
+  const totalM = weekly ? totalKm(weekly) * 1000 : 0;
+  const formattedTotal = formatDistance(totalM, preferences.units, 1);
+
   return (
     <>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           <View style={styles.topIcons}>
-            <TouchableOpacity onPress={() => setSettingsVisible(true)}>
-              <Feather name="settings" size={27} color="#374151" />
+            <TouchableOpacity
+              onPress={() => setSettingsVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Settings"
+            >
+              <Feather name="settings" size={27} color={palette.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setNotificationsVisible(true)}>
-              <Feather name="bell" size={27} color="#374151" />
+            <TouchableOpacity
+              onPress={() => setNotificationsVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Notifications"
+            >
+              <Feather name="bell" size={27} color={palette.textPrimary} />
             </TouchableOpacity>
           </View>
 
@@ -204,6 +221,7 @@ const DashboardScreen = () => {
             <MapStatusFrame status={previewMapStatus} style={styles.mapWidgetMap} compact>
               <MapView
                 {...previewMapStatus.mapProps}
+                mapType={preferences.mapType}
                 style={styles.mapWidgetMap}
                 initialRegion={{
                   latitude: -33.9648,
@@ -223,7 +241,7 @@ const DashboardScreen = () => {
 
           {/* Start Ride wide widget */}
           <TouchableOpacity
-            style={styles.startRideContainer}
+            style={[styles.startRideContainer, { backgroundColor: palette.card, shadowColor: palette.shadow }]}
             activeOpacity={0.9}
             onPress={() =>
               navigation.navigate('Mapping', {
@@ -236,9 +254,9 @@ const DashboardScreen = () => {
               <View style={[styles.iconCircle, { backgroundColor: '#10b98120' }]}> 
                 <Feather name="play" size={22} color="#10b981" />
               </View>
-              <Text style={styles.startRideTitle}>Start Ride</Text>
+              <Text style={[styles.startRideTitle, { color: palette.textPrimary }]}>Start Ride</Text>
             </View>
-            <Text style={styles.startRideSubtitle}>Begin recording your ride immediately</Text>
+            <Text style={[styles.startRideSubtitle, { color: palette.textSecondary }]}>Begin recording your ride immediately</Text>
           </TouchableOpacity>
 
           <View style={styles.widgetGrid}>
@@ -251,17 +269,19 @@ const DashboardScreen = () => {
           </View>
 
           <TouchableOpacity
-            style={styles.chartContainer}
+            style={[styles.chartContainer, { backgroundColor: palette.card, shadowColor: palette.shadow }]}
             activeOpacity={0.8}
             onPress={() => navigateToScreen('AnalyticsPage')}
           >
             <View style={styles.chartHeader}>
-              <Text style={styles.chartTitle}>Analytics & Data</Text>
+              <Text style={[styles.chartTitle, { color: palette.textPrimary }]}>Analytics & Data</Text>
               {weekly && totalKm(weekly) > 0 ? (
-                <Text style={styles.chartPeriod}>{totalKm(weekly).toFixed(1)} km</Text>
+                <Text style={[styles.chartPeriod, { color: palette.textPrimary }]}>
+                  {formattedTotal.value} {formattedTotal.unit}
+                </Text>
               ) : null}
             </View>
-            <Text style={styles.chartSubtitle}>Distance ridden per day, last 7 days (km)</Text>
+            <Text style={[styles.chartSubtitle, { color: palette.textSecondary }]}>Distance ridden per day, last 7 days ({unitLabel})</Text>
             {weekly && totalKm(weekly) > 0 ? (
               <>
                 <View style={styles.chartBars}>
@@ -270,7 +290,14 @@ const DashboardScreen = () => {
                     return (
                       <View key={day.dayStart} style={styles.chartBarSlot}>
                         <View
-                          style={[styles.chartBar, { height: day.km > 0 ? Math.max(4, (day.km / max) * 56) : 2, opacity: day.km > 0 ? 1 : 0.3 }]}
+                          style={[
+                            styles.chartBar,
+                            {
+                              backgroundColor: palette.brandPrimary,
+                              height: day.km > 0 ? Math.max(4, (day.km / max) * 56) : 2,
+                              opacity: day.km > 0 ? 1 : 0.3,
+                            },
+                          ]}
                         />
                       </View>
                     );
@@ -278,12 +305,12 @@ const DashboardScreen = () => {
                 </View>
                 <View style={styles.chartLabels}>
                   {weekly.map((day) => (
-                    <Text key={day.dayStart} style={styles.chartLabel}>{day.label}</Text>
+                    <Text key={day.dayStart} style={[styles.chartLabel, { color: palette.textSecondary }]}>{day.label}</Text>
                   ))}
                 </View>
               </>
             ) : (
-              <Text style={styles.chartEmpty}>
+              <Text style={[styles.chartEmpty, { color: palette.textMuted }]}>
                 {weekly ? 'No rides recorded in the last 7 days.' : 'Loading rides…'}
               </Text>
             )}
@@ -332,7 +359,7 @@ const DashboardScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f4f7' },
+  container: { flex: 1 },
   scrollView: { flex: 1 },
   topIcons: { flexDirection: 'row', paddingTop: 45, justifyContent: 'space-between', marginBottom: 16, paddingHorizontal: PADDING_HORIZONTAL },
   sosSection: { marginBottom: 20 },
@@ -350,25 +377,25 @@ const styles = StyleSheet.create({
   mapWidgetMap: { ...StyleSheet.absoluteFill },
   mapWidgetOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'transparent' },
   widgetGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', marginHorizontal: PADDING_HORIZONTAL, marginLeft: PADDING_HORIZONTAL - GAP_SIZE / 2, marginRight: PADDING_HORIZONTAL - GAP_SIZE / 2, marginBottom: 0 },
-  navWidgetContainer: { width: WIDGET_WIDTH, backgroundColor: 'white', padding: 15, borderRadius: 12, marginBottom: GAP_SIZE, marginHorizontal: GAP_SIZE / 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 3, elevation: 2 },
+  navWidgetContainer: { width: WIDGET_WIDTH, padding: 15, borderRadius: 12, marginBottom: GAP_SIZE, marginHorizontal: GAP_SIZE / 2, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 3, elevation: 2 },
   iconCircle: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-  navWidgetTitle: { fontSize: 14, fontWeight: '700', color: '#1f2937', marginBottom: 4 },
-  navWidgetSubtitle: { fontSize: 10, color: '#6b7280', fontWeight: '500', lineHeight: 14 },
-  chartContainer: { backgroundColor: 'white', marginHorizontal: PADDING_HORIZONTAL, marginVertical: 4, padding: 16, borderRadius: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 1, elevation: 2 },
+  navWidgetTitle: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  navWidgetSubtitle: { fontSize: 10, fontWeight: '500', lineHeight: 14 },
+  chartContainer: { marginHorizontal: PADDING_HORIZONTAL, marginVertical: 4, padding: 16, borderRadius: 10, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 1, elevation: 2 },
   chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  chartTitle: { fontSize: 16, fontWeight: '600', color: '#374151' },
-  chartPeriod: { fontSize: 12, color: '#374151', fontWeight: '600' },
-  chartSubtitle: { fontSize: 12, color: '#6b7280', marginBottom: 12 },
+  chartTitle: { fontSize: 16, fontWeight: '600' },
+  chartPeriod: { fontSize: 12, fontWeight: '600' },
+  chartSubtitle: { fontSize: 12, marginBottom: 12 },
   chartBars: { flexDirection: 'row', alignItems: 'flex-end', height: 60, marginBottom: 4 },
   chartBarSlot: { flex: 1, justifyContent: 'flex-end', marginHorizontal: 3 },
-  chartBar: { backgroundColor: '#3b82f6', borderRadius: 2 },
+  chartBar: { borderRadius: 2 },
   chartLabels: { flexDirection: 'row', marginBottom: 4 },
-  chartLabel: { flex: 1, textAlign: 'center', fontSize: 10, color: '#6b7280' },
-  chartEmpty: { fontSize: 13, color: '#6b7280', paddingVertical: 16, textAlign: 'center' },
-  startRideContainer: { backgroundColor: 'white', marginHorizontal: PADDING_HORIZONTAL, marginBottom: 12, padding: 16, borderRadius: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
+  chartLabel: { flex: 1, textAlign: 'center', fontSize: 10 },
+  chartEmpty: { fontSize: 13, paddingVertical: 16, textAlign: 'center' },
+  startRideContainer: { marginHorizontal: PADDING_HORIZONTAL, marginBottom: 12, padding: 16, borderRadius: 10, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
   startRideHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  startRideTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginLeft: 10 },
-  startRideSubtitle: { fontSize: 12, color: '#6b7280', marginLeft: 58 - 48 },
+  startRideTitle: { fontSize: 16, fontWeight: '700', marginLeft: 10 },
+  startRideSubtitle: { fontSize: 12, marginLeft: 58 - 48 },
 });
 
 export default DashboardScreen;
