@@ -92,6 +92,9 @@ const config: ExpoConfig = {
     FIREBASE_EMULATOR_HOST: process.env.FIREBASE_EMULATOR_HOST ?? '',
   },
   plugins: [
+    'expo-font',
+    'expo-sharing',
+    'expo-status-bar',
     [
       'expo-splash-screen',
       {

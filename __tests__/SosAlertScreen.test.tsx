@@ -95,7 +95,7 @@ beforeEach(() => {
   mockPermission.mockReset().mockResolvedValue({ status: 'granted' });
   mockPosition.mockReset().mockResolvedValue({ coords: { latitude: -34.03, longitude: 25.5 } });
   // jest-expo already mocks Linking, so spyOn hands back the shared mock: reset its calls too
-  openURL = jest.spyOn(Linking, 'openURL').mockReset().mockResolvedValue(true);
+  openURL = jest.spyOn(Linking, 'openURL').mockReset().mockResolvedValue(undefined);
   canOpenURL = jest.spyOn(Linking, 'canOpenURL').mockReset().mockResolvedValue(true);
   jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   jest.spyOn(console, 'error').mockImplementation(() => {});

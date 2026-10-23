@@ -213,7 +213,7 @@ const NotificationsModal: React.FC<Props> = ({ visible, onClose, onRequestNotifi
                     <Text style={[styles.emptySubLabel, { color: palette.textMuted, marginBottom: 8 }]}>
                       {feedView.caveat}
                     </Text>
-                  ) : null
+                  ) : undefined
                 }
                 style={styles.scrollView}
                 contentContainerStyle={styles.scrollContent}
