@@ -6,11 +6,24 @@ import { Platform } from 'react-native';
 import { saveExpoPushToken } from '../services/FirebaseNotificationService';
 import { NOTIFICATIONS_ENABLED } from '../constants/config';
 
-// Expo Go does not contain the native Android push-notification modules.
-const Notifications: typeof ExpoNotifications | null =
-  Constants.executionEnvironment === ExecutionEnvironment.StoreClient
-    ? null
-    : require('expo-notifications');
+// Expo Go does not contain the native Android push-notification modules
+// (e.g. ExpoTopicSubscriptionModule), and loading expo-notifications without
+// them throws at startup. Skip it in Expo Go, and treat any other load failure
+// as "push unavailable" rather than crashing the app.
+const isExpoGo =
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient || Constants.appOwnership === 'expo';
+
+function loadNotifications(): typeof ExpoNotifications | null {
+  if (isExpoGo) return null;
+  try {
+    return require('expo-notifications');
+  } catch (error) {
+    console.warn('[Notifications] Push notifications are unavailable in this build:', (error as Error)?.message ?? error);
+    return null;
+  }
+}
+
+const Notifications = loadNotifications();
 
 // Configure how notifications are handled when app is in foreground
 if (NOTIFICATIONS_ENABLED && Notifications) {
