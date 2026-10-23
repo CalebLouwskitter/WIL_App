@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 type AuthHeaderProps = {
   activeTab: 'Login' | 'SignUp';
@@ -8,23 +8,22 @@ type AuthHeaderProps = {
 };
 
 const AuthHeader = ({ activeTab, onTabPress }: AuthHeaderProps) => {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { palette } = useAppTheme();
 
   return (
     <View style={styles.container}>
-      <View style={[styles.tabsContainer, { borderColor: colors.lightGrey }]}>
+      <View style={[styles.tabsContainer, { borderColor: palette.divider }]}>
         <TouchableOpacity
           style={[
             styles.tab,
-            { backgroundColor: colors.inactiveTab },
-            activeTab === 'Login' && { backgroundColor: colors.primary },
+            { backgroundColor: palette.card },
+            activeTab === 'Login' && { backgroundColor: palette.primary },
           ]}
           onPress={() => onTabPress('Login')}
         >
           <Text style={[
             styles.tabText,
-            activeTab === 'Login' ? { color: colors.white } : { color: colors.darkGrey }
+            activeTab === 'Login' ? { color: palette.onPrimary } : { color: palette.textSecondary }
           ]}>
             Log In
           </Text>
@@ -32,14 +31,14 @@ const AuthHeader = ({ activeTab, onTabPress }: AuthHeaderProps) => {
         <TouchableOpacity
           style={[
             styles.tab,
-            { backgroundColor: colors.inactiveTab },
-            activeTab === 'SignUp' && { backgroundColor: colors.primary_signup },
+            { backgroundColor: palette.card },
+            activeTab === 'SignUp' && { backgroundColor: palette.primary_signup },
           ]}
           onPress={() => onTabPress('SignUp')}
         >
           <Text style={[
             styles.tabText,
-            activeTab === 'SignUp' ? { color: colors.white } : { color: colors.darkGrey }
+            activeTab === 'SignUp' ? { color: palette.onPrimary } : { color: palette.textSecondary }
           ]}>
             Sign Up
           </Text>

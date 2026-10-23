@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, useColorScheme, Image, ActivityIndicator } from 'react-native';
-
-import { Colors } from '../../constants/colors';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import AuthHeader from '../../components/Auth/AuthHeader';
 import AuthInput from '../../components/Auth/AuthInput';
 import AuthButton from '../../components/Auth/AuthButton';
@@ -14,8 +14,7 @@ const RegisterScreen = ({ navigation }: { navigation: any }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { palette } = useAppTheme();
 
   const handleRegister = async () => {
     if (!email || !password) {
@@ -32,8 +31,8 @@ const RegisterScreen = ({ navigation }: { navigation: any }) => {
     setError('');
 
     try {
-      const userCredential = await registerUser(email.trim(), password);
-      console.log('Registered user:', userCredential.user?.uid);
+      await registerUser(email.trim(), password);
+      console.log('Registered user');
       setError('');
       navigation.navigate('VerifyEmail');
     } catch (err: any) {
@@ -57,7 +56,7 @@ const RegisterScreen = ({ navigation }: { navigation: any }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {/* Logo */}
         <View style={styles.logoContainer}>
@@ -92,16 +91,16 @@ const RegisterScreen = ({ navigation }: { navigation: any }) => {
 
         {/* Error and Forgot Password */}
         <View style={styles.errorForgotContainer}>
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={[styles.errorText, { color: palette.danger }]}>{error}</Text>
           <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-            <Text style={styles.forgotText}>Forgot password?</Text>
+            <Text style={[styles.forgotText, { color: palette.primary_signup }]}>Forgot password?</Text>
           </TouchableOpacity>
         </View>
 
         {/* Continue Button */}
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary_signup} />
+            <ActivityIndicator size="large" color={palette.primary_signup} />
           </View>
         ) : (
           <AuthButton title="Continue" onPress={handleRegister} isPrimary={false} />
@@ -109,9 +108,9 @@ const RegisterScreen = ({ navigation }: { navigation: any }) => {
 
         {/* Bottom Link */}
         <View style={styles.bottomLinkContainer}>
-          <Text style={styles.bottomText}>Already have an account? </Text>
+          <Text style={[styles.bottomText, { color: palette.textSecondary }]}>Already have an account? </Text>
           <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-            <Text style={styles.bottomLinkText}>Login</Text>
+            <Text style={[styles.bottomLinkText, { color: palette.primary }]}>Login</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -122,7 +121,6 @@ const RegisterScreen = ({ navigation }: { navigation: any }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   scrollContainer: {
     flexGrow: 1,
@@ -138,72 +136,6 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
   },
-  forgotPasswordContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-    padding: 4,
-    marginBottom: 32,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: 6,
-  },
-  tabActive: {
-    backgroundColor: '#E8A468',
-  },
-  tabTextActive: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  tabTextInactive: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#666666',
-  },
-  formContainer: {
-    marginBottom: 24,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333333',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: '#333333',
-  },
-  passwordInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-  },
-  passwordInput: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: '#333333',
-  },
-  eyeIcon: {
-    paddingHorizontal: 16,
-  },
   errorForgotContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -213,30 +145,15 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 13,
-    color: '#FF6B6B',
     flex: 1,
   },
   forgotText: {
     fontSize: 13,
-    color: '#FF8A5B',
     fontWeight: '500',
   },
   loadingContainer: {
     paddingVertical: 16,
     alignItems: 'center',
-  },
-  continueButton: {
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  continueButtonSignup: {
-    backgroundColor: '#E8A468',
-  },
-  continueButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
   },
   bottomLinkContainer: {
     flexDirection: 'row',
@@ -247,11 +164,9 @@ const styles = StyleSheet.create({
   },
   bottomText: {
     fontSize: 14,
-    color: '#666666',
   },
   bottomLinkText: {
     fontSize: 14,
-    color: '#FF8A5B',
     fontWeight: '600',
   },
 });

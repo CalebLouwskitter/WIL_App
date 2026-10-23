@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity, useColorScheme, KeyboardTypeOptions } from 'react-native';
-import { resolvePalette } from '@/constants/colors';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity, KeyboardTypeOptions } from 'react-native';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { Ionicons } from '@expo/vector-icons';
 
 type AuthInputProps = {
@@ -26,19 +26,18 @@ const AuthInput = ({
   keyboardType,
   autoCapitalize,
 }: AuthInputProps) => {
-  const colorScheme = useColorScheme();
-  const colors = resolvePalette(colorScheme);
+  const { palette } = useAppTheme();
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.label, { color: colors.darkGrey }]}>{label}</Text>
-      <View style={[styles.inputContainer, { borderColor: colors.lightGrey, backgroundColor: colors.surface }]}>
+      <Text style={[styles.label, { color: palette.textPrimary }]}>{label}</Text>
+      <View style={[styles.inputContainer, { borderColor: palette.divider, backgroundColor: palette.card }]}>
         <TextInput
-          style={[styles.input, { color: colors.text }]}
+          style={[styles.input, { color: palette.textPrimary }]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={colors.placeholder}
+          placeholderTextColor={palette.textMuted}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
@@ -53,7 +52,7 @@ const AuthInput = ({
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             activeOpacity={0.7}
           >
-            <Ionicons name={isPasswordVisible ? 'eye-off' : 'eye'} size={24} color={colors.placeholder} />
+            <Ionicons name={isPasswordVisible ? 'eye-off' : 'eye'} size={24} color={palette.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -68,6 +67,7 @@ const styles = StyleSheet.create({
   label: {
     marginBottom: 5,
     fontSize: 14,
+    fontWeight: '500',
   },
   inputContainer: {
     flexDirection: 'row',

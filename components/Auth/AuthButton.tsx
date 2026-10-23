@@ -1,6 +1,6 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, useColorScheme } from 'react-native';
-import { resolvePalette } from '../../constants/colors';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 type AuthButtonProps = {
   title: string;
@@ -17,10 +17,9 @@ const AuthButton = ({
   disabled = false,
   loading = false,
 }: AuthButtonProps) => {
-  const scheme = useColorScheme();
-  const palette = resolvePalette(scheme);
+  const { palette } = useAppTheme();
   const buttonColor = isPrimary ? palette.primary : palette.primary_signup;
-  const textColor = palette.onPrimary || '#FFFFFF';
+  const textColor = palette.onPrimary;
 
   const isDisabled = Boolean(disabled || loading);
 

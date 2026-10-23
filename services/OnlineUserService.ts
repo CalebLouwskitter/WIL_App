@@ -97,7 +97,7 @@ export async function startLocationBroadcast({ isRiding = false }: StartLocation
 
       console.log('Location broadcast successful');
     } catch (error) {
-      console.warn('Failed to broadcast location:', error);
+      console.warn('Failed to broadcast location');
     }
   };
 
@@ -124,7 +124,7 @@ export function stopLocationBroadcast() {
         const userLocationRef = doc(db, 'onlineUsers', docId);
         await setDoc(userLocationRef, { isRiding: false, lastSeen: Date.now() }, { merge: true });
       } catch (e) {
-        console.warn(e);
+        console.warn('Failed to update rider status on stop');
       }
     })();
   }
@@ -183,7 +183,7 @@ export async function getOnlineUsersWithSource(): Promise<{
     await AsyncStorage.setItem(storageKey, JSON.stringify(users));
     return { users, source: 'live' };
   } catch (error) {
-    console.warn('Failed to fetch online users:', error);
+    console.warn('Failed to fetch online users');
     const cached = await AsyncStorage.getItem(storageKey);
     if (cached) {
       try {
@@ -243,7 +243,7 @@ export function subscribeToOnlineUsers(
     callback(users);
     AsyncStorage.setItem(storageKey, JSON.stringify(users)).catch(() => {});
   }, (error) => {
-    console.warn('Online users subscription error:', error);
+    console.warn('Online users subscription error');
     if (onError) {
       onError(error);
     }
