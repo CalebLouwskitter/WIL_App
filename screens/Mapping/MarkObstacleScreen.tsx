@@ -8,7 +8,6 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  useColorScheme,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
@@ -17,7 +16,7 @@ import { saveObstacle } from '../../services/ObstacleService';
 import { createAdminNotification } from '../../services/FirebaseNotificationService';
 import { auth as firebaseAuth } from '../../services/firebase';
 import type { ObstacleType, ObstacleSeverity } from '../../services/Data';
-import { Colors } from '@/constants/colors';
+import { useAppTheme, type AppPalette } from '../../hooks/useAppTheme';
 
 type Props = {
   navigation: any;
@@ -38,8 +37,7 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
   );
   const [loading, setLoading] = useState(false);
   const [gettingLocation, setGettingLocation] = useState(false);
-  const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { palette } = useAppTheme();
   const styles = useMemo(() => createStyles(palette), [palette]);
 
   const obstacleTypes: { type: ObstacleType; label: string; icon: string }[] = [
@@ -159,7 +157,7 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
         style={styles.header}
       >
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Feather name="arrow-left" size={24} color="white" />
+          <Feather name="arrow-left" size={24} color={palette.onPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Report Obstacle</Text>
       </LinearGradient>
@@ -181,7 +179,7 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
                 <Feather
                   name={item.icon as any}
                   size={28}
-                  color={selectedType === item.type ? palette.obstaclePrimary : palette.onSurfaceVariant}
+                  color={selectedType === item.type ? palette.brandPrimary : palette.textSecondary}
                 />
                 <Text
                   style={[
@@ -213,7 +211,7 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
                 <Text
                   style={[
                     styles.severityText,
-                    { color: selectedSeverity === item.severity ? 'white' : item.color },
+                    { color: selectedSeverity === item.severity ? palette.onPrimary : item.color },
                   ]}
                 >
                   {item.label}
@@ -229,7 +227,7 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
           <TextInput
             style={styles.input}
             placeholder="e.g., Large pothole on trail"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={palette.textMuted}
             value={title}
             onChangeText={setTitle}
             maxLength={100}
@@ -242,7 +240,7 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
           <TextInput
             style={[styles.input, styles.textArea]}
             placeholder="Provide additional details about the obstacle..."
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={palette.textMuted}
             value={description}
             onChangeText={setDescription}
             multiline
@@ -286,10 +284,10 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="white" />
+            <ActivityIndicator color={palette.onPrimary} />
           ) : (
             <>
-              <Feather name="check-circle" size={24} color="white" />
+              <Feather name="check-circle" size={24} color={palette.onPrimary} />
               <Text style={styles.submitButtonText}>Submit Report</Text>
             </>
           )}
@@ -299,11 +297,11 @@ const MarkObstacleScreen: React.FC<Props> = ({ navigation, route }) => {
   );
 };
 
-const createStyles = (palette: typeof Colors.light) =>
+const createStyles = (palette: AppPalette) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: palette.brandMuted,
+      backgroundColor: palette.background,
     },
     header: {
       paddingTop: 50,
@@ -333,7 +331,7 @@ const createStyles = (palette: typeof Colors.light) =>
     sectionTitle: {
       fontSize: 16,
       fontWeight: '600',
-      color: palette.onSurface,
+      color: palette.textPrimary,
       marginBottom: 12,
     },
     typeGrid: {
@@ -344,10 +342,10 @@ const createStyles = (palette: typeof Colors.light) =>
     typeCard: {
       width: '30%',
       aspectRatio: 1,
-      backgroundColor: palette.cardElevated,
+      backgroundColor: palette.card,
       borderRadius: 12,
       borderWidth: 2,
-      borderColor: palette.borderMuted,
+      borderColor: palette.divider,
       alignItems: 'center',
       justifyContent: 'center',
       padding: 12,
@@ -358,18 +356,18 @@ const createStyles = (palette: typeof Colors.light) =>
       elevation: 3,
     },
     typeCardSelected: {
-      borderColor: palette.obstaclePrimary,
-      backgroundColor: palette.cardMuted,
+      borderColor: palette.brandPrimary,
+      backgroundColor: palette.brandSoft,
     },
     typeLabel: {
       fontSize: 12,
-      color: palette.onSurfaceVariant,
+      color: palette.textSecondary,
       marginTop: 8,
       textAlign: 'center',
       fontWeight: '500',
     },
     typeLabelSelected: {
-      color: palette.obstaclePrimary,
+      color: palette.brandPrimary,
       fontWeight: '600',
     },
     severityRow: {
@@ -382,7 +380,7 @@ const createStyles = (palette: typeof Colors.light) =>
       borderRadius: 8,
       borderWidth: 2,
       alignItems: 'center',
-      backgroundColor: palette.cardElevated,
+      backgroundColor: palette.card,
     },
     severityText: {
       fontSize: 14,
@@ -390,24 +388,24 @@ const createStyles = (palette: typeof Colors.light) =>
       textTransform: 'capitalize',
     },
     input: {
-      backgroundColor: palette.cardElevated,
+      backgroundColor: palette.card,
       borderRadius: 12,
       borderWidth: 1,
-      borderColor: palette.borderMuted,
+      borderColor: palette.divider,
       paddingHorizontal: 16,
       paddingVertical: 12,
       fontSize: 16,
-      color: palette.onSurface,
+      color: palette.textPrimary,
     },
     textArea: {
       minHeight: 100,
       textAlignVertical: 'top',
     },
     locationBox: {
-      backgroundColor: palette.cardElevated,
+      backgroundColor: palette.card,
       borderRadius: 12,
       borderWidth: 1,
-      borderColor: palette.borderMuted,
+      borderColor: palette.divider,
       padding: 16,
       flexDirection: 'row',
       alignItems: 'center',
@@ -415,11 +413,11 @@ const createStyles = (palette: typeof Colors.light) =>
     },
     locationText: {
       fontSize: 14,
-      color: palette.onSurface,
+      color: palette.textPrimary,
       fontFamily: 'monospace',
     },
     locationButton: {
-      backgroundColor: palette.cardElevated,
+      backgroundColor: palette.card,
       borderRadius: 12,
       borderWidth: 2,
       borderColor: palette.brandPrimary,
