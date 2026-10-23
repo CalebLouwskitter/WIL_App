@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,33 +8,41 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Switch,
   Modal,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Feather } from '@expo/vector-icons';
-import { createAdminNotification, getNotificationsForRole, subscribeToNotifications, deleteNotification, updateNotification, getNotificationById, getAllNotifications, getNotificationStats } from '../../services/FirebaseNotificationService';
+import {
+  createAdminNotification,
+  getNotificationsForRole,
+  subscribeToNotifications,
+  deleteNotification,
+  updateNotification,
+  getNotificationStats,
+} from '../../services/FirebaseNotificationService';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 import { Notification, NotificationType, NotificationAudience } from '../../types/Notification';
 import { NotificationList } from '../../components/Notifications';
 import type { ProfileStackParamList } from '../../navigation/ProfileStack';
+import { useAppTheme, type AppPalette } from '../../hooks/useAppTheme';
 
-// Check if running in Expo Go (demo mode)
-const IS_EXPO_DEMO = false; // Set to false once you've configured Firebase Cloud Messaging credentials
+const IS_EXPO_DEMO = false;
 
 type AdminNotificationNavigationProp = StackNavigationProp<ProfileStackParamList, 'AdminNotificationManagement'>;
 
 const AdminNotificationManagement: React.FC = () => {
   const navigation = useNavigation<AdminNotificationNavigationProp>();
+  const { palette, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(palette, isDark), [palette, isDark]);
   const { profile, loading: profileLoading } = useCurrentUser();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [sending, setSending] = useState<boolean>(false);
-  
+
   // Form state
   const [notificationType, setNotificationType] = useState<NotificationType>('event');
   const [title, setTitle] = useState('');
@@ -48,15 +56,12 @@ const AdminNotificationManagement: React.FC = () => {
 
   // Guard: only admins may access this screen
   useEffect(() => {
-    // Wait for profile to finish loading
     if (!profileLoading) {
       if (profile === null) {
-        // Not authenticated: navigate back
         Alert.alert('Access denied', 'You must be logged in to view this screen.', [
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);
       } else if (profile.role !== 'admin') {
-        // Authenticated but not admin: navigate back
         Alert.alert('Access denied', 'You do not have permission to view this screen.', [
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);
@@ -66,13 +71,12 @@ const AdminNotificationManagement: React.FC = () => {
 
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
-    
+
     const initializeData = async () => {
       try {
         await loadNotifications();
         await loadStats();
-        
-        // Subscribe to real-time updates only after initial data is loaded
+
         unsubscribe = subscribeToNotifications('admin', (newNotifications) => {
           setNotifications(newNotifications);
         });
@@ -80,7 +84,7 @@ const AdminNotificationManagement: React.FC = () => {
         console.error('Error initializing admin notification data:', error);
       }
     };
-    
+
     initializeData();
 
     return () => {
@@ -100,8 +104,8 @@ const AdminNotificationManagement: React.FC = () => {
   };
 
   const loadNotifications = async () => {
-    if (loading) return; // Prevent multiple simultaneous loads
-    
+    if (loading) return;
+
     setLoading(true);
     try {
       const notifs = await getNotificationsForRole('admin');
@@ -129,7 +133,6 @@ const AdminNotificationManagement: React.FC = () => {
       return;
     }
 
-    // Enhanced validation
     if (!title.trim()) {
       Alert.alert('Validation Error', 'Please enter a notification title.');
       return;
@@ -170,11 +173,7 @@ const AdminNotificationManagement: React.FC = () => {
       });
 
       Alert.alert('Success', 'Notification updated successfully!');
-      
-      // Reset form
       resetForm();
-      
-      // Reload notifications and stats
       await loadNotifications();
       await loadStats();
     } catch (error) {
@@ -207,7 +206,6 @@ const AdminNotificationManagement: React.FC = () => {
   };
 
   const handleSendNotification = async () => {
-    // Enhanced validation
     if (!title.trim()) {
       Alert.alert('Validation Error', 'Please enter a notification title.');
       return;
@@ -238,7 +236,6 @@ const AdminNotificationManagement: React.FC = () => {
       return;
     }
 
-    // Show demo modal if in Expo demo mode
     if (IS_EXPO_DEMO) {
       setShowDemoModal(true);
       return;
@@ -268,11 +265,8 @@ const AdminNotificationManagement: React.FC = () => {
             : 'The notification is saved and visible in the app, but the push request could not be queued.'
         );
       }
-      
-      // Reset form
+
       resetForm();
-      
-      // Reload notifications and stats
       await loadNotifications();
       await loadStats();
     } catch (error) {
@@ -293,7 +287,6 @@ const AdminNotificationManagement: React.FC = () => {
     }
   };
 
-  // Show loading while profile is being fetched
   if (profileLoading) {
     return (
       <View style={styles.container}>
@@ -305,7 +298,7 @@ const AdminNotificationManagement: React.FC = () => {
             hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
           >
             <View style={styles.iconButton}>
-              <Ionicons name="chevron-back" size={24} color="#111" />
+              <Ionicons name="chevron-back" size={24} color={palette.textPrimary} />
             </View>
           </TouchableOpacity>
           <View style={{ flex: 1, alignItems: 'center' }}>
@@ -314,8 +307,8 @@ const AdminNotificationManagement: React.FC = () => {
           <View style={{ width: 48 }} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text style={{ marginTop: 16, color: '#6B7280' }}>Loading...</Text>
+          <ActivityIndicator size="large" color={palette.brandPrimary} />
+          <Text style={{ marginTop: 16, color: palette.textSecondary }}>Loading...</Text>
         </View>
       </View>
     );
@@ -323,7 +316,6 @@ const AdminNotificationManagement: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity
           accessibilityLabel="Go back"
@@ -332,7 +324,7 @@ const AdminNotificationManagement: React.FC = () => {
           hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
         >
           <View style={styles.iconButton}>
-            <Ionicons name="chevron-back" size={24} color="#111" />
+            <Ionicons name="chevron-back" size={24} color={palette.textPrimary} />
           </View>
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center' }}>
@@ -344,7 +336,7 @@ const AdminNotificationManagement: React.FC = () => {
           hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
         >
           <View style={[styles.iconButton, styles.addButtonBackground]}>
-            <Ionicons name={showForm ? 'close' : 'add'} size={24} color="#2563eb" />
+            <Ionicons name={showForm ? 'close' : 'add'} size={24} color={palette.brandPrimary} />
           </View>
         </TouchableOpacity>
         <TouchableOpacity
@@ -353,42 +345,39 @@ const AdminNotificationManagement: React.FC = () => {
           hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
         >
           <View style={[styles.iconButton, styles.statsButtonBackground]}>
-            <Ionicons name="bar-chart" size={24} color="#10B981" />
+            <Ionicons name="bar-chart" size={24} color={palette.success} />
           </View>
         </TouchableOpacity>
       </View>
 
-      {/* Demo Mode Banner */}
       {IS_EXPO_DEMO && (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.demoBanner}
           onPress={() => setShowDemoModal(true)}
           activeOpacity={0.8}
         >
           <LinearGradient
-            colors={['#FEF3C7', '#FDE68A']}
+            colors={isDark ? ['#78350F', '#B45309'] : ['#FEF3C7', '#FDE68A']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.demoBannerGradient}
           >
-            <Feather name="info" size={20} color="#92400E" />
-            <Text style={styles.demoBannerText}>
+            <Feather name="info" size={20} color={isDark ? '#FEF3C7' : '#92400E'} />
+            <Text style={[styles.demoBannerText, { color: isDark ? '#FEF3C7' : '#92400E' }]}>
               Demo Mode: Push notifications disabled in Expo Go
             </Text>
-            <Feather name="chevron-right" size={18} color="#92400E" />
+            <Feather name="chevron-right" size={18} color={isDark ? '#FEF3C7' : '#92400E'} />
           </LinearGradient>
         </TouchableOpacity>
       )}
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Create Notification Form */}
         {showForm && (
           <View style={styles.formContainer}>
             <Text style={styles.formTitle}>
               {editingNotification ? 'Edit Notification' : 'Send New Notification'}
             </Text>
-            
-            {/* Notification Type Selection */}
+
             <Text style={styles.label}>Type</Text>
             <View style={styles.typeSelector}>
               {(['event', 'update', 'alert'] as NotificationType[]).map((type) => (
@@ -403,7 +392,7 @@ const AdminNotificationManagement: React.FC = () => {
                   <Ionicons
                     name={getTypeIcon(type) as any}
                     size={20}
-                    color={notificationType === type ? '#FFFFFF' : '#6B7280'}
+                    color={notificationType === type ? palette.onPrimary : palette.textSecondary}
                   />
                   <Text
                     style={[
@@ -417,7 +406,6 @@ const AdminNotificationManagement: React.FC = () => {
               ))}
             </View>
 
-            {/* Audience Selection */}
             <Text style={styles.label}>Audience</Text>
             <View style={styles.audienceSelector}>
               {(['users', 'admins', 'all'] as NotificationAudience[]).map((aud) => (
@@ -441,11 +429,12 @@ const AdminNotificationManagement: React.FC = () => {
               ))}
             </View>
 
-            {/* Title Input */}
             <Text style={styles.label}>Title</Text>
             <TextInput
               style={styles.input}
               placeholder="Notification Title"
+              placeholderTextColor={palette.textMuted}
+              selectionColor={palette.brandPrimary}
               value={title}
               onChangeText={setTitle}
               maxLength={100}
@@ -454,11 +443,12 @@ const AdminNotificationManagement: React.FC = () => {
               {title.length}/100 characters
             </Text>
 
-            {/* Body Input */}
             <Text style={styles.label}>Message</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Notification Message"
+              placeholderTextColor={palette.textMuted}
+              selectionColor={palette.brandPrimary}
               value={body}
               onChangeText={setBody}
               multiline
@@ -468,7 +458,6 @@ const AdminNotificationManagement: React.FC = () => {
               {body.length}/500 characters
             </Text>
 
-            {/* Action Buttons */}
             <View style={styles.formActions}>
               {editingNotification && (
                 <TouchableOpacity
@@ -487,10 +476,10 @@ const AdminNotificationManagement: React.FC = () => {
                 disabled={!title.trim() || !body.trim() || sending}
               >
                 {sending ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                  <ActivityIndicator color={palette.onPrimary} />
                 ) : (
                   <>
-                    <Ionicons name={editingNotification ? 'checkmark' : 'send'} size={20} color="#FFFFFF" />
+                    <Ionicons name={editingNotification ? 'checkmark' : 'send'} size={20} color={palette.onPrimary} />
                     <Text style={styles.sendButtonText}>
                       {editingNotification ? 'Update' : 'Send'} Notification
                     </Text>
@@ -501,17 +490,16 @@ const AdminNotificationManagement: React.FC = () => {
           </View>
         )}
 
-        {/* Statistics Panel */}
         {showStats && notificationStats && (
           <View style={styles.statsContainer}>
             <Text style={styles.statsTitle}>Notification Statistics</Text>
-            
+
             <View style={styles.statsGrid}>
               <View style={styles.statCard}>
                 <Text style={styles.statNumber}>{notificationStats.total}</Text>
                 <Text style={styles.statLabel}>Total Notifications</Text>
               </View>
-              
+
               <View style={styles.statCard}>
                 <Text style={styles.statNumber}>{notifications.length}</Text>
                 <Text style={styles.statLabel}>Recent</Text>
@@ -522,7 +510,7 @@ const AdminNotificationManagement: React.FC = () => {
             <View style={styles.typeStats}>
               {Object.entries(notificationStats.byType).map(([type, count]) => (
                 <View key={type} style={styles.typeStatItem}>
-                  <Ionicons name={getTypeIcon(type as NotificationType) as any} size={16} color="#6B7280" />
+                  <Ionicons name={getTypeIcon(type as NotificationType) as any} size={16} color={palette.textSecondary} />
                   <Text style={styles.typeStatText}>{String(type)}: {String(count)}</Text>
                 </View>
               ))}
@@ -530,27 +518,26 @@ const AdminNotificationManagement: React.FC = () => {
 
             <Text style={styles.statsSubtitle}>By Audience</Text>
             <View style={styles.audienceStats}>
-              {Object.entries(notificationStats.byAudience).map(([audience, count]) => (
-                <View key={audience} style={styles.audienceStatItem}>
-                  <Text style={styles.audienceStatText}>{String(audience)}: {String(count)}</Text>
+              {Object.entries(notificationStats.byAudience).map(([aud, count]) => (
+                <View key={aud} style={styles.audienceStatItem}>
+                  <Text style={styles.audienceStatText}>{String(aud)}: {String(count)}</Text>
                 </View>
               ))}
             </View>
           </View>
         )}
 
-        {/* Notification History */}
         <View style={styles.historyContainer}>
           <View style={styles.historyHeader}>
             <Text style={styles.historyTitle}>Recent Notifications</Text>
             <TouchableOpacity onPress={loadNotifications}>
-              <Ionicons name="refresh" size={20} color="#2563eb" />
+              <Ionicons name="refresh" size={20} color={palette.brandPrimary} />
             </TouchableOpacity>
           </View>
-          
+
           {loading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#2563eb" />
+              <ActivityIndicator size="large" color={palette.brandPrimary} />
             </View>
           ) : (
             <NotificationList
@@ -564,7 +551,6 @@ const AdminNotificationManagement: React.FC = () => {
         </View>
       </ScrollView>
 
-      {/* Demo Mode Information Modal */}
       <Modal
         visible={showDemoModal}
         transparent
@@ -574,37 +560,37 @@ const AdminNotificationManagement: React.FC = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <LinearGradient
-              colors={['#3B82F6', '#2563EB', '#1E40AF']}
+              colors={isDark ? ['#1E3A8A', '#1D4ED8', '#172554'] : ['#3B82F6', '#2563EB', '#1E40AF']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.modalGradientHeader}
             >
               <View style={styles.modalIconContainer}>
-                <Feather name="info" size={48} color="#fff" />
+                <Feather name="info" size={48} color={palette.onPrimary} />
               </View>
             </LinearGradient>
 
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Demo Mode Active</Text>
               <Text style={styles.modalSubtitle}>Push Notifications Disabled</Text>
-              
+
               <View style={styles.modalInfoBox}>
                 <View style={styles.modalInfoRow}>
-                  <Feather name="smartphone" size={20} color="#3B82F6" />
+                  <Feather name="smartphone" size={20} color={palette.brandPrimary} />
                   <Text style={styles.modalInfoText}>
                     You're running the app in <Text style={styles.modalBoldText}>Expo Go</Text> demo mode
                   </Text>
                 </View>
-                
+
                 <View style={styles.modalInfoRow}>
-                  <Feather name="alert-circle" size={20} color="#F59E0B" />
+                  <Feather name="alert-circle" size={20} color={palette.caution} />
                   <Text style={styles.modalInfoText}>
                     Push notifications require a <Text style={styles.modalBoldText}>production build</Text>
                   </Text>
                 </View>
-                
+
                 <View style={styles.modalInfoRow}>
-                  <Feather name="package" size={20} color="#10B981" />
+                  <Feather name="package" size={20} color={palette.success} />
                   <Text style={styles.modalInfoText}>
                     This feature will be fully functional in the built application
                   </Text>
@@ -615,26 +601,26 @@ const AdminNotificationManagement: React.FC = () => {
                 <Text style={styles.modalFeatureTitle}>Production Features:</Text>
                 <View style={styles.modalFeatureList}>
                   <View style={styles.modalFeatureItem}>
-                    <Feather name="check-circle" size={16} color="#10B981" />
+                    <Feather name="check-circle" size={16} color={palette.success} />
                     <Text style={styles.modalFeatureText}>Real-time push notifications to all users</Text>
                   </View>
                   <View style={styles.modalFeatureItem}>
-                    <Feather name="check-circle" size={16} color="#10B981" />
+                    <Feather name="check-circle" size={16} color={palette.success} />
                     <Text style={styles.modalFeatureText}>Targeted audience selection</Text>
                   </View>
                   <View style={styles.modalFeatureItem}>
-                    <Feather name="check-circle" size={16} color="#10B981" />
+                    <Feather name="check-circle" size={16} color={palette.success} />
                     <Text style={styles.modalFeatureText}>Notification analytics & tracking</Text>
                   </View>
                   <View style={styles.modalFeatureItem}>
-                    <Feather name="check-circle" size={16} color="#10B981" />
+                    <Feather name="check-circle" size={16} color={palette.success} />
                     <Text style={styles.modalFeatureText}>Firebase Cloud Messaging integration</Text>
                   </View>
                 </View>
               </View>
 
               <View style={styles.modalNote}>
-                <Feather name="code" size={16} color="#6B7280" />
+                <Feather name="code" size={16} color={palette.textSecondary} />
                 <Text style={styles.modalNoteText}>
                   Set <Text style={styles.modalCodeText}>IS_EXPO_DEMO = false</Text> in production builds
                 </Text>
@@ -646,13 +632,13 @@ const AdminNotificationManagement: React.FC = () => {
                 activeOpacity={0.8}
               >
                 <LinearGradient
-                  colors={['#3B82F6', '#2563EB']}
+                  colors={[palette.brandPrimary, palette.brandPrimaryAlt]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.modalButtonGradient}
                 >
                   <Text style={styles.modalButtonText}>Got it!</Text>
-                  <Feather name="check" size={20} color="#fff" />
+                  <Feather name="check" size={20} color={palette.onPrimary} />
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -665,462 +651,453 @@ const AdminNotificationManagement: React.FC = () => {
 
 export default AdminNotificationManagement;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F4F7FE',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 16,
-  },
-  backButton: {
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    minHeight: 48,
-    minWidth: 48,
-  },
-  addButton: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    minHeight: 48,
-    minWidth: 48,
-  },
-  statsButton: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    minHeight: 48,
-    minWidth: 48,
-    marginRight: 8,
-  },
-  iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  addButtonBackground: {
-    backgroundColor: '#EFF6FF',
-    borderWidth: 2,
-    borderColor: '#2563eb',
-  },
-  statsButtonBackground: {
-    backgroundColor: '#F0FDF4',
-    borderWidth: 2,
-    borderColor: '#10B981',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  content: {
-    flex: 1,
-  },
-  formContainer: {
-    backgroundColor: '#FFFFFF',
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  formTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-    color: '#111827',
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-    marginTop: 12,
-  },
-  typeSelector: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
-  },
-  typeButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-    gap: 6,
-  },
-  typeButtonActive: {
-    backgroundColor: '#2563eb',
-    borderColor: '#2563eb',
-  },
-  typeButtonText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  typeButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  audienceSelector: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
-  },
-  audienceButton: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-  },
-  audienceButtonActive: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
-  },
-  audienceButtonText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  audienceButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  input: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
-  characterCount: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'right',
-    marginBottom: 8,
-  },
-  textArea: {
-    minHeight: 100,
-  },
-  charCount: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    textAlign: 'right',
-    marginTop: 4,
-  },
-  sendButton: {
-    flexDirection: 'row',
-    backgroundColor: '#2563eb',
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 16,
-    gap: 8,
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
-  },
-  sendButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  formActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButtonText: {
-    color: '#6B7280',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  statsContainer: {
-    backgroundColor: '#FFFFFF',
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-    color: '#111827',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#2563eb',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  statsSubtitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-    marginTop: 16,
-  },
-  typeStats: {
-    marginBottom: 16,
-  },
-  typeStatItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  typeStatText: {
-    fontSize: 13,
-    color: '#6B7280',
-  },
-  audienceStats: {
-    marginBottom: 16,
-  },
-  audienceStatItem: {
-    marginBottom: 4,
-  },
-  audienceStatText: {
-    fontSize: 13,
-    color: '#6B7280',
-  },
-  historyContainer: {
-    margin: 16,
-  },
-  historyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  historyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  loadingContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  
-  // Demo Banner Styles
-  demoBanner: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  demoBannerGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 10,
-  },
-  demoBannerText: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#92400E',
-  },
-  
-  // Demo Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    width: '100%',
-    maxWidth: 500,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.3,
-    shadowRadius: 30,
-    elevation: 20,
-  },
-  modalGradientHeader: {
-    padding: 32,
-    alignItems: 'center',
-  },
-  modalIconContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalContent: {
-    padding: 24,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0F172A',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  modalSubtitle: {
-    fontSize: 16,
-    color: '#64748B',
-    textAlign: 'center',
-    marginBottom: 24,
-    fontWeight: '500',
-  },
-  modalInfoBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-    gap: 14,
-  },
-  modalInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  modalInfoText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#475569',
-    lineHeight: 20,
-  },
-  modalBoldText: {
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  modalFeatureBox: {
-    backgroundColor: '#ECFDF5',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-  },
-  modalFeatureTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#065F46',
-    marginBottom: 12,
-  },
-  modalFeatureList: {
-    gap: 10,
-  },
-  modalFeatureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  modalFeatureText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#047857',
-    lineHeight: 18,
-  },
-  modalNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#F1F5F9',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  modalNoteText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#475569',
-    lineHeight: 16,
-  },
-  modalCodeText: {
-    fontFamily: 'monospace',
-    backgroundColor: '#E2E8F0',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    fontSize: 11,
-    color: '#1E293B',
-  },
-  modalButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  modalButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 8,
-  },
-  modalButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
+const createStyles = (palette: AppPalette, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: palette.background,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingTop: 50,
+      paddingBottom: 16,
+    },
+    backButton: {
+      alignItems: 'flex-start',
+      justifyContent: 'center',
+      minHeight: 48,
+      minWidth: 48,
+    },
+    addButton: {
+      alignItems: 'flex-end',
+      justifyContent: 'center',
+      minHeight: 48,
+      minWidth: 48,
+    },
+    statsButton: {
+      alignItems: 'flex-end',
+      justifyContent: 'center',
+      minHeight: 48,
+      minWidth: 48,
+      marginRight: 8,
+    },
+    iconButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: palette.card,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: palette.shadowStrong,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    addButtonBackground: {
+      backgroundColor: palette.chipNeutral,
+      borderWidth: 2,
+      borderColor: palette.brandPrimary,
+    },
+    statsButtonBackground: {
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#F0FDF4',
+      borderWidth: 2,
+      borderColor: palette.success,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: palette.textPrimary,
+    },
+    content: {
+      flex: 1,
+    },
+    formContainer: {
+      backgroundColor: palette.card,
+      margin: 16,
+      padding: 16,
+      borderRadius: 12,
+      shadowColor: palette.shadowStrong,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    formTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      marginBottom: 16,
+      color: palette.textPrimary,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: palette.textPrimary,
+      marginBottom: 8,
+      marginTop: 12,
+    },
+    typeSelector: {
+      flexDirection: 'row',
+      gap: 8,
+      marginBottom: 8,
+    },
+    typeButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: palette.divider,
+      backgroundColor: palette.card,
+      gap: 6,
+    },
+    typeButtonActive: {
+      backgroundColor: palette.brandPrimary,
+      borderColor: palette.brandPrimary,
+    },
+    typeButtonText: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: palette.textSecondary,
+    },
+    typeButtonTextActive: {
+      color: palette.onPrimary,
+    },
+    audienceSelector: {
+      flexDirection: 'row',
+      gap: 8,
+      marginBottom: 8,
+    },
+    audienceButton: {
+      flex: 1,
+      padding: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: palette.divider,
+      backgroundColor: palette.card,
+      alignItems: 'center',
+    },
+    audienceButtonActive: {
+      backgroundColor: palette.success,
+      borderColor: palette.success,
+    },
+    audienceButtonText: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: palette.textSecondary,
+    },
+    audienceButtonTextActive: {
+      color: palette.onPrimary,
+    },
+    input: {
+      backgroundColor: palette.surfaceVariant,
+      borderWidth: 1,
+      borderColor: palette.divider,
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 16,
+      color: palette.textPrimary,
+    },
+    characterCount: {
+      fontSize: 12,
+      color: palette.textMuted,
+      textAlign: 'right',
+      marginBottom: 8,
+    },
+    textArea: {
+      minHeight: 100,
+    },
+    sendButton: {
+      flexDirection: 'row',
+      backgroundColor: palette.brandPrimary,
+      padding: 14,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 16,
+      gap: 8,
+    },
+    sendButtonDisabled: {
+      opacity: 0.5,
+    },
+    sendButtonText: {
+      color: palette.onPrimary,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    formActions: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 16,
+    },
+    cancelButton: {
+      flex: 1,
+      backgroundColor: palette.surfaceVariant,
+      padding: 14,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cancelButtonText: {
+      color: palette.textSecondary,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    statsContainer: {
+      backgroundColor: palette.card,
+      margin: 16,
+      padding: 16,
+      borderRadius: 12,
+      shadowColor: palette.shadowStrong,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    statsTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      marginBottom: 16,
+      color: palette.textPrimary,
+    },
+    statsGrid: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 20,
+    },
+    statCard: {
+      flex: 1,
+      backgroundColor: palette.background,
+      padding: 16,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    statNumber: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: palette.brandPrimary,
+      marginBottom: 4,
+    },
+    statLabel: {
+      fontSize: 12,
+      color: palette.textSecondary,
+      textAlign: 'center',
+    },
+    statsSubtitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: palette.textPrimary,
+      marginBottom: 8,
+      marginTop: 16,
+    },
+    typeStats: {
+      marginBottom: 16,
+    },
+    typeStatItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 4,
+    },
+    typeStatText: {
+      fontSize: 13,
+      color: palette.textSecondary,
+    },
+    audienceStats: {
+      marginBottom: 16,
+    },
+    audienceStatItem: {
+      marginBottom: 4,
+    },
+    audienceStatText: {
+      fontSize: 13,
+      color: palette.textSecondary,
+    },
+    historyContainer: {
+      margin: 16,
+    },
+    historyHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    historyTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: palette.textPrimary,
+    },
+    loadingContainer: {
+      padding: 40,
+      alignItems: 'center',
+    },
+    demoBanner: {
+      marginHorizontal: 16,
+      marginBottom: 12,
+      borderRadius: 12,
+      overflow: 'hidden',
+      shadowColor: palette.shadowStrong,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    demoBannerGradient: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      gap: 10,
+    },
+    demoBannerText: {
+      flex: 1,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    modalContainer: {
+      backgroundColor: palette.card,
+      borderRadius: 24,
+      width: '100%',
+      maxWidth: 500,
+      overflow: 'hidden',
+      shadowColor: palette.shadowStrong,
+      shadowOffset: { width: 0, height: 20 },
+      shadowOpacity: 0.3,
+      shadowRadius: 30,
+      elevation: 20,
+    },
+    modalGradientHeader: {
+      padding: 32,
+      alignItems: 'center',
+    },
+    modalIconContainer: {
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    modalContent: {
+      padding: 24,
+    },
+    modalTitle: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: palette.textPrimary,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    modalSubtitle: {
+      fontSize: 16,
+      color: palette.textSecondary,
+      textAlign: 'center',
+      marginBottom: 24,
+      fontWeight: '500',
+    },
+    modalInfoBox: {
+      backgroundColor: palette.background,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 20,
+      gap: 14,
+    },
+    modalInfoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    modalInfoText: {
+      flex: 1,
+      fontSize: 14,
+      color: palette.textSecondary,
+      lineHeight: 20,
+    },
+    modalBoldText: {
+      fontWeight: '700',
+      color: palette.textPrimary,
+    },
+    modalFeatureBox: {
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 20,
+    },
+    modalFeatureTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: palette.success,
+      marginBottom: 12,
+    },
+    modalFeatureList: {
+      gap: 10,
+    },
+    modalFeatureItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    modalFeatureText: {
+      flex: 1,
+      fontSize: 13,
+      color: isDark ? '#A7F3D0' : '#047857',
+      lineHeight: 18,
+    },
+    modalNote: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: palette.surfaceVariant,
+      padding: 12,
+      borderRadius: 12,
+      marginBottom: 20,
+    },
+    modalNoteText: {
+      flex: 1,
+      fontSize: 12,
+      color: palette.textSecondary,
+      lineHeight: 16,
+    },
+    modalCodeText: {
+      fontFamily: 'monospace',
+      backgroundColor: palette.divider,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+      fontSize: 11,
+      color: palette.textPrimary,
+    },
+    modalButton: {
+      borderRadius: 12,
+      overflow: 'hidden',
+      shadowColor: palette.shadowStrong,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
+    },
+    modalButtonGradient: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 16,
+      gap: 8,
+    },
+    modalButtonText: {
+      color: palette.onPrimary,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+  });

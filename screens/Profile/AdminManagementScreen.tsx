@@ -1,17 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, ActivityIndicator, SafeAreaView } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { getAllUsers, approveUser, disapproveUser, deleteUserDoc, setUserRole } from '../../services/FirebaseUserService';
-import { User } from '../../types/User'; // Assuming a User type exists
+import { User } from '../../types/User';
 import type { ProfileStackParamList } from '../../navigation/ProfileStack';
+import { useAppTheme, type AppPalette } from '../../hooks/useAppTheme';
 
 type AdminManagementScreenNavigationProp = StackNavigationProp<ProfileStackParamList, 'AdminManagement'>;
 
 export default function AdminManagementScreen() {
   const navigation = useNavigation<AdminManagementScreenNavigationProp>();
+  const { palette, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(palette, isDark), [palette, isDark]);
+
   const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -59,7 +64,7 @@ export default function AdminManagementScreen() {
     try {
       await approveUser(userId);
       Alert.alert('Success', 'User has been approved.');
-      fetchUsers(); // Refresh the list
+      fetchUsers();
     } catch (error) {
       Alert.alert('Error', 'Could not approve user.');
       console.error(error);
@@ -73,7 +78,7 @@ export default function AdminManagementScreen() {
     try {
       await disapproveUser(userId);
       Alert.alert('Success', 'User has been disapproved.');
-      fetchUsers(); // Refresh the list
+      fetchUsers();
     } catch (error) {
       Alert.alert('Error', 'Could not disapprove user.');
       console.error(error);
@@ -86,7 +91,9 @@ export default function AdminManagementScreen() {
     Alert.alert('Remove User', 'This will permanently delete the user and their data. Continue?', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive', onPress: async () => {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
           setOperationLoading(userId);
           try {
             await deleteUserDoc(userId);
@@ -123,23 +130,21 @@ export default function AdminManagementScreen() {
             } finally {
               setOperationLoading(null);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
-  
-
   if (loading) {
     return (
       <SafeAreaView style={styles.loading}>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <ActivityIndicator size="large" color={palette.brandPrimary} />
       </SafeAreaView>
     );
   }
 
-  const filteredUsers = users.filter(u => (u.email || '').toLowerCase().includes(debouncedQuery));
+  const filteredUsers = users.filter((u) => (u.email || '').toLowerCase().includes(debouncedQuery));
 
   const renderHighlightedEmail = (email: string) => {
     const q = debouncedQuery;
@@ -172,7 +177,7 @@ export default function AdminManagementScreen() {
           style={styles.backButton}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Ionicons name="chevron-back" size={24} color="#111" />
+          <Ionicons name="chevron-back" size={24} color={palette.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={styles.title}>Admin</Text>
@@ -183,6 +188,8 @@ export default function AdminManagementScreen() {
         <TextInput
           style={styles.input}
           placeholder="Search by email"
+          placeholderTextColor={palette.textMuted}
+          selectionColor={palette.brandPrimary}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
@@ -192,54 +199,54 @@ export default function AdminManagementScreen() {
         <Text style={styles.hintText}>Search by email to filter users</Text>
       </View>
       <View style={styles.adminCardsContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.adminCard}
           onPress={() => navigation.navigate('AdminNotificationManagement')}
           activeOpacity={0.7}
         >
           <View style={styles.adminCardContent}>
             <View style={styles.adminIconContainer}>
-              <Ionicons name="notifications" size={24} color="#2563eb" />
+              <Ionicons name="notifications" size={24} color={palette.brandPrimary} />
             </View>
             <View style={styles.adminTextContainer}>
               <Text style={styles.adminCardTitle}>Manage Notifications</Text>
               <Text style={styles.adminCardSubtitle}>Send and manage push notifications</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            <Ionicons name="chevron-forward" size={20} color={palette.textMuted} />
           </View>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={[styles.adminCard, styles.obstacleCard]}
           onPress={() => navigation.navigate('AdminObstacleManagement')}
           activeOpacity={0.7}
         >
           <View style={styles.adminCardContent}>
             <View style={[styles.adminIconContainer, styles.obstacleIconContainer]}>
-              <MaterialCommunityIcons name="traffic-cone" size={24} color="#dc2626" />
+              <MaterialCommunityIcons name="traffic-cone" size={24} color={palette.danger} />
             </View>
             <View style={styles.adminTextContainer}>
               <Text style={styles.adminCardTitle}>Manage Obstacles</Text>
               <Text style={styles.adminCardSubtitle}>Add, edit, or remove map obstacles</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            <Ionicons name="chevron-forward" size={20} color={palette.textMuted} />
           </View>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.adminCard}
           onPress={() => navigation.navigate('AdminSosManagement')}
           activeOpacity={0.7}
         >
           <View style={styles.adminCardContent}>
             <View style={[styles.adminIconContainer, styles.sosIconContainer]}>
-              <Ionicons name="alert-circle" size={24} color="#b91c1c" />
+              <Ionicons name="alert-circle" size={24} color={palette.danger} />
             </View>
             <View style={styles.adminTextContainer}>
               <Text style={styles.adminCardTitle}>Manage SOS Alerts</Text>
               <Text style={styles.adminCardSubtitle}>View active alerts and cancel if needed</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            <Ionicons name="chevron-forward" size={20} color={palette.textMuted} />
           </View>
         </TouchableOpacity>
       </View>
@@ -258,7 +265,7 @@ export default function AdminManagementScreen() {
           const isDenied = status === 'disapproved';
           return (
             <View style={styles.userItem}>
-              <View style={{marginBottom: 10}}>
+              <View style={{ marginBottom: 10 }}>
                 {renderHighlightedEmail(item.email || '')}
                 <View style={styles.chipsRow}>
                   <View style={[styles.chip, status === 'approved' ? styles.chipApproved : status === 'disapproved' ? styles.chipDisapproved : styles.chipPending]}>
@@ -274,13 +281,13 @@ export default function AdminManagementScreen() {
                   style={[
                     styles.button,
                     styles.approveButton,
-                    (isApproved || operationLoading === item.uid) && styles.buttonDisabled
+                    (isApproved || operationLoading === item.uid) && styles.buttonDisabled,
                   ]}
                   disabled={isApproved || operationLoading === item.uid}
                   onPress={() => handleApprove(item.uid)}
                 >
                   {operationLoading === item.uid ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <ActivityIndicator size="small" color={palette.onPrimary} />
                   ) : (
                     <Text style={styles.buttonText}>Approve</Text>
                   )}
@@ -289,35 +296,35 @@ export default function AdminManagementScreen() {
                   style={[
                     styles.button,
                     styles.disapproveButton,
-                    (isDenied || operationLoading === item.uid) && styles.buttonDisabled
+                    (isDenied || operationLoading === item.uid) && styles.buttonDisabled,
                   ]}
                   disabled={isDenied || operationLoading === item.uid}
                   onPress={() => handleDisapprove(item.uid)}
                 >
                   {operationLoading === item.uid ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <ActivityIndicator size="small" color={palette.onPrimary} />
                   ) : (
                     <Text style={styles.buttonText}>Block</Text>
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.button, { backgroundColor:'#2563eb' }]}
+                  style={[styles.button, styles.roleButton]}
                   onPress={() => handleRoleChange(item.uid, role === 'admin' ? 'member' : 'admin')}
                   disabled={operationLoading === item.uid}
                 >
                   {operationLoading === item.uid ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <ActivityIndicator size="small" color={palette.onPrimary} />
                   ) : (
                     <Text style={styles.buttonText}>{role === 'admin' ? 'Make Member' : 'Make Admin'}</Text>
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.button, { backgroundColor:'#6b7280' }]}
+                  style={[styles.button, styles.deleteButton]}
                   onPress={() => handleDelete(item.uid)}
                   disabled={operationLoading === item.uid}
                 >
                   {operationLoading === item.uid ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <ActivityIndicator size="small" color={palette.onPrimary} />
                   ) : (
                     <Text style={styles.buttonText}>Delete</Text>
                   )}
@@ -331,8 +338,8 @@ export default function AdminManagementScreen() {
         onRefresh={onRefresh}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
         ListEmptyComponent={
-          <View style={{flex:1, alignItems:'center', justifyContent:'center', paddingVertical: 40}}>
-            <Text>No users to manage right now.</Text>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
+            <Text style={{ color: palette.textSecondary }}>No users to manage right now.</Text>
           </View>
         }
       />
@@ -340,196 +347,201 @@ export default function AdminManagementScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F4F7FE',
-  },
-  loading: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F4F7FE',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 16,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  userItem: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  userEmail: {
-    fontSize: 16,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 6,
-  },
-  button: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 5,
-    marginRight: 10,
-    marginBottom: 8,
-  },
-  approveButton: {
-    backgroundColor: '#28a745',
-  },
-  disapproveButton: {
-    backgroundColor: '#b91c1c',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  promoteRow: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5E7EB',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-  },
-  promoteButton: {
-    backgroundColor: '#0ea5e9',
-    marginLeft: 10,
-  },
-  highlight: {
-    backgroundColor: '#FEF08A',
-  },
-  chipsRow: {
-    marginTop: 6,
-    flexDirection: 'row',
-  },
-  chip: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 999,
-    marginRight: 8,
-  },
-  chipText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  chipApproved: {
-    backgroundColor: '#16a34a',
-  },
-  chipDisapproved: {
-    backgroundColor: '#dc2626',
-  },
-  chipPending: {
-    backgroundColor: '#f59e0b',
-  },
-  chipRoleAdmin: {
-    backgroundColor: '#2563eb',
-  },
-  chipRoleMember: {
-    backgroundColor: '#6b7280',
-  },
-  adminCardsContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 20,
-  },
-  adminCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
+const createStyles = (palette: AppPalette, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: palette.background,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  adminCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-  },
-  adminIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#EFF6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  obstacleIconContainer: {
-    backgroundColor: '#FEF2F2',
-  },
-  sosIconContainer: {
-    backgroundColor: '#FEE2E2',
-  },
-  adminTextContainer: {
-    flex: 1,
-  },
-  adminCardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  adminCardSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-  },
-  hintText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
-    textAlign: 'left',
-  },
-  obstacleCard: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-
-});
+    loading: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: palette.background,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: palette.textPrimary,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingTop: 50,
+      paddingBottom: 16,
+    },
+    backButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: palette.card,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: palette.shadowStrong,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    userItem: {
+      backgroundColor: palette.card,
+      padding: 16,
+      borderRadius: 12,
+      marginBottom: 12,
+      flexDirection: 'column',
+      alignItems: 'stretch',
+      shadowColor: palette.shadowStrong,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    userEmail: {
+      fontSize: 16,
+      color: palette.textPrimary,
+    },
+    buttonContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginTop: 6,
+    },
+    button: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 5,
+      marginRight: 10,
+      marginBottom: 8,
+    },
+    approveButton: {
+      backgroundColor: palette.success,
+    },
+    disapproveButton: {
+      backgroundColor: palette.danger,
+    },
+    roleButton: {
+      backgroundColor: palette.brandPrimary,
+    },
+    deleteButton: {
+      backgroundColor: palette.textSecondary,
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonText: {
+      color: palette.onPrimary,
+      fontWeight: 'bold',
+    },
+    promoteRow: {
+      paddingHorizontal: 16,
+      marginBottom: 16,
+    },
+    input: {
+      flex: 1,
+      backgroundColor: palette.surfaceVariant,
+      borderColor: palette.divider,
+      borderWidth: 1,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 16,
+      color: palette.textPrimary,
+    },
+    highlight: {
+      backgroundColor: palette.brandSoft,
+      color: palette.brandPrimary,
+    },
+    chipsRow: {
+      marginTop: 6,
+      flexDirection: 'row',
+    },
+    chip: {
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+      borderRadius: 999,
+      marginRight: 8,
+    },
+    chipText: {
+      color: palette.onPrimary,
+      fontSize: 12,
+      fontWeight: '600',
+      textTransform: 'capitalize',
+    },
+    chipApproved: {
+      backgroundColor: palette.success,
+    },
+    chipDisapproved: {
+      backgroundColor: palette.danger,
+    },
+    chipPending: {
+      backgroundColor: palette.caution,
+    },
+    chipRoleAdmin: {
+      backgroundColor: palette.brandPrimary,
+    },
+    chipRoleMember: {
+      backgroundColor: palette.textSecondary,
+    },
+    adminCardsContainer: {
+      paddingHorizontal: 16,
+      marginBottom: 20,
+    },
+    adminCard: {
+      backgroundColor: palette.card,
+      borderRadius: 12,
+      marginBottom: 12,
+      shadowColor: palette.shadowStrong,
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 3.84,
+      elevation: 5,
+    },
+    adminCardContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+    },
+    adminIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: palette.chipNeutral,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 16,
+    },
+    obstacleIconContainer: {
+      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.18)' : '#FEF2F2',
+    },
+    sosIconContainer: {
+      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.18)' : '#FEE2E2',
+    },
+    adminTextContainer: {
+      flex: 1,
+    },
+    adminCardTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: palette.textPrimary,
+      marginBottom: 4,
+    },
+    adminCardSubtitle: {
+      fontSize: 14,
+      color: palette.textSecondary,
+      lineHeight: 20,
+    },
+    hintText: {
+      fontSize: 12,
+      color: palette.textSecondary,
+      marginTop: 4,
+      textAlign: 'left',
+    },
+    obstacleCard: {
+      borderWidth: 1,
+      borderColor: palette.divider,
+    },
+  });

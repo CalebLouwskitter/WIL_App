@@ -1,13 +1,13 @@
-import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, useColorScheme } from 'react-native';
+import React, { useMemo, useCallback, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { getRides } from '../../services/RideStorage';
 import type { RideData } from '../../hooks/useRideTracker';
-import { useCallback, useState } from 'react';
-import { Colors } from '../../constants/colors';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { formatDistance } from '../../utils/units';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { useAppTheme, type AppPalette } from '../../hooks/useAppTheme';
 import { BorderRadius, Shadows, Spacing, Typography } from '../../constants/styleguide';
 
 type RouteParams = {
@@ -18,9 +18,8 @@ type RouteParams = {
 const HistoryScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<any>();
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { palette } = useAppTheme();
+  const styles = useMemo(() => createStyles(palette), [palette]);
   const { preferences } = usePreferences();
   const [rides, setRides] = useState<RideData[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -48,29 +47,24 @@ const HistoryScreen: React.FC = () => {
     }, [])
   );
 
+  const handleBack = () => {
+    if (route?.params?.fromDashboard) {
+      navigation.getParent()?.navigate('Dashboard');
+    } else if (route?.params?.fromMapping) {
+      const parent: any = navigation.getParent();
+      parent?.navigate('Mapping', { screen: 'LiveTracking' });
+    } else {
+      navigation.goBack();
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => {
-            if (route?.params?.fromDashboard) {
-              navigation.getParent()?.navigate('Dashboard');
-            } else if (route?.params?.fromMapping) {
-              const parent: any = navigation.getParent();
-              parent?.navigate('Mapping', { screen: 'LiveTracking' });
-            } else {
-              navigation.goBack();
-            }
-          }}
-          style={styles.backButton}
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-        >
-          <Feather name="chevron-left" size={24} color={colors.onSurface} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Ride History</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <ScreenHeader
+        title="Ride History"
+        onBack={handleBack}
+        backLabel="Go back"
+      />
 
       <View style={styles.body}>
         {loading ? (
@@ -91,7 +85,7 @@ const HistoryScreen: React.FC = () => {
               >
                 <View style={styles.itemLeft}>
                   <View style={styles.itemIconCircle}>
-                    <Feather name="navigation" size={18} color={colors.brandPrimary} />
+                    <Feather name="navigation" size={18} color={palette.brandPrimary} />
                   </View>
                   <View style={styles.itemText}>
                     <Text style={styles.itemTitle}>Ride #{rides.length - index}</Text>
@@ -101,7 +95,7 @@ const HistoryScreen: React.FC = () => {
                     </Text>
                     {item.pendingSync ? (
                       <View style={styles.pendingRow}>
-                        <Feather name="cloud-off" size={12} color={colors.onSurfaceVariant} />
+                        <Feather name="cloud-off" size={12} color={palette.textSecondary} />
                         <Text style={styles.pendingText}>Saved on device, will upload when online</Text>
                       </View>
                     ) : null}
@@ -127,32 +121,14 @@ const HistoryScreen: React.FC = () => {
       </View>
     </View>
   );
-}
+};
 
-const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.backgroundLight },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: Spacing.xxl,
-    paddingBottom: Spacing.lg,
-    paddingHorizontal: Spacing.md,
-  },
-  backButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { ...Typography.subtitle, flex: 1, textAlign: 'center', color: colors.onSurface },
-  headerSpacer: { width: 48 },
+const createStyles = (palette: AppPalette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: palette.background },
   body: { flex: 1, paddingHorizontal: Spacing.md },
   listContent: { paddingBottom: Spacing.xl },
   separator: { height: Spacing.md },
-  placeholder: { ...Typography.body, color: colors.onSurfaceVariant, textAlign: 'center', marginTop: Spacing.lg },
+  placeholder: { ...Typography.body, color: palette.textSecondary, textAlign: 'center', marginTop: Spacing.lg },
   item: {
     ...Shadows.sm,
     flexDirection: 'row',
@@ -160,7 +136,7 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
     justifyContent: 'space-between',
     padding: Spacing.md,
     borderRadius: BorderRadius.xl,
-    backgroundColor: colors.surface,
+    backgroundColor: palette.card,
     gap: Spacing.sm,
   },
   itemLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
@@ -169,17 +145,17 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.chipNeutral,
+    backgroundColor: palette.chipNeutral,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  itemTitle: { ...Typography.body, fontWeight: '600', color: colors.onSurface },
-  itemSub: { ...Typography.caption, fontWeight: '400', color: colors.onSurfaceVariant, marginTop: Spacing.xs },
+  itemTitle: { ...Typography.body, fontWeight: '600', color: palette.textPrimary },
+  itemSub: { ...Typography.caption, fontWeight: '400', color: palette.textSecondary, marginTop: Spacing.xs },
   pendingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.xs },
-  pendingText: { ...Typography.caption, flex: 1, fontWeight: '400', color: colors.onSurfaceVariant },
+  pendingText: { ...Typography.caption, flex: 1, fontWeight: '400', color: palette.textSecondary },
   itemRight: { alignItems: 'flex-end' },
-  itemDistValue: { ...Typography.subtitle, color: colors.onSurface },
-  itemDistUnit: { ...Typography.caption, fontWeight: '400', color: colors.onSurfaceVariant },
+  itemDistValue: { ...Typography.subtitle, color: palette.textPrimary },
+  itemDistUnit: { ...Typography.caption, fontWeight: '400', color: palette.textSecondary },
 });
 
 export default HistoryScreen;
