@@ -1,5 +1,17 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions, Image, ActivityIndicator, SafeAreaView, Animated } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  FlatList,
+  Dimensions,
+  Image,
+  ActivityIndicator,
+  Animated,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather as Icon } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -7,8 +19,9 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { ProfileStackParamList } from '@/navigation/ProfileStack';
 import { getRides } from '../../services/RideStorage';
 import type { RideData } from '../../hooks/useRideTracker';
-import { useColorScheme } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
+import { usePreferences } from '../../contexts/PreferencesContext';
+import { formatDistance } from '../../utils/units';
 import { FIREBASE_ENABLED, auth } from '../../services/firebase';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 import { useAchievementProgress } from '../../hooks/useAchievementProgress';
@@ -26,8 +39,8 @@ type StatItem = { label: string; value: string; boxColor: string; circleColor: s
 const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const [navDisabled, setNavDisabled] = useState<boolean>(false);
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { palette, isDark } = useAppTheme();
+  const { preferences } = usePreferences();
   const [settingsVisible, setSettingsVisible] = useState<boolean>(false);
   const [notificationsVisible, setNotificationsVisible] = useState<boolean>(false);
   
@@ -36,11 +49,13 @@ const ProfileScreen: React.FC = () => {
   const fadeAnim = new Animated.Value(0);
   const slideAnim = new Animated.Value(0);
   
+  const initialDist = formatDistance(0, preferences.units, 0);
+  const distLabel = preferences.units === 'imperial' ? 'MI' : 'KM';
   const [statsData, setStatsData] = useState<StatItem[]>([
-    { label: 'Rides', value: '0', boxColor: colors.profileStatRidesBox, circleColor: colors.profileStatRidesCircle, icon: 'activity' },
-    { label: 'Km', value: '0', boxColor: colors.profileStatKmBox, circleColor: colors.profileStatKmCircle, icon: 'map' },
-    { label: 'Hours', value: '0', boxColor: colors.profileStatHoursBox, circleColor: colors.profileStatHoursCircle, icon: 'clock' },
-    { label: 'Points', value: '0', boxColor: colors.profileStatPointsBox, circleColor: colors.profileStatPointsCircle, icon: 'star' },
+    { label: 'Rides', value: '0', boxColor: palette.profileStatRidesBox, circleColor: palette.profileStatRidesCircle, icon: 'activity' },
+    { label: distLabel, value: initialDist.value, boxColor: palette.profileStatKmBox, circleColor: palette.profileStatKmCircle, icon: 'map' },
+    { label: 'Hours', value: '0', boxColor: palette.profileStatHoursBox, circleColor: palette.profileStatHoursCircle, icon: 'clock' },
+    { label: 'Points', value: '0', boxColor: palette.profileStatPointsBox, circleColor: palette.profileStatPointsCircle, icon: 'star' },
   ]);
   const [recentRides, setRecentRides] = useState<RideData[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
@@ -85,9 +100,43 @@ const ProfileScreen: React.FC = () => {
     }
   };
 
+  const loadStats = useCallback(async () => {
+    setIsLoadingStats(true);
+    try {
+      const rides: RideData[] = await getRides();
+      const sorted = [...rides].sort((a, b) => b.startTime - a.startTime);
+      setRecentRides(sorted.slice(0, 3));
+      const totalRides = rides.length;
+      const totalDistanceMeters = rides.reduce((a, r) => a + (r.totalDistance || 0), 0);
+      const totalKm = Math.round(totalDistanceMeters / 1000);
+      const dist = formatDistance(totalDistanceMeters, preferences.units, 0);
+      const totalDurationMs = rides.reduce((a, r) => a + (r.duration || 0), 0);
+      const hours = Math.round(totalDurationMs / (1000 * 60 * 60));
+      const points = totalRides * 10 + totalKm;
+      const currentDistLabel = preferences.units === 'imperial' ? 'MI' : 'KM';
+
+      setStatsData([
+        { label: 'Rides', value: String(totalRides), boxColor: palette.profileStatRidesBox, circleColor: palette.profileStatRidesCircle, icon: 'activity' },
+        { label: currentDistLabel, value: dist.value, boxColor: palette.profileStatKmBox, circleColor: palette.profileStatKmCircle, icon: 'map' },
+        { label: 'Hours', value: String(hours), boxColor: palette.profileStatHoursBox, circleColor: palette.profileStatHoursCircle, icon: 'clock' },
+        { label: 'Points', value: String(points), boxColor: palette.profileStatPointsBox, circleColor: palette.profileStatPointsCircle, icon: 'star' },
+      ]);
+    } catch (e) {
+      console.error('Error loading stats:', e);
+      // keep defaults on error
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, [palette, preferences.units]);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
   useFocusEffect(
     useCallback(() => {
       loadProfilePicture();
+      loadStats();
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -100,39 +149,8 @@ const ProfileScreen: React.FC = () => {
           useNativeDriver: true,
         }),
       ]).start();
-    }, [loadProfilePicture])
+    }, [loadProfilePicture, loadStats])
   );
-
-  useEffect(() => {
-    const loadStats = async () => {
-      setIsLoadingStats(true);
-      try {
-        const rides: RideData[] = await getRides();
-        const sorted = [...rides].sort((a, b) => b.startTime - a.startTime);
-        setRecentRides(sorted.slice(0, 3));
-        const totalRides = rides.length;
-        const totalDistanceMeters = rides.reduce((a, r) => a + (r.totalDistance || 0), 0);
-        const totalKm = Math.round(totalDistanceMeters / 1000);
-        const totalDurationMs = rides.reduce((a, r) => a + (r.duration || 0), 0);
-        const hours = Math.round(totalDurationMs / (1000 * 60 * 60));
-        const points = totalRides * 10 + totalKm;
-
-        setStatsData([
-          { label: 'Rides', value: String(totalRides), boxColor: colors.profileStatRidesBox, circleColor: colors.profileStatRidesCircle, icon: 'activity' },
-          { label: 'Km', value: String(totalKm), boxColor: colors.profileStatKmBox, circleColor: colors.profileStatKmCircle, icon: 'map' },
-          { label: 'Hours', value: String(hours), boxColor: colors.profileStatHoursBox, circleColor: colors.profileStatHoursCircle, icon: 'clock' },
-          { label: 'Points', value: String(points), boxColor: colors.profileStatPointsBox, circleColor: colors.profileStatPointsCircle, icon: 'star' },
-        ]);
-      } catch (e) {
-        console.error('Error loading stats:', e);
-        // keep defaults on error
-      } finally {
-        setIsLoadingStats(false);
-      }
-    };
-    
-    loadStats();
-  }, []);
 
   const handleNavigate = useCallback(
     (screen: string, params?: any) => {
@@ -156,17 +174,59 @@ const ProfileScreen: React.FC = () => {
       : "Progress isn't tracked yet";
     return (
       <LinearGradient
-        colors={item.gradientColors}
+        colors={isDark ? ([palette.card, palette.card] as const) : item.gradientColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.achievementCard, !item.earned && styles.achievementCardLocked]}
+        style={[
+          styles.achievementCard,
+          {
+            backgroundColor: palette.card,
+            borderColor: palette.divider,
+            borderWidth: isDark ? 1 : 0,
+            shadowColor: palette.shadow,
+          },
+          !item.earned && styles.achievementCardLocked,
+        ]}
       >
-        <View style={styles.achievementIconOuter}>
-          <Icon name={(item.earned ? item.icon : 'lock') as any} size={32} color="#1E293B" />
+        <View
+          style={[
+            styles.achievementIconOuter,
+            {
+              backgroundColor: isDark ? palette.surfaceVariant : 'rgba(255, 255, 255, 0.95)',
+              shadowColor: palette.shadow,
+            },
+          ]}
+        >
+          <Icon
+            name={(item.earned ? item.icon : 'lock') as any}
+            size={32}
+            color={isDark ? (item.earned ? palette.brandPrimary : palette.textMuted) : '#1E293B'}
+          />
         </View>
-        <Text style={styles.achievementTitle}>{item.title}</Text>
-        <Text style={styles.achievementDesc}>{item.description}</Text>
-        <Text style={styles.achievementStatus}>{statusText}</Text>
+        <Text
+          style={[
+            styles.achievementTitle,
+            { color: isDark ? palette.textPrimary : '#0F172A' },
+          ]}
+        >
+          {item.title}
+        </Text>
+        <Text
+          style={[
+            styles.achievementDesc,
+            { color: isDark ? palette.textSecondary : '#334155' },
+          ]}
+        >
+          {item.description}
+        </Text>
+        <Text
+          style={[
+            styles.achievementStatus,
+            { color: isDark ? palette.textPrimary : '#0F172A' },
+          ]}
+        >
+          {statusText}
+        </Text>
         <View style={styles.achievementShine} />
       </LinearGradient>
     );
@@ -174,16 +234,16 @@ const ProfileScreen: React.FC = () => {
 
   return (
     <ErrorBoundary>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         
         {/* Top Icons (Dashboard-style) */}
         <View style={[styles.topIcons, { paddingHorizontal: 16 }]}>        
           <TouchableOpacity activeOpacity={0.7} onPress={() => setSettingsVisible(true)} accessibilityLabel="Settings" accessibilityRole="button" accessibilityHint="Open settings menu">
-            <Icon name="settings" size={27} color="#374151" />
+            <Icon name="settings" size={27} color={palette.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity activeOpacity={0.7} onPress={() => setNotificationsVisible(true)} accessibilityLabel="Notifications" accessibilityRole="button" accessibilityHint="View notifications">
-            <Icon name="bell" size={27} color="#374151" />
+            <Icon name="bell" size={27} color={palette.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -192,11 +252,16 @@ const ProfileScreen: React.FC = () => {
         <Animated.View style={[
           styles.profileCard,
           { 
-            transform: [{ translateY: slideAnim }]
+            transform: [{ translateY: slideAnim }],
+            shadowColor: palette.shadow,
           }
         ]}>
           <LinearGradient
-            colors={['#1E40AF', '#3B82F6', '#60A5FA'] as const}
+            colors={
+              isDark
+                ? (['#1E3A8A', '#1D4ED8', '#2563EB'] as const)
+                : (['#1E40AF', '#3B82F6', '#60A5FA'] as const)
+            }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.profileCardGradient}
@@ -217,7 +282,7 @@ const ProfileScreen: React.FC = () => {
                 >
                   {loadingPicture ? (
                     <View style={styles.profilePictureLoading}>
-                      <ActivityIndicator size="large" color="#3B82F6" />
+                      <ActivityIndicator size="large" color={palette.brandPrimary} />
                     </View>
                   ) : profilePictureUri ? (
                     <>
@@ -225,40 +290,59 @@ const ProfileScreen: React.FC = () => {
                         source={{ uri: profilePictureUri }} 
                         style={styles.profilePicture}
                       />
-                      <View style={styles.profilePictureBorder} />
+                      <View style={[styles.profilePictureBorder, { borderColor: palette.card }]} />
                     </>
                   ) : (
                     <View style={styles.profilePicturePlaceholder}>
-                      <Icon name="user" size={36} color="#64748B" />
+                      <Icon name="user" size={36} color={palette.textMuted} />
                     </View>
                   )}
-                  <View style={styles.cameraButton}>
-                    <Icon name="camera" size={14} color="#1E40AF" />
+                  <View
+                    style={[
+                      styles.cameraButton,
+                      {
+                        backgroundColor: palette.card,
+                        borderColor: palette.brandPrimary,
+                        shadowColor: palette.shadow,
+                      },
+                    ]}
+                  >
+                    <Icon name="camera" size={14} color={palette.brandPrimary} />
                   </View>
                 </TouchableOpacity>
 
                 {profilePictureUri && (
                   <TouchableOpacity
-                    style={styles.removeButton}
+                    style={[
+                      styles.removeButton,
+                      { backgroundColor: palette.danger, shadowColor: palette.danger },
+                    ]}
                     onPress={handleRemoveProfilePicture}
                     activeOpacity={0.7}
                     accessibilityLabel="Remove profile picture"
                     accessibilityRole="button"
                     accessibilityHint="Remove current profile picture"
                   >
-                    <Icon name="x" size={10} color="#fff" />
+                    <Icon name="x" size={10} color={palette.onPrimary} />
                   </TouchableOpacity>
                 )}
               </View>
 
               <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{displayName}</Text>
-                <Text style={styles.profileEmail}>{email}</Text>
+                <Text style={[styles.profileName, { color: palette.onPrimary }]}>{displayName}</Text>
+                <Text
+                  style={[
+                    styles.profileEmail,
+                    { color: isDark ? 'rgba(255, 255, 255, 0.8)' : '#DBEAFE' },
+                  ]}
+                >
+                  {email}
+                </Text>
                 {/* Only an approved profile read from the server counts as verified */}
                 {FIREBASE_ENABLED && profile?.status === 'approved' && (
                   <View style={styles.verifiedBadge}>
-                    <Icon name="check-circle" size={14} color="#fff" />
-                    <Text style={styles.verifiedText}>Verified Rider</Text>
+                    <Icon name="check-circle" size={14} color={palette.onPrimary} />
+                    <Text style={[styles.verifiedText, { color: palette.onPrimary }]}>Verified Rider</Text>
                   </View>
                 )}
               </View>
@@ -269,7 +353,14 @@ const ProfileScreen: React.FC = () => {
         {/* Settings Widget */}
         <View style={styles.settingsWidget}>
           <TouchableOpacity
-            style={styles.settingsCard}
+            style={[
+              styles.settingsCard,
+              {
+                backgroundColor: palette.card,
+                borderColor: palette.divider,
+                shadowColor: palette.shadow,
+              },
+            ]}
             activeOpacity={0.85}
             onPress={() => handleNavigate('Settings')}
             disabled={navDisabled}
@@ -278,14 +369,19 @@ const ProfileScreen: React.FC = () => {
             accessibilityHint="Navigate to settings screen"
           >
             <View style={styles.settingsCardContent}>
-              <View style={[styles.secondaryIconCircle, { backgroundColor: '#D1FAE5' }]}>
-                <Icon name="settings" size={22} color="#10B981" />
+              <View
+                style={[
+                  styles.secondaryIconCircle,
+                  { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : '#D1FAE5' },
+                ]}
+              >
+                <Icon name="settings" size={22} color={palette.success} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.secondaryButtonText}>Settings</Text>
-                <Text style={styles.settingsSubtitle}>Open full settings</Text>
+                <Text style={[styles.secondaryButtonText, { color: palette.textPrimary }]}>Settings</Text>
+                <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Open full settings</Text>
               </View>
-              <Icon name="chevron-right" size={20} color="#94A3B8" />
+              <Icon name="chevron-right" size={20} color={palette.textMuted} />
             </View>
           </TouchableOpacity>
         </View>
@@ -293,7 +389,14 @@ const ProfileScreen: React.FC = () => {
         {/* Notifications Widget */}
         <View style={styles.settingsWidget}>
           <TouchableOpacity
-            style={styles.settingsCard}
+            style={[
+              styles.settingsCard,
+              {
+                backgroundColor: palette.card,
+                borderColor: palette.divider,
+                shadowColor: palette.shadow,
+              },
+            ]}
             activeOpacity={0.85}
             onPress={() => handleNavigate('Notifications')}
             disabled={navDisabled}
@@ -302,14 +405,19 @@ const ProfileScreen: React.FC = () => {
             accessibilityHint="Navigate to notifications screen"
           >
             <View style={styles.settingsCardContent}>
-              <View style={[styles.secondaryIconCircle, { backgroundColor: '#DBEAFE' }]}>
-                <Icon name="bell" size={22} color="#3B82F6" />
+              <View
+                style={[
+                  styles.secondaryIconCircle,
+                  { backgroundColor: palette.brandSoft },
+                ]}
+              >
+                <Icon name="bell" size={22} color={palette.brandPrimary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.secondaryButtonText}>Notifications</Text>
-                <Text style={styles.settingsSubtitle}>View all your notifications</Text>
+                <Text style={[styles.secondaryButtonText, { color: palette.textPrimary }]}>Notifications</Text>
+                <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>View all your notifications</Text>
               </View>
-              <Icon name="chevron-right" size={20} color="#94A3B8" />
+              <Icon name="chevron-right" size={20} color={palette.textMuted} />
             </View>
           </TouchableOpacity>
         </View>
@@ -317,7 +425,7 @@ const ProfileScreen: React.FC = () => {
         {/* Stats Section */}
         <View style={styles.statsSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Your Stats</Text>
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Your Stats</Text>
             <TouchableOpacity 
               activeOpacity={0.7} 
               onPress={() => handleNavigate('PersonalStats')} 
@@ -327,19 +435,32 @@ const ProfileScreen: React.FC = () => {
               accessibilityRole="button"
               accessibilityHint="Navigate to detailed statistics screen"
             >
-              <Text style={styles.viewAllText}>View All</Text>
-              <Icon name="chevron-right" size={16} color="#3B82F6" />
+              <Text style={[styles.viewAllText, { color: palette.brandPrimary }]}>View All</Text>
+              <Icon name="chevron-right" size={16} color={palette.brandPrimary} />
             </TouchableOpacity>
           </View>
           
           <View style={styles.statsGrid}>
             {statsData.map((item, idx) => (
-              <View key={idx} style={styles.statCard}>
-                <View style={[styles.statIconCircle, { backgroundColor: item.circleColor }]}>
-                  <Icon name={item.icon} size={20} color="#fff" />
+              <View
+                key={idx}
+                style={[
+                  styles.statCard,
+                  { backgroundColor: item.boxColor, shadowColor: palette.shadow },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statIconCircle,
+                    { backgroundColor: item.circleColor, shadowColor: palette.shadow },
+                  ]}
+                >
+                  <Icon name={item.icon} size={20} color={palette.onPrimary} />
                 </View>
-                <Text style={styles.statValue}>{item.value}</Text>
-                <Text style={styles.statLabel}>{item.label.toUpperCase()}</Text>
+                <Text style={[styles.statValue, { color: palette.textPrimary }]}>{item.value}</Text>
+                <Text style={[styles.statLabel, { color: palette.textSecondary }]}>
+                  {item.label.toUpperCase()}
+                </Text>
               </View>
             ))}
           </View>
@@ -350,7 +471,7 @@ const ProfileScreen: React.FC = () => {
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
               <Icon name="award" size={20} color="#F59E0B" />
-              <Text style={styles.sectionTitle}>Achievements</Text>
+              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Achievements</Text>
             </View>
             <TouchableOpacity 
               activeOpacity={0.7} 
@@ -361,15 +482,17 @@ const ProfileScreen: React.FC = () => {
               accessibilityRole="button"
               accessibilityHint="Navigate to achievements screen"
             >
-              <Text style={styles.viewAllText}>View All</Text>
-              <Icon name="chevron-right" size={16} color="#3B82F6" />
+              <Text style={[styles.viewAllText, { color: palette.brandPrimary }]}>View All</Text>
+              <Icon name="chevron-right" size={16} color={palette.brandPrimary} />
             </TouchableOpacity>
           </View>
 
           {awardsSource === 'loading' ? (
             <View style={styles.achievementsLoading}>
-              <ActivityIndicator size="small" color="#3B82F6" />
-              <Text style={styles.achievementsLoadingText}>Checking your achievements…</Text>
+              <ActivityIndicator size="small" color={palette.brandPrimary} />
+              <Text style={[styles.achievementsLoadingText, { color: palette.textSecondary }]}>
+                Checking your achievements…
+              </Text>
             </View>
           ) : (
             <FlatList
@@ -382,13 +505,25 @@ const ProfileScreen: React.FC = () => {
             />
           )}
 
-          {dataNote ? <Text style={styles.achievementsNote}>{dataNote}</Text> : null}
+          {dataNote ? (
+            <Text
+              style={[
+                styles.achievementsNote,
+                {
+                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+                  color: isDark ? '#FDE68A' : '#92400E',
+                },
+              ]}
+            >
+              {dataNote}
+            </Text>
+          ) : null}
         </View>
 
         {/* Action Buttons */}
         <View style={styles.actionsContainer}>
           <TouchableOpacity
-            style={styles.primaryButton}
+            style={[styles.primaryButton, { shadowColor: palette.shadow }]}
             activeOpacity={0.85}
             onPress={() => handleNavigate('CreateHorse')}
             disabled={navDisabled}
@@ -397,22 +532,33 @@ const ProfileScreen: React.FC = () => {
             accessibilityHint="Navigate to create horse screen"
           >
             <LinearGradient
-              colors={['#1E293B', '#0F172A'] as const}
+              colors={
+                isDark
+                  ? (['#1E3A8A', '#1D4ED8'] as const)
+                  : (['#1E293B', '#0F172A'] as const)
+              }
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.buttonGradient}
             >
               <View style={styles.buttonIconWrapper}>
-                <Icon name="plus" size={20} color="#fff" />
+                <Icon name="plus" size={20} color={palette.onPrimary} />
               </View>
-              <Text style={styles.buttonText}>Add New Horse</Text>
-              <Icon name="arrow-right" size={20} color="#64748B" />
+              <Text style={[styles.buttonText, { color: palette.onPrimary }]}>Add New Horse</Text>
+              <Icon name="arrow-right" size={20} color={palette.textMuted} />
             </LinearGradient>
           </TouchableOpacity>
 
           <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={styles.secondaryButton}
+              style={[
+                styles.secondaryButton,
+                {
+                  backgroundColor: palette.card,
+                  borderColor: palette.divider,
+                  shadowColor: palette.shadow,
+                },
+              ]}
               activeOpacity={0.85}
               onPress={() => handleNavigate('HorsesList')}
               disabled={navDisabled}
@@ -421,15 +567,27 @@ const ProfileScreen: React.FC = () => {
               accessibilityHint="Navigate to horses list screen"
             >
               <View style={styles.secondaryButtonContent}>
-                <View style={[styles.secondaryIconCircle, { backgroundColor: '#DBEAFE' }]}>
-                  <Icon name="list" size={22} color="#3B82F6" />
+                <View
+                  style={[
+                    styles.secondaryIconCircle,
+                    { backgroundColor: palette.brandSoft },
+                  ]}
+                >
+                  <Icon name="list" size={22} color={palette.brandPrimary} />
                 </View>
-                <Text style={styles.secondaryButtonText}>My Horses</Text>
+                <Text style={[styles.secondaryButtonText, { color: palette.textPrimary }]}>My Horses</Text>
               </View>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.secondaryButton}
+              style={[
+                styles.secondaryButton,
+                {
+                  backgroundColor: palette.card,
+                  borderColor: palette.divider,
+                  shadowColor: palette.shadow,
+                },
+              ]}
               activeOpacity={0.85}
               onPress={() => handleNavigate('Observations')}
               disabled={navDisabled}
@@ -438,10 +596,15 @@ const ProfileScreen: React.FC = () => {
               accessibilityHint="Navigate to observations screen"
             >
               <View style={styles.secondaryButtonContent}>
-                <View style={[styles.secondaryIconCircle, { backgroundColor: '#D1FAE5' }]}>
-                  <Icon name="eye" size={22} color="#10B981" />
+                <View
+                  style={[
+                    styles.secondaryIconCircle,
+                    { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : '#D1FAE5' },
+                  ]}
+                >
+                  <Icon name="eye" size={22} color={palette.success} />
                 </View>
-                <Text style={styles.secondaryButtonText}>Observations</Text>
+                <Text style={[styles.secondaryButtonText, { color: palette.textPrimary }]}>Observations</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -461,8 +624,8 @@ const ProfileScreen: React.FC = () => {
                 end={{ x: 1, y: 1 }}
                 style={styles.buttonGradient}
               >
-                <Icon name="shield" size={20} color="#fff" />
-                <Text style={styles.buttonText}>Admin Panel</Text>
+                <Icon name="shield" size={20} color={palette.onPrimary} />
+                <Text style={[styles.buttonText, { color: palette.onPrimary }]}>Admin Panel</Text>
                 <Icon name="chevron-right" size={20} color="#A78BFA" />
               </LinearGradient>
             </TouchableOpacity>
@@ -470,7 +633,16 @@ const ProfileScreen: React.FC = () => {
         </View>
 
         {/* Recent Rides */}
-        <View style={styles.ridesSection}>
+        <View
+          style={[
+            styles.ridesSection,
+            {
+              backgroundColor: palette.card,
+              borderColor: palette.divider,
+              shadowColor: palette.shadow,
+            },
+          ]}
+        >
           <TouchableOpacity
             onPress={() => handleNavigate('RideHistory')}
             activeOpacity={0.85}
@@ -480,15 +652,22 @@ const ProfileScreen: React.FC = () => {
             accessibilityHint="Navigate to ride history screen"
           >
             <View>
-              <Text style={styles.ridesSectionTitle}>Ride History</Text>
-              <Text style={styles.ridesSectionSubtitle}>See all your past rides</Text>
+              <Text style={[styles.ridesSectionTitle, { color: palette.textPrimary }]}>Ride History</Text>
+              <Text style={[styles.ridesSectionSubtitle, { color: palette.textSecondary }]}>
+                See all your past rides
+              </Text>
             </View>
-            <View style={styles.ridesIconButton}>
+            <View
+              style={[
+                styles.ridesIconButton,
+                { shadowColor: palette.brandPrimary },
+              ]}
+            >
               <LinearGradient
-                colors={['#3B82F6', '#2563EB'] as const}
+                colors={[palette.brandPrimary, palette.brandPrimaryAlt] as const}
                 style={styles.ridesIconGradient}
               >
-                <Icon name="clock" size={24} color="#fff" />
+                <Icon name="clock" size={24} color={palette.onPrimary} />
               </LinearGradient>
             </View>
           </TouchableOpacity>
@@ -529,7 +708,6 @@ const STAT_WIDTH = (screenWidth - 56) / 2;
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: '#F8FAFC'
   },
   
   scrollView: { 
@@ -551,7 +729,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#000',
     textAlign: 'center',
     flex: 1,
   },
@@ -565,7 +742,6 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 24,
     paddingBottom: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
     elevation: 10,
   },
   profileCardGradient: {
@@ -623,7 +799,6 @@ const styles = StyleSheet.create({
     bottom: -3,
     borderRadius: 43,
     borderWidth: 3,
-    borderColor: '#fff',
   },
   profilePicturePlaceholder: {
     width: '100%',
@@ -646,12 +821,9 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#1E40AF',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -664,10 +836,8 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#EF4444',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#EF4444',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
     shadowRadius: 4,
@@ -680,19 +850,16 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#fff',
     marginBottom: 4,
     letterSpacing: -0.3,
   },
   profileEmail: {
     fontSize: 14,
-    color: '#94A3B8',
     marginBottom: 10,
   },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -704,7 +871,6 @@ const styles = StyleSheet.create({
   verifiedText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#fff',
     letterSpacing: 0.3,
   },
 
@@ -722,7 +888,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#0F172A',
     letterSpacing: -0.3,
   },
   sectionTitleRow: {
@@ -738,7 +903,6 @@ const styles = StyleSheet.create({
   viewAllText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#3B82F6',
   },
   statsGrid: {
     flexDirection: 'row',
@@ -747,11 +911,9 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: STAT_WIDTH,
-    backgroundColor: '#fff',
     borderRadius: 20,
     padding: 20,
     alignItems: 'center',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -764,7 +926,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
@@ -773,14 +934,12 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#0F172A',
     marginBottom: 4,
     letterSpacing: -0.5,
   },
   statLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#64748B',
     letterSpacing: 1,
   },
 
@@ -800,13 +959,10 @@ const styles = StyleSheet.create({
   },
   achievementsLoadingText: {
     fontSize: 14,
-    color: '#64748B',
     fontWeight: '500',
   },
   achievementsNote: {
     fontSize: 13,
-    color: '#92400E',
-    backgroundColor: '#FEF3C7',
     borderRadius: 10,
     padding: 12,
     marginTop: 12,
@@ -821,7 +977,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 16,
@@ -833,7 +988,6 @@ const styles = StyleSheet.create({
   achievementStatus: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
     marginTop: 10,
     textAlign: 'center',
   },
@@ -841,11 +995,9 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
@@ -854,14 +1006,12 @@ const styles = StyleSheet.create({
   achievementTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
     marginBottom: 8,
     textAlign: 'center',
     letterSpacing: -0.2,
   },
   achievementDesc: {
     fontSize: 14,
-    color: '#334155',
     textAlign: 'center',
     lineHeight: 20,
     fontWeight: '500',
@@ -884,14 +1034,11 @@ const styles = StyleSheet.create({
   settingsCard: {
     borderRadius: 18,
     overflow: 'hidden',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 14,
     elevation: 4,
-    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
   settingsCardContent: {
     flexDirection: 'row',
@@ -899,30 +1046,8 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
   },
-  settingsCardGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    gap: 12,
-  },
-  settingsIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingsTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 2,
-    letterSpacing: -0.2,
-  },
   settingsSubtitle: {
     fontSize: 12,
-    color: '#64748B',
     fontWeight: '500',
   },
 
@@ -935,7 +1060,6 @@ const styles = StyleSheet.create({
   primaryButton: {
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
@@ -961,7 +1085,6 @@ const styles = StyleSheet.create({
     marginLeft: 16,
     fontSize: 16,
     fontWeight: '700',
-    color: '#fff',
     letterSpacing: -0.2,
   },
   buttonRow: {
@@ -970,9 +1093,8 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     flex: 1,
-    backgroundColor: '#fff',
     borderRadius: 20,
-    shadowColor: '#000',
+    borderWidth: 1,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -993,7 +1115,6 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
     letterSpacing: -0.1,
   },
   adminButton: {
@@ -1009,10 +1130,9 @@ const styles = StyleSheet.create({
   // Recent Rides
   ridesSection: {
     marginHorizontal: 16,
-    backgroundColor: '#fff',
     borderRadius: 24,
+    borderWidth: 1,
     padding: 20,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.1,
     shadowRadius: 16,
@@ -1027,13 +1147,11 @@ const styles = StyleSheet.create({
   ridesSectionTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#0F172A',
     marginBottom: 4,
     letterSpacing: -0.3,
   },
   ridesSectionSubtitle: {
     fontSize: 14,
-    color: '#64748B',
     fontWeight: '500',
   },
   ridesIconButton: {
@@ -1041,7 +1159,6 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     overflow: 'hidden',
-    shadowColor: '#3B82F6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -1051,83 +1168,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  ridesList: {
-    gap: 12,
-  },
-  rideCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 18,
-    padding: 16,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  rideIconWrapper: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#DBEAFE',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rideDetails: {
-    flex: 1,
-  },
-  rideTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 4,
-    letterSpacing: -0.2,
-  },
-  rideMeta: {
-    fontSize: 13,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  rideDistance: {
-    alignItems: 'flex-end',
-    marginRight: 8,
-  },
-  rideDistanceValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#0F172A',
-    letterSpacing: -0.3,
-  },
-  rideDistanceUnit: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 48,
-  },
-  emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#475569',
-    marginBottom: 6,
-    letterSpacing: -0.2,
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#94A3B8',
-    fontWeight: '500',
   },
 });

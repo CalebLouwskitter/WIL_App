@@ -23,6 +23,7 @@ import {
   type PreferencesContextType,
 } from '../contexts/PreferencesContext';
 import { useUnits } from '../hooks/useUnits';
+import { formatDistance } from '../utils/units';
 
 describe('PreferencesContext', () => {
   beforeEach(async () => {
@@ -206,6 +207,11 @@ describe('PreferencesContext', () => {
       expect(unitsHook.convertDistance(1609.344)).toEqual({ value: 1, unit: 'mi' });
       expect(unitsHook.convertSpeed(36).unit).toBe('mph');
       expect(unitsHook.convertSpeed(36).value).toBeCloseTo(22.369, 2);
+    });
+
+    it('supports formatting distance into km and mi matching formatDistance', async () => {
+      expect(formatDistance(5000, 'metric', 0)).toEqual({ value: '5', unit: 'km' });
+      expect(formatDistance(5000, 'imperial', 0)).toEqual({ value: '3', unit: 'mi' });
     });
 
     it('falls back to default metric and warns in dev when used outside a provider', async () => {

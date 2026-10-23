@@ -347,4 +347,18 @@ describe('UserNotificationsScreen per-user read and dismiss behaviour', () => {
     expect(mockMarkNotificationAsRead).toHaveBeenCalledTimes(1);
     expect(mockMarkNotificationAsRead).toHaveBeenCalledWith('n1', 'u1');
   });
+
+  it('renders empty-state title with palette.textPrimary in dark mode', async () => {
+    const ReactNative = require('react-native');
+    const { Colors } = require('../constants/colors');
+    jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark');
+    mockUseCurrentUser.mockReturnValue({ profile: { uid: 'u1', role: 'member' }, loading: false });
+    mockGetNotifications.mockResolvedValueOnce([]);
+
+    const r = await mount();
+    const textNodes = r.root.findAllByType(ReactNative.Text);
+    const emptyTitleNode = textNodes.find((t) => [t.props.children].flat().join('') === 'No notifications');
+    expect(emptyTitleNode).toBeDefined();
+    expect(ReactNative.StyleSheet.flatten(emptyTitleNode!.props.style).color).toBe(Colors.dark.textPrimary);
+  });
 });

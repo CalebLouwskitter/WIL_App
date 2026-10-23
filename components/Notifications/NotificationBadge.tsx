@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 interface NotificationBadgeProps {
   count: number;
@@ -7,13 +8,22 @@ interface NotificationBadgeProps {
 }
 
 export default function NotificationBadge({ count, maxCount = 99 }: NotificationBadgeProps) {
+  const { palette } = useAppTheme();
   if (count === 0) return null;
 
   const displayCount = count > maxCount ? `${maxCount}+` : count.toString();
 
   return (
-    <View style={styles.badge}>
-      <Text style={styles.badgeText}>{displayCount}</Text>
+    <View
+      style={[
+        styles.badge,
+        {
+          backgroundColor: palette.danger,
+          borderColor: palette.card,
+        },
+      ]}
+    >
+      <Text style={[styles.badgeText, { color: palette.onPrimary }]}>{displayCount}</Text>
     </View>
   );
 }
@@ -23,7 +33,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#DC2626',
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -31,10 +40,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 6,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
   },
   badgeText: {
-    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: 'bold',
   },

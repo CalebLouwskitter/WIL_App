@@ -6,10 +6,9 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  SafeAreaView,
   Alert,
-  ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Feather as Icon } from '@expo/vector-icons';
 import {
@@ -20,13 +19,15 @@ import {
   getNotificationReadState,
 } from '../../services/FirebaseNotificationService';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { FIREBASE_ENABLED } from '../../services/firebase';
 import { Notification } from '../../types/Notification';
-import { NotificationList, NotificationItem } from '../../components/Notifications';
+import { NotificationItem } from '../../components/Notifications';
 import ScreenHeader from '../../components/ScreenHeader';
 
 export default function UserNotificationsScreen() {
   const navigation = useNavigation();
+  const { palette, isDark } = useAppTheme();
   const { profile, loading: profileLoading } = useCurrentUser();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [readState, setReadState] = useState<Map<string, { read: boolean; dismissed: boolean }>>(new Map());
@@ -99,7 +100,6 @@ export default function UserNotificationsScreen() {
       await dismissNotificationForUser(notification.id, profile.uid);
       setReadState((prev) => {
         const next = new Map(prev);
-        const existing = next.get(notification.id);
         next.set(notification.id, {
           read: true,
           dismissed: true,
@@ -214,18 +214,18 @@ export default function UserNotificationsScreen() {
           <View style={styles.headerActions}>
             {__DEV__ && profile?.role === 'admin' && (
               <TouchableOpacity
-                style={styles.actionButton}
+                style={[styles.actionButton, { backgroundColor: palette.card, shadowColor: palette.shadow }]}
                 onPress={handleCreateTestNotification}
                 accessibilityLabel="Create test notification"
                 accessibilityRole="button"
                 accessibilityHint="Create a test notification"
                 activeOpacity={0.7}
               >
-                <Icon name="plus" size={18} color="#3B82F6" />
+                <Icon name="plus" size={18} color={palette.brandPrimary} />
               </TouchableOpacity>
             )}
             <TouchableOpacity
-              style={styles.actionButton}
+              style={[styles.actionButton, { backgroundColor: palette.card, shadowColor: palette.shadow }]}
               onPress={handleMarkAllAsRead}
               disabled={visibleUnreadNotifications.length === 0}
               accessibilityLabel="Mark all as read"
@@ -233,19 +233,34 @@ export default function UserNotificationsScreen() {
               accessibilityHint="Mark all notifications as read"
               activeOpacity={0.7}
             >
-              <Icon name="check" size={18} color="#10B981" />
+              <Icon name="check" size={18} color={palette.success} />
             </TouchableOpacity>
           </View>
         }
       />
       {readStateError && (
-        <View style={styles.readStateWarning}>
-          <Text style={styles.readStateWarningText}>Couldn't load read status.</Text>
+        <View
+          style={[
+            styles.readStateWarning,
+            {
+              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+              borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.readStateWarningText,
+              { color: isDark ? '#FDE68A' : '#92400E' },
+            ]}
+          >
+            Couldn't load read status.
+          </Text>
         </View>
       )}
       {visibleNotifications.length > 0 && (
         <View style={styles.batchActions}>
-          <Text style={styles.batchActionsText}>
+          <Text style={[styles.batchActionsText, { color: palette.textSecondary }]}>
             {visibleNotifications.length} notification{visibleNotifications.length !== 1 ? 's' : ''}
           </Text>
         </View>
@@ -254,7 +269,7 @@ export default function UserNotificationsScreen() {
   );
 
   const renderStatePanel = (content: React.ReactNode) => (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>
       <ScreenHeader title="Notifications" onBack={() => navigation.goBack()} />
       <View style={styles.loadingContainer}>{content}</View>
     </SafeAreaView>
@@ -263,8 +278,10 @@ export default function UserNotificationsScreen() {
   if (profileLoading || (loading && profile)) {
     return renderStatePanel(
       <>
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Loading notifications...</Text>
+        <ActivityIndicator size="large" color={palette.brandPrimary} />
+        <Text style={[styles.loadingText, { color: palette.textSecondary }]}>
+          Loading notifications...
+        </Text>
       </>
     );
   }
@@ -272,11 +289,13 @@ export default function UserNotificationsScreen() {
   if (!profile) {
     return renderStatePanel(
       <>
-        <View style={styles.emptyIconCircle}>
-          <Icon name={FIREBASE_ENABLED ? 'log-in' : 'wifi-off'} size={32} color="#94A3B8" />
+        <View style={[styles.emptyIconCircle, { backgroundColor: palette.card }]}>
+          <Icon name={FIREBASE_ENABLED ? 'log-in' : 'wifi-off'} size={32} color={palette.textMuted} />
         </View>
-        <Text style={styles.emptyStateTitle}>{FIREBASE_ENABLED ? 'Sign in to see notifications' : 'Not connected'}</Text>
-        <Text style={styles.emptyStateText}>
+        <Text style={[styles.emptyStateTitle, { color: palette.textPrimary }]}>
+          {FIREBASE_ENABLED ? 'Sign in to see notifications' : 'Not connected'}
+        </Text>
+        <Text style={[styles.emptyStateText, { color: palette.textSecondary }]}>
           {FIREBASE_ENABLED
             ? 'Notifications are tied to your SBHRA account.'
             : 'Notifications need a connection to SBHRA servers.'}
@@ -288,30 +307,41 @@ export default function UserNotificationsScreen() {
   if (loadError && notifications.length === 0) {
     return renderStatePanel(
       <>
-        <View style={styles.emptyIconCircle}>
-          <Icon name="alert-circle" size={32} color="#F59E0B" />
+        <View style={[styles.emptyIconCircle, { backgroundColor: palette.card }]}>
+          <Icon name="alert-circle" size={32} color={palette.caution} />
         </View>
-        <Text style={styles.emptyStateTitle}>{loadError}</Text>
-        <Text style={styles.emptyStateText}>Check your connection and try again.</Text>
+        <Text style={[styles.emptyStateTitle, { color: palette.textPrimary }]}>{loadError}</Text>
+        <Text style={[styles.emptyStateText, { color: palette.textSecondary }]}>
+          Check your connection and try again.
+        </Text>
         <TouchableOpacity
-          style={styles.retryButton}
+          style={[styles.retryButton, { backgroundColor: palette.brandPrimary }]}
           onPress={() => loadNotifications()}
           accessibilityRole="button"
           accessibilityLabel="Retry loading notifications"
         >
-          <Text style={styles.retryButtonText}>Retry</Text>
+          <Text style={[styles.retryButtonText, { color: palette.onPrimary }]}>Retry</Text>
         </TouchableOpacity>
       </>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>
       <FlatList
         data={visibleNotifications}
         ListHeaderComponent={renderListHeader}
         renderItem={({ item }) => (
-          <View style={styles.notificationItem}>
+          <View
+            style={[
+              styles.notificationItem,
+              {
+                backgroundColor: palette.card,
+                borderColor: palette.divider,
+                shadowColor: palette.shadow,
+              },
+            ]}
+          >
             <View style={styles.notificationContent}>
               <NotificationItem
                 notification={item}
@@ -321,18 +351,32 @@ export default function UserNotificationsScreen() {
             </View>
             <View style={styles.notificationActions}>
               <TouchableOpacity
-                style={styles.actionButtonFull}
+                style={[
+                  styles.actionButtonFull,
+                  {
+                    backgroundColor: isDark ? palette.surfaceVariant : palette.background,
+                    borderColor: palette.divider,
+                  },
+                ]}
                 onPress={() => handleMarkAsRead(item)}
                 accessibilityLabel="Mark as read"
                 accessibilityRole="button"
                 accessibilityHint="Mark this notification as read"
                 activeOpacity={0.7}
               >
-                <Icon name="check" size={16} color="#10B981" />
-                <Text style={styles.actionButtonText}>Mark as Read</Text>
+                <Icon name="check" size={16} color={palette.success} />
+                <Text style={[styles.actionButtonText, { color: palette.textSecondary }]}>
+                  Mark as Read
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.actionButtonFull}
+                style={[
+                  styles.actionButtonFull,
+                  {
+                    backgroundColor: isDark ? palette.surfaceVariant : palette.background,
+                    borderColor: palette.divider,
+                  },
+                ]}
                 onPress={() => {
                   Alert.alert(
                     'Dismiss Notification',
@@ -352,8 +396,10 @@ export default function UserNotificationsScreen() {
                 accessibilityHint="Dismiss this notification"
                 activeOpacity={0.7}
               >
-                <Icon name="x" size={16} color="#EF4444" />
-                <Text style={styles.actionButtonText}>Dismiss</Text>
+                <Icon name="x" size={16} color={palette.danger} />
+                <Text style={[styles.actionButtonText, { color: palette.textSecondary }]}>
+                  Dismiss
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -364,11 +410,13 @@ export default function UserNotificationsScreen() {
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <View style={styles.emptyIconCircle}>
-              <Icon name="bell" size={32} color="#94A3B8" />
+            <View style={[styles.emptyIconCircle, { backgroundColor: palette.card }]}>
+              <Icon name="bell" size={32} color={palette.textMuted} />
             </View>
-            <Text style={styles.emptyStateTitle}>No notifications</Text>
-            <Text style={styles.emptyStateText}>Nothing has been sent to you yet.</Text>
+            <Text style={[styles.emptyStateTitle, { color: palette.textPrimary }]}>No notifications</Text>
+            <Text style={[styles.emptyStateText, { color: palette.textSecondary }]}>
+              Nothing has been sent to you yet.
+            </Text>
           </View>
         }
       />
@@ -379,7 +427,6 @@ export default function UserNotificationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
   },
   loadingContainer: {
     flex: 1,
@@ -390,7 +437,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#64748B',
     fontWeight: '500',
   },
 
@@ -402,41 +448,23 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  actionButtonSmall: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   readStateWarning: {
     marginHorizontal: 20,
     marginBottom: 12,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#FEF3C7',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FDE68A',
   },
   readStateWarningText: {
     fontSize: 13,
-    color: '#92400E',
     fontWeight: '500',
   },
   batchActions: {
@@ -445,7 +473,6 @@ const styles = StyleSheet.create({
   },
   batchActionsText: {
     fontSize: 14,
-    color: '#64748B',
     fontWeight: '500',
     fontStyle: 'italic',
   },
@@ -456,16 +483,13 @@ const styles = StyleSheet.create({
   },
   notificationItem: {
     marginBottom: 12,
-    backgroundColor: '#fff',
     borderRadius: 18,
     padding: 16,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
   notificationContent: {
     marginBottom: 12,
@@ -482,15 +506,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     gap: 6,
   },
   actionButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#64748B',
   },
   emptyState: {
     flex: 1,
@@ -502,7 +523,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -510,7 +530,6 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#475569',
     marginBottom: 6,
     letterSpacing: -0.2,
   },
@@ -519,16 +538,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: '#3B82F6',
   },
   retryButtonText: {
-    color: '#fff',
     fontSize: 15,
     fontWeight: '600',
   },
   emptyStateText: {
     fontSize: 14,
-    color: '#94A3B8',
     fontWeight: '500',
   },
 });
